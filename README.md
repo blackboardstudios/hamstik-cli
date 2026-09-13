@@ -261,6 +261,33 @@ Stable process exit codes are:
 | 9 | Server or API compatibility failure |
 | 10 | Local configuration or credential-store failure |
 
+### What is stable, and how breaking changes are communicated
+
+The following surfaces are covered by compatibility contract tests
+(`crates/hamstik-cli/tests/contract.rs`) and are stable across releases:
+
+- the root command set, each command group's subcommands, documented command
+  aliases (including `work mine` / `work my`), and the global option set;
+- documented option names, conflicts, and enum spellings (`--status`,
+  `--type`, `--priority`, `--scope`, `--sort`, `--involvement`, `--relation`,
+  `--concurrency`, sprint states);
+- the versioned JSON failure envelope (`{ "error": { kind, code, message,
+  requestId?, status?, fieldErrors?, details? } }`) and the exit-code table
+  above;
+- stdout/stderr separation (success content on stdout, failures on stderr
+  with empty stdout), `--quiet` identifier output, `--no-input` deterministic
+  failure, and the `--json`/`--quiet` mutual exclusion;
+- the collection envelope (`items` + `page.limit`/`hasMore`/`nextCursor`),
+  the `--all` aggregate shape, and sparse `--fields` forwarding;
+- mutation response metadata (revision echo, idempotent-replay tolerance).
+
+Human table rendering may evolve; machine-readable surfaces above require a
+reviewed, intentional change. Deliberate breaking changes are listed in the
+changelog's `### Breaking` section and versioned per
+[`design/VERSIONING.md`](design/VERSIONING.md). Non-breaking additions (new
+commands, flags, or JSON fields) are announced in the changelog's Added/
+Changed sections.
+
 ## Credentials, profiles, and logout
 
 `hamstik auth login` validates the PAT against `GET /api/v1/me` before storing

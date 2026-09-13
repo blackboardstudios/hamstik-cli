@@ -65,6 +65,14 @@ in-progress first release and will be dated and versioned when it ships.
   `critical` fields (`doctor`).
 - Shell completion scripts via `hamstik completion <shell>` (`completion`).
 - Terminal identity banner on root help and version surfaces (`version`).
+- Compatibility contract test suite (`crates/hamstik-cli/tests/contract.rs`)
+  guarding the documented stable surfaces: command hierarchy, subcommand
+  sets, aliases, global options, enum spellings, the JSON failure envelope,
+  stable exit codes (0–10), stdout/stderr separation, quiet/no-input
+  behavior, pagination envelopes, sparse-field forwarding, mutation
+  revision/replay metadata, binary-download safeguards, and context
+  precedence. README documents which surfaces are stable and how breaking
+  changes are communicated.
 - Project and label colors render as bracketed swatches (`[██]`) in
   `project list`, `project view`, `label list`, and label detail views. The
   block glyphs are painted in the resource's actual color (truecolor with an
