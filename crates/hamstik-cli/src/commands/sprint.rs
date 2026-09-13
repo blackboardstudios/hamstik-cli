@@ -14,6 +14,7 @@ use crate::app::Session;
 use crate::args::{SprintArgs, SprintCommand};
 use crate::error::CliError;
 
+use super::dryrun;
 use super::org::render_lines;
 use super::{emit_table, emit_view};
 
@@ -252,6 +253,23 @@ async fn create(
     };
     let idempotency = idem_key(idempotency_key)?;
 
+    if session.global.dry_run {
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation: "sprint.create",
+                method: "POST",
+                path_template: "/api/v1/organizations/{organization}/projects/{project}/sprints",
+                path: format!("/api/v1/organizations/{org}/projects/{project}/sprints"),
+                resolved: json!({ "organization": org, "project": project }),
+                if_match: None,
+                idempotency_key: Some(&idempotency),
+                body: Some(serde_json::to_value(&body).map_err(CliError::general)?),
+                notes: Vec::new(),
+            },
+        );
+    }
+
     let api = session.api(&selection)?;
     let response = api
         .create_sprint(&org, &project, &body, &idempotency)
@@ -395,6 +413,30 @@ async fn transition(
                 }
             )));
         }
+    }
+
+    if session.global.dry_run {
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation: "sprint.transition",
+                method: "POST",
+                path_template: "/api/v1/organizations/{organization}/projects/{project}/sprints/{sprintId}/transitions",
+                path: format!(
+                    "/api/v1/organizations/{org}/projects/{project}/sprints/{id}/transitions"
+                ),
+                resolved: json!({
+                    "organization": org,
+                    "project": project,
+                    "sprint": id,
+                    "targetState": target,
+                }),
+                if_match: Some(&if_match),
+                idempotency_key: Some(&idempotency),
+                body: Some(serde_json::to_value(&body).map_err(CliError::general)?),
+                notes: Vec::new(),
+            },
+        );
     }
 
     let response = api

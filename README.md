@@ -194,6 +194,11 @@ hamstik work bulk update --operations-file update-operations.json \
 hamstik work bulk transition --operations-file transition-operations.json \
   --concurrency last-write-wins --json
 
+# Dry-run: preview the exact mutation without sending it
+hamstik work create --title "Document API" --dry-run --json
+hamstik work edit HAM-42 --priority high --dry-run --json
+hamstik work bulk create --operations-file create-operations.json --dry-run --json
+
 # Labels, links, threaded comments, and attachments
 hamstik label create --name api --color '#6366f1'
 hamstik work label add HAM-42 --label api
@@ -213,6 +218,34 @@ hamstik user avatar usr_cPbfeqnghA-RLpDVOMQhHg --format webp --output avatar.web
 Downloads always write binary data to a file. In `--json` mode stdout contains
 only JSON metadata (path, size, content type, and available response headers),
 never the binary payload. Diagnostics and structured failures go to stderr.
+
+## Dry-run previews
+
+Mutation commands accept a global `--dry-run` flag: the CLI resolves every
+input exactly as a real invocation would (Organization, Project, target
+identifiers, inline/file/stdin sources, request body, concurrency mode),
+validates local input shape and size, and then prints a labeled preview
+instead of sending anything.
+
+- `--json` emits a versioned envelope (`previewVersion: 1`) with the
+  operation name, method, path template and fully resolved path, the header
+  intent (`If-Match` and `Idempotency-Key` — never `Authorization` or any
+  credential material), the typed request body, and the resolved targets.
+  Upload previews carry file metadata (name, type, size), never the bytes.
+- Human mode prints a `dry-run: METHOD /path (client-side preview only; …)`
+  summary plus headers, body, and notes. Quiet mode prints only the summary
+  line.
+- Previews are client-side only: they are not proof that server validation,
+  authorization, concurrency, or idempotency will succeed. No mutation
+  request is sent and no idempotency key is consumed.
+- For revision-protected operations (`work edit`, `work delete`,
+  `work archive`/`unarchive`, `project edit`, `project archive`/`unarchive`,
+  `sprint transition`, `work label add|remove`), dry-run performs the safe
+  ETag read and shows the resolved `If-Match` value. With `--force`, the
+  preview shows `If-Match: *` (explicit last-write-wins) and makes zero
+  network requests.
+- Read commands (`work list`, `work view`, `me`, `doctor`, …) reject
+  `--dry-run` with a usage error.
 
 ## Context and automation contract
 
@@ -279,6 +312,9 @@ The following surfaces are covered by compatibility contract tests
   failure, and the `--json`/`--quiet` mutual exclusion;
 - the collection envelope (`items` + `page.limit`/`hasMore`/`nextCursor`),
   the `--all` aggregate shape, and sparse `--fields` forwarding;
+- the `--dry-run` preview envelope (`previewVersion: 1` with `operation`,
+  `request.method`/`pathTemplate`/`path`/`headers`, `resolved`, `body`,
+  `notes`) for mutation commands;
 - mutation response metadata (revision echo, idempotent-replay tolerance).
 
 Human table rendering may evolve; machine-readable surfaces above require a

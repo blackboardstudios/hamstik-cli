@@ -73,6 +73,12 @@ pub struct GlobalOptions {
     #[arg(long, global = true)]
     pub no_retry: bool,
 
+    /// Preview the mutation instead of sending it: resolves identifiers and
+    /// validates local input, prints a versioned preview (or `--json`
+    /// envelope), and sends no request. Supported by mutation commands only.
+    #[arg(long, global = true)]
+    pub dry_run: bool,
+
     /// Additional PEM root certificate bundle.
     #[arg(long, global = true, value_name = "PATH")]
     pub ca_bundle: Option<PathBuf>,

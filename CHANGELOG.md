@@ -15,6 +15,16 @@ in-progress first release and will be dated and versioned when it ships.
 
 ### Added
 
+- Global `--dry-run` flag for mutation commands (`work create/edit/transition/start/close/
+  archive/unarchive/delete`, `work label add|remove`, `work attachment upload|delete`,
+  `work comment add|edit|delete`, `work link add|delete`, `work bulk create|update|transition`,
+  `project create/edit/archive/unarchive`, `sprint create/transition`, `label create`).
+  The CLI resolves identifiers and validates local input exactly as a real invocation
+  would, then emits a versioned preview (`previewVersion: 1`) with method, path template,
+  resolved path, sanitized header intent (`If-Match`, `Idempotency-Key` — never
+  `Authorization`), and the typed request body, without sending any mutation request or
+  consuming an idempotency key. Read commands reject the flag with a usage error
+  (`work`).
 - Canonical portable Hamstik Agent Skill at `skills/hamstik/SKILL.md`, covering
   credential-safe CLI usage, explicit context discovery, deterministic output,
   concurrency-aware mutations, Work Item workflows, and structured failure handling.

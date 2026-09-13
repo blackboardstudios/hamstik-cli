@@ -16,6 +16,7 @@ use crate::args::{PaginationArgs, ProjectArgs, ProjectCommand};
 use crate::error::CliError;
 use crate::input::resolve_text;
 
+use super::dryrun;
 use super::org::render_lines;
 use super::{emit_json, emit_table, emit_view};
 
@@ -220,6 +221,23 @@ async fn create(
         None => generate_key(),
     };
 
+    if session.global.dry_run {
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation: "project.create",
+                method: "POST",
+                path_template: "/api/v1/organizations/{organization}/projects",
+                path: format!("/api/v1/organizations/{org}/projects"),
+                resolved: json!({ "organization": org }),
+                if_match: None,
+                idempotency_key: Some(&idempotency),
+                body: Some(serde_json::to_value(&body).map_err(CliError::general)?),
+                notes: Vec::new(),
+            },
+        );
+    }
+
     let api = session.api(&selection)?;
     let response = api
         .create_project(&org, &body, &idempotency)
@@ -285,6 +303,26 @@ async fn edit(
         None => generate_key(),
     };
 
+    if session.global.dry_run {
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation: "project.edit",
+                method: "PATCH",
+                path_template: "/api/v1/organizations/{organization}/projects/{key}",
+                path: format!("/api/v1/organizations/{org}/projects/{}", args.key),
+                resolved: json!({
+                    "organization": org,
+                    "project": args.key,
+                }),
+                if_match: Some(&if_match),
+                idempotency_key: Some(&idempotency),
+                body: Some(serde_json::to_value(&body).map_err(CliError::general)?),
+                notes: Vec::new(),
+            },
+        );
+    }
+
     let response = api
         .update_project(&org, &args.key, &body, &if_match, &idempotency)
         .await
@@ -330,6 +368,31 @@ async fn change_archive(
         }
         None => generate_key(),
     };
+
+    if session.global.dry_run {
+        let (operation, suffix) = if archived {
+            ("project.archive", "/archive")
+        } else {
+            ("project.unarchive", "/unarchive")
+        };
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation,
+                method: "POST",
+                path_template: "/api/v1/organizations/{organization}/projects/{key}/archive",
+                path: format!("/api/v1/organizations/{org}/projects/{key}{suffix}"),
+                resolved: json!({
+                    "organization": org,
+                    "project": key,
+                }),
+                if_match: Some(&if_match),
+                idempotency_key: Some(&idempotency),
+                body: Some(json!({})),
+                notes: Vec::new(),
+            },
+        );
+    }
 
     let response = if archived {
         api.archive_project(&org, key, &if_match, &idempotency)

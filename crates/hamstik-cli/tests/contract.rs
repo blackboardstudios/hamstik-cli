@@ -278,6 +278,7 @@ fn global_options_match_documented_surface() {
         "--no-color",
         "--no-input",
         "--no-retry",
+        "--dry-run",
         "--ca-bundle",
     ]
     .into_iter()

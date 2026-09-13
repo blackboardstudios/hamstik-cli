@@ -14,6 +14,7 @@ pub mod auth;
 pub mod completion;
 pub mod context_cmd;
 pub mod doctor;
+pub mod dryrun;
 pub mod label;
 pub mod me;
 pub mod org;
@@ -40,6 +41,80 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
         Command::Doctor => doctor::run(session).await,
         Command::Completion(args) => completion::run(session, args),
         Command::Version => version(session),
+    }
+}
+
+/// True when the command supports `--dry-run` (CLI-10): only mutation
+/// commands preview; reads have nothing to preview.
+pub(crate) fn supports_dry_run(command: &Command) -> bool {
+    match command {
+        Command::Work(args) => match &args.command {
+            crate::args::WorkCommand::List(_)
+            | crate::args::WorkCommand::Mine(_)
+            | crate::args::WorkCommand::Search { .. }
+            | crate::args::WorkCommand::View { .. }
+            | crate::args::WorkCommand::Transitions { .. }
+            | crate::args::WorkCommand::Activity { .. } => false,
+            crate::args::WorkCommand::Label(args) => {
+                matches!(
+                    args.command,
+                    crate::args::WorkLabelCommand::Add { .. }
+                        | crate::args::WorkLabelCommand::Remove { .. }
+                )
+            }
+            crate::args::WorkCommand::Attachment(args) => {
+                matches!(
+                    args.command,
+                    crate::args::WorkAttachmentCommand::Upload { .. }
+                        | crate::args::WorkAttachmentCommand::Delete { .. }
+                )
+            }
+            crate::args::WorkCommand::Comment(args) => {
+                matches!(
+                    args.command,
+                    crate::args::CommentCommand::Add { .. }
+                        | crate::args::CommentCommand::Edit { .. }
+                        | crate::args::CommentCommand::Delete { .. }
+                )
+            }
+            crate::args::WorkCommand::Link(args) => {
+                matches!(
+                    args.command,
+                    crate::args::WorkLinkCommand::Add { .. }
+                        | crate::args::WorkLinkCommand::Delete { .. }
+                )
+            }
+            crate::args::WorkCommand::Create(_)
+            | crate::args::WorkCommand::Edit(_)
+            | crate::args::WorkCommand::Transition { .. }
+            | crate::args::WorkCommand::Start { .. }
+            | crate::args::WorkCommand::Close { .. }
+            | crate::args::WorkCommand::Archive { .. }
+            | crate::args::WorkCommand::Unarchive { .. }
+            | crate::args::WorkCommand::Delete { .. }
+            | crate::args::WorkCommand::Bulk(_) => true,
+        },
+        Command::Project(args) => match &args.command {
+            crate::args::ProjectCommand::List { .. }
+            | crate::args::ProjectCommand::View { .. }
+            | crate::args::ProjectCommand::Activity { .. }
+            | crate::args::ProjectCommand::Use { .. } => false,
+            crate::args::ProjectCommand::Create(_)
+            | crate::args::ProjectCommand::Edit(_)
+            | crate::args::ProjectCommand::Archive { .. }
+            | crate::args::ProjectCommand::Unarchive { .. } => true,
+        },
+        Command::Sprint(args) => match &args.command {
+            crate::args::SprintCommand::List { .. }
+            | crate::args::SprintCommand::View { .. }
+            | crate::args::SprintCommand::Transitions { .. } => false,
+            crate::args::SprintCommand::Create { .. }
+            | crate::args::SprintCommand::Transition { .. } => true,
+        },
+        Command::Label(args) => {
+            matches!(args.command, crate::args::LabelCommand::Create { .. })
+        }
+        _ => false,
     }
 }
 

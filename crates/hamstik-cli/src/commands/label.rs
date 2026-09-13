@@ -3,6 +3,8 @@
 
 //! `hamstik label` (list / create).
 
+use serde_json::json;
+
 use hamstik_api_client::{
     CreateLabelRequest, ListOptions, PageItems, ProjectLabel, follow_all, generate_key,
     validate_key,
@@ -12,6 +14,7 @@ use crate::app::Session;
 use crate::args::{LabelArgs, LabelCommand};
 use crate::error::CliError;
 
+use super::dryrun;
 use super::{emit_table, emit_view};
 
 /// Runs the `label` subcommands.
@@ -152,6 +155,23 @@ async fn create(
         }
         None => generate_key(),
     };
+
+    if session.global.dry_run {
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation: "label.create",
+                method: "POST",
+                path_template: "/api/v1/organizations/{organization}/projects/{project}/labels",
+                path: format!("/api/v1/organizations/{org}/projects/{project}/labels"),
+                resolved: json!({ "organization": org, "project": project }),
+                if_match: None,
+                idempotency_key: Some(&idempotency),
+                body: Some(serde_json::to_value(&body).map_err(CliError::general)?),
+                notes: Vec::new(),
+            },
+        );
+    }
 
     let api = session.api(&selection)?;
     let response = api

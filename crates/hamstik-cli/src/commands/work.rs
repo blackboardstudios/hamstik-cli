@@ -24,6 +24,7 @@ use crate::args::{
 use crate::error::CliError;
 use crate::input::resolve_text;
 
+use super::dryrun;
 use super::org::render_lines;
 use super::{emit_json, emit_table, emit_view};
 
@@ -479,6 +480,23 @@ async fn create(session: &mut Session<'_>, args: &WorkCreateArgs) -> Result<(), 
     };
     let idempotency = idem_key(args.idempotency_key.clone())?;
 
+    if session.global.dry_run {
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation: "work.create",
+                method: "POST",
+                path_template: "/api/v1/organizations/{organization}/projects/{project}/work-items",
+                path: format!("/api/v1/organizations/{org}/projects/{project}/work-items"),
+                resolved: json!({ "organization": org, "project": project }),
+                if_match: None,
+                idempotency_key: Some(&idempotency),
+                body: Some(serde_json::to_value(&body).map_err(CliError::general)?),
+                notes: Vec::new(),
+            },
+        );
+    }
+
     let api = session.api(&selection)?;
     let response = api
         .create_work_item(&org, &project, &body, &idempotency)
@@ -546,6 +564,9 @@ async fn edit(session: &mut Session<'_>, args: &WorkEditArgs) -> Result<(), CliE
         return Err(CliError::usage("no changes specified"));
     }
 
+    // Dry-run may perform the safe ETag read; only the mutation is withheld.
+    // With `--force` no request at all is made and the preview shows the
+    // explicit `If-Match: *` last-write-wins header.
     let if_match = if args.force {
         "*".to_string()
     } else {
@@ -557,6 +578,30 @@ async fn edit(session: &mut Session<'_>, args: &WorkEditArgs) -> Result<(), CliE
             CliError::protocol("server did not return an ETag; re-run with --force")
         })?
     };
+
+    if session.global.dry_run {
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation: "work.edit",
+                method: "PATCH",
+                path_template: "/api/v1/organizations/{organization}/projects/{project}/work-items/{key}",
+                path: format!(
+                    "/api/v1/organizations/{org}/projects/{project}/work-items/{}",
+                    args.key
+                ),
+                resolved: json!({
+                    "organization": org,
+                    "project": project,
+                    "workItem": args.key,
+                }),
+                if_match: Some(&if_match),
+                idempotency_key: None,
+                body: Some(serde_json::to_value(&body).map_err(CliError::general)?),
+                notes: Vec::new(),
+            },
+        );
+    }
 
     let response = api
         .update_work_item(&org, &project, &args.key, &body, &if_match)
@@ -659,6 +704,32 @@ async fn transition_to(session: &mut Session<'_>, key: &str, target: &str) -> Re
     let if_match =
         etag.ok_or_else(|| CliError::protocol("server did not return an ETag for the work item"))?;
     let idempotency = generate_key();
+
+    if session.global.dry_run {
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation: "work.transition",
+                method: "POST",
+                path_template: "/api/v1/organizations/{organization}/projects/{project}/work-items/{key}/transitions",
+                path: format!(
+                    "/api/v1/organizations/{org}/projects/{project}/work-items/{key}/transitions"
+                ),
+                resolved: json!({
+                    "organization": org,
+                    "project": project,
+                    "workItem": key,
+                    "currentStatus": current_status,
+                    "targetStatus": target,
+                }),
+                if_match: Some(&if_match),
+                idempotency_key: Some(&idempotency),
+                body: Some(json!({ "targetStatus": target })),
+                notes: Vec::new(),
+            },
+        );
+    }
+
     let response = api
         .transition_work_item(
             &org,
@@ -768,6 +839,49 @@ async fn label(session: &mut Session<'_>, args: &WorkLabelArgs) -> Result<(), Cl
         None => generate_key(),
     };
 
+    if session.global.dry_run {
+        let (operation, method, body) = if command == "add" {
+            (
+                "work.label.add",
+                "POST",
+                Some(serde_json::to_value(&attach_body).map_err(CliError::general)?),
+            )
+        } else {
+            ("work.label.remove", "DELETE", None)
+        };
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation,
+                method,
+                path_template: if command == "add" {
+                    "/api/v1/organizations/{organization}/projects/{project}/work-items/{key}/labels"
+                } else {
+                    "/api/v1/organizations/{organization}/projects/{project}/work-items/{key}/labels/{labelId}"
+                },
+                path: if command == "add" {
+                    format!(
+                        "/api/v1/organizations/{org}/projects/{project}/work-items/{key}/labels"
+                    )
+                } else {
+                    format!(
+                        "/api/v1/organizations/{org}/projects/{project}/work-items/{key}/labels/{label_id}"
+                    )
+                },
+                resolved: json!({
+                    "organization": org,
+                    "project": project,
+                    "workItem": key,
+                    "label": label,
+                }),
+                if_match: Some(&if_match),
+                idempotency_key: Some(&idempotency),
+                body,
+                notes: Vec::new(),
+            },
+        );
+    }
+
     let response = match command {
         "add" => api
             .attach_label(&org, &project, key, &attach_body, &if_match, &idempotency)
@@ -850,6 +964,39 @@ async fn attachment(session: &mut Session<'_>, args: &WorkAttachmentArgs) -> Res
                 bytes,
             };
             let idempotency = idem_key(idempotency_key.clone())?;
+
+            if session.global.dry_run {
+                return dryrun::emit_preview(
+                    session,
+                    dryrun::PreviewRequest {
+                        operation: "work.attachment.upload",
+                        method: "POST",
+                        path_template: "/api/v1/organizations/{organization}/projects/{project}/work-items/{key}/attachments",
+                        path: format!(
+                            "/api/v1/organizations/{org}/projects/{project}/work-items/{key}/attachments"
+                        ),
+                        resolved: json!({
+                            "organization": org,
+                            "project": project,
+                            "workItem": key,
+                            "fileName": upload.file_name,
+                            "contentType": upload.content_type,
+                            "size": upload.bytes.len(),
+                        }),
+                        if_match: None,
+                        idempotency_key: Some(&idempotency),
+                        body: Some(json!({
+                            "multipart": "form-data",
+                            "part": "file",
+                            "fileName": upload.file_name,
+                            "contentType": upload.content_type.as_deref().unwrap_or("application/octet-stream"),
+                            "size": upload.bytes.len(),
+                        })),
+                        notes: vec!["file bytes are not shown and will not be uploaded"],
+                    },
+                );
+            }
+
             let api = session.api(&selection)?;
             let response = api
                 .upload_attachment(&org, &project, key, &upload, &idempotency)
@@ -924,6 +1071,31 @@ async fn attachment(session: &mut Session<'_>, args: &WorkAttachmentArgs) -> Res
             let selection = session.selection()?;
             let org = session.require_org(&selection)?;
             let project = session.require_project(&selection)?;
+
+            if session.global.dry_run {
+                return dryrun::emit_preview(
+                    session,
+                    dryrun::PreviewRequest {
+                        operation: "work.attachment.delete",
+                        method: "DELETE",
+                        path_template: "/api/v1/organizations/{organization}/projects/{project}/work-items/{key}/attachments/{attachmentId}",
+                        path: format!(
+                            "/api/v1/organizations/{org}/projects/{project}/work-items/{key}/attachments/{attachment_id}"
+                        ),
+                        resolved: json!({
+                            "organization": org,
+                            "project": project,
+                            "workItem": key,
+                            "attachmentId": attachment_id,
+                        }),
+                        if_match: None,
+                        idempotency_key: None,
+                        body: None,
+                        notes: Vec::new(),
+                    },
+                );
+            }
+
             let api = session.api(&selection)?;
             api.delete_attachment(&org, &project, key, attachment_id)
                 .await
@@ -1069,6 +1241,31 @@ async fn comment(session: &mut Session<'_>, args: &CommentArgs) -> Result<(), Cl
                 return Err(CliError::usage("comment body must not be empty"));
             }
             let idempotency = idem_key(idempotency_key.clone())?;
+
+            if session.global.dry_run {
+                return dryrun::emit_preview(
+                    session,
+                    dryrun::PreviewRequest {
+                        operation: "work.comment.add",
+                        method: "POST",
+                        path_template: "/api/v1/organizations/{organization}/projects/{project}/work-items/{key}/comments",
+                        path: format!(
+                            "/api/v1/organizations/{org}/projects/{project}/work-items/{key}/comments"
+                        ),
+                        resolved: json!({
+                            "organization": org,
+                            "project": project,
+                            "workItem": key,
+                            "parentCommentId": parent,
+                        }),
+                        if_match: None,
+                        idempotency_key: Some(&idempotency),
+                        body: Some(json!({ "body": text, "parentCommentId": parent })),
+                        notes: Vec::new(),
+                    },
+                );
+            }
+
             let api = session.api(&selection)?;
             let response = api
                 .create_comment(
@@ -1110,6 +1307,31 @@ async fn comment(session: &mut Session<'_>, args: &CommentArgs) -> Result<(), Cl
                 return Err(CliError::usage("comment body must not be empty"));
             }
             let idempotency = idem_key(idempotency_key.clone())?;
+
+            if session.global.dry_run {
+                return dryrun::emit_preview(
+                    session,
+                    dryrun::PreviewRequest {
+                        operation: "work.comment.edit",
+                        method: "PATCH",
+                        path_template: "/api/v1/organizations/{organization}/projects/{project}/work-items/{key}/comments/{commentId}",
+                        path: format!(
+                            "/api/v1/organizations/{org}/projects/{project}/work-items/{key}/comments/{comment_id}"
+                        ),
+                        resolved: json!({
+                            "organization": org,
+                            "project": project,
+                            "workItem": key,
+                            "commentId": comment_id,
+                        }),
+                        if_match: None,
+                        idempotency_key: Some(&idempotency),
+                        body: Some(json!({ "body": text })),
+                        notes: Vec::new(),
+                    },
+                );
+            }
+
             let api = session.api(&selection)?;
             let response = api
                 .update_comment(
@@ -1135,6 +1357,31 @@ async fn comment(session: &mut Session<'_>, args: &CommentArgs) -> Result<(), Cl
             let selection = session.selection()?;
             let org = session.require_org(&selection)?;
             let project = session.require_project(&selection)?;
+
+            if session.global.dry_run {
+                return dryrun::emit_preview(
+                    session,
+                    dryrun::PreviewRequest {
+                        operation: "work.comment.delete",
+                        method: "DELETE",
+                        path_template: "/api/v1/organizations/{organization}/projects/{project}/work-items/{key}/comments/{commentId}",
+                        path: format!(
+                            "/api/v1/organizations/{org}/projects/{project}/work-items/{key}/comments/{comment_id}"
+                        ),
+                        resolved: json!({
+                            "organization": org,
+                            "project": project,
+                            "workItem": key,
+                            "commentId": comment_id,
+                        }),
+                        if_match: None,
+                        idempotency_key: None,
+                        body: None,
+                        notes: Vec::new(),
+                    },
+                );
+            }
+
             let api = session.api(&selection)?;
             api.delete_comment(&org, &project, key, comment_id)
                 .await
@@ -1198,6 +1445,37 @@ async fn link(session: &mut Session<'_>, args: &WorkLinkArgs) -> Result<(), CliE
             let project = session.require_project(&selection)?;
             let api = session.api(&selection)?;
             let idempotency = idem_key(idempotency_key.clone())?;
+
+            if session.global.dry_run {
+                return dryrun::emit_preview(
+                    session,
+                    dryrun::PreviewRequest {
+                        operation: "work.link.add",
+                        method: "POST",
+                        path_template: "/api/v1/organizations/{organization}/projects/{project}/work-items/{key}/links",
+                        path: format!(
+                            "/api/v1/organizations/{org}/projects/{project}/work-items/{key}/links"
+                        ),
+                        resolved: json!({
+                            "organization": org,
+                            "project": project,
+                            "workItem": key,
+                            "targetKey": target_key,
+                            "targetId": target_id,
+                            "relation": relation.as_str(),
+                        }),
+                        if_match: None,
+                        idempotency_key: Some(&idempotency),
+                        body: Some(json!({
+                            "targetId": target_id,
+                            "targetKey": target_key,
+                            "relation": relation.as_str(),
+                        })),
+                        notes: Vec::new(),
+                    },
+                );
+            }
+
             let response = api
                 .create_work_item_link(
                     &org,
@@ -1230,8 +1508,33 @@ async fn link(session: &mut Session<'_>, args: &WorkLinkArgs) -> Result<(), CliE
             let selection = session.selection()?;
             let org = session.require_org(&selection)?;
             let project = session.require_project(&selection)?;
-            let api = session.api(&selection)?;
             let idempotency = idem_key(idempotency_key.clone())?;
+
+            if session.global.dry_run {
+                return dryrun::emit_preview(
+                    session,
+                    dryrun::PreviewRequest {
+                        operation: "work.link.delete",
+                        method: "DELETE",
+                        path_template: "/api/v1/organizations/{organization}/projects/{project}/work-items/{key}/links/{linkId}",
+                        path: format!(
+                            "/api/v1/organizations/{org}/projects/{project}/work-items/{key}/links/{link_id}"
+                        ),
+                        resolved: json!({
+                            "organization": org,
+                            "project": project,
+                            "workItem": key,
+                            "linkId": link_id,
+                        }),
+                        if_match: None,
+                        idempotency_key: Some(&idempotency),
+                        body: None,
+                        notes: Vec::new(),
+                    },
+                );
+            }
+
+            let api = session.api(&selection)?;
             let response = api
                 .delete_work_item_link(&org, &project, key, link_id, &idempotency)
                 .await
@@ -1450,6 +1753,34 @@ async fn change_archive(
     };
     let idempotency = idem_key_ref(idempotency_key)?;
 
+    if session.global.dry_run {
+        let (operation, suffix) = if archived {
+            ("work.archive", "/archive")
+        } else {
+            ("work.unarchive", "/unarchive")
+        };
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation,
+                method: "POST",
+                path_template: "/api/v1/organizations/{organization}/projects/{project}/work-items/{key}/archive",
+                path: format!(
+                    "/api/v1/organizations/{org}/projects/{project}/work-items/{key}{suffix}"
+                ),
+                resolved: json!({
+                    "organization": org,
+                    "project": project,
+                    "workItem": key,
+                }),
+                if_match: Some(&if_match),
+                idempotency_key: Some(&idempotency),
+                body: Some(json!({})),
+                notes: Vec::new(),
+            },
+        );
+    }
+
     let response = if archived {
         api.archive_work_item(&org, &project, key, &if_match, &idempotency)
             .await
@@ -1495,6 +1826,28 @@ async fn delete(
         })?
     };
     let idempotency = idem_key_ref(idempotency_key)?;
+
+    if session.global.dry_run {
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation: "work.delete",
+                method: "DELETE",
+                path_template: "/api/v1/organizations/{organization}/projects/{project}/work-items/{key}",
+                path: format!("/api/v1/organizations/{org}/projects/{project}/work-items/{key}"),
+                resolved: json!({
+                    "organization": org,
+                    "project": project,
+                    "workItem": key,
+                    "cascade": cascade,
+                }),
+                if_match: Some(&if_match),
+                idempotency_key: Some(&idempotency),
+                body: Some(json!({ "cascade": cascade })),
+                notes: Vec::new(),
+            },
+        );
+    }
 
     let response = api
         .delete_work_item(&org, &project, key, cascade, &if_match, &idempotency)
@@ -1552,6 +1905,87 @@ async fn bulk(session: &mut Session<'_>, args: &WorkBulkArgs) -> Result<(), CliE
     let org = session.require_org(&selection)?;
     let api = session.api(&selection)?;
     let idempotency = idem_key(args_idempotency(&args.command))?;
+
+    // Bulk previews read and shape-validate the operations file exactly as a
+    // real invocation would, then emit the request the CLI would send.
+    if session.global.dry_run {
+        let (operation, method, path, path_template, body): (&str, &str, String, &str, Value) =
+            match &args.command {
+                WorkBulkCommand::Create {
+                    operations_file, ..
+                } => {
+                    let body = BulkCreateEnvelope {
+                        operations: read_operations(operations_file)?,
+                    };
+                    (
+                        "work.bulk.create",
+                        "POST",
+                        format!("/api/v1/organizations/{org}/bulk-work-items"),
+                        "/api/v1/organizations/{organization}/bulk-work-items",
+                        serde_json::to_value(&body).map_err(CliError::general)?,
+                    )
+                }
+                WorkBulkCommand::Update {
+                    operations_file,
+                    concurrency,
+                    ..
+                } => {
+                    let body = BulkUpdateEnvelope {
+                        concurrency: concurrency
+                            .unwrap_or(crate::args::ConcurrencyArg::RequireRevision)
+                            .as_str()
+                            .to_string(),
+                        operations: read_operations(operations_file)?,
+                    };
+                    (
+                        "work.bulk.update",
+                        "PATCH",
+                        format!("/api/v1/organizations/{org}/bulk-work-items"),
+                        "/api/v1/organizations/{organization}/bulk-work-items",
+                        serde_json::to_value(&body).map_err(CliError::general)?,
+                    )
+                }
+                WorkBulkCommand::Transition {
+                    operations_file,
+                    concurrency,
+                    ..
+                } => {
+                    let body = BulkTransitionEnvelope {
+                        concurrency: concurrency.map(|c| c.as_str().to_string()),
+                        operations: read_operations(operations_file)?,
+                    };
+                    (
+                        "work.bulk.transition",
+                        "POST",
+                        format!("/api/v1/organizations/{org}/bulk-work-item-transitions"),
+                        "/api/v1/organizations/{organization}/bulk-work-item-transitions",
+                        serde_json::to_value(&body).map_err(CliError::general)?,
+                    )
+                }
+            };
+        let count = body
+            .get("operations")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or_default();
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation,
+                method,
+                path_template,
+                path,
+                resolved: json!({
+                    "organization": org,
+                    "operationCount": count,
+                }),
+                if_match: None,
+                idempotency_key: Some(&idempotency),
+                body: Some(body),
+                notes: Vec::new(),
+            },
+        );
+    }
 
     let response = match &args.command {
         WorkBulkCommand::Create {

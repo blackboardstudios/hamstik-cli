@@ -450,6 +450,16 @@ pub async fn run(cli: Cli, services: Services<'_>) -> i32 {
         exit_code: SUCCESS,
     };
 
+    // `--dry-run` is meaningful only for mutation commands (CLI-10); reads
+    // have nothing to preview, so reject it with a precise explanation.
+    if session.global.dry_run && !crate::commands::supports_dry_run(&cli.command) {
+        let err = CliError::usage(
+            "--dry-run applies only to mutation commands (create/edit/transition/archive/unarchive/delete, labels, attachments, comments, links, bulk, project/sprint/label mutations)",
+        );
+        let _ = session.out.error(&err);
+        return err.exit_code();
+    }
+
     match commands::dispatch(&mut session, &cli.command).await {
         Ok(()) => session.exit_code,
         Err(err) => {
@@ -545,6 +555,7 @@ mod tests {
             no_color: false,
             no_input: false,
             no_retry: false,
+            dry_run: false,
             ca_bundle: None,
         }
     }

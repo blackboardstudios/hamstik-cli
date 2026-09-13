@@ -92,6 +92,12 @@ on unrelated profile defaults for a mutation.
 - Treat cursors as opaque. Pass `.page.nextCursor` back unchanged with `--cursor`, or
   use `--all` when one deterministic aggregate is appropriate.
 - Keep binary downloads out of ordinary formatted or JSON stdout; use `--output`.
+- Before a risky mutation, preview it with the global `--dry-run` flag (mutation
+  commands only). The preview resolves identifiers and validates local input exactly
+  like the real invocation, then emits a versioned envelope (`previewVersion: 1`) with
+  method, path, header intent (`If-Match`, `Idempotency-Key` — never credentials), and
+  the typed body. It sends nothing, consumes no idempotency key, and is not proof of
+  server-side validation or authorization.
 
 Stable exit codes are: `0` success, `1` general failure, `2` usage, `3`
 authentication, `4` authorization/scope, `5` not found, `6`
