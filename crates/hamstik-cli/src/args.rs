@@ -290,7 +290,9 @@ pub struct ProjectArgs {
 pub enum ProjectCommand {
     /// List projects in the organization.
     List {
-        /// List only archived projects (true) or only unarchived (false).
+        /// List only archived projects (true) or only unarchived (false);
+        /// when omitted, unarchived projects are listed. Listing both states
+        /// in one result requires separate queries.
         #[arg(long, value_name = "true|false")]
         archived: Option<bool>,
         /// Pagination options.
@@ -659,7 +661,9 @@ pub struct UserWorkArgs {
     /// Result ordering.
     #[arg(long, value_enum)]
     pub sort: Option<SortArg>,
-    /// Include archived (true) or only unarchived (false) Work Items.
+    /// Only archived (true) or only unarchived (false) Work Items; when
+    /// omitted, unarchived Work Items are listed. Listing both states in one
+    /// result requires separate queries.
     #[arg(long, value_name = "true|false")]
     pub archived: Option<bool>,
     /// Comma-separated sparse summary fields.
@@ -837,7 +841,9 @@ pub struct MyWorkArgs {
     /// Result ordering.
     #[arg(long, value_enum)]
     pub sort: Option<SortArg>,
-    /// Include archived (true) or only unarchived (false) Work Items.
+    /// Only archived (true) or only unarchived (false) Work Items; when
+    /// omitted, unarchived Work Items are listed. Listing both states in one
+    /// result requires separate queries.
     #[arg(long, value_name = "true|false")]
     pub archived: Option<bool>,
     /// Comma-separated sparse summary fields.
@@ -904,7 +910,9 @@ pub struct WorkFilters {
     /// Result ordering: updated, dueDate, priority, or rank.
     #[arg(long, value_enum)]
     pub sort: Option<SortArg>,
-    /// Include archived (true) or only unarchived (false) items.
+    /// Only archived (true) or only unarchived (false) items; when omitted,
+    /// unarchived items are listed. Listing both states in one result
+    /// requires separate queries.
     #[arg(long, value_name = "true|false")]
     pub archived: Option<bool>,
     /// Comma-separated summary fields; an empty value selects all fields.

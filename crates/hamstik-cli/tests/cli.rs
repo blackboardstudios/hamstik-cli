@@ -2351,6 +2351,98 @@ async fn work_list_supports_sort_and_archived_filters() {
     assert!(query.contains("topLevel=false"), "{query}");
 }
 
+/// Regression test for CLI-18: `--archived true` selects archived items only.
+/// It must never be described as "including" archived items alongside active
+/// ones, and omitting the flag must not send the parameter at all (the server
+/// then lists unarchived items).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn work_list_archived_flag_is_a_state_filter_not_a_union() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/organizations/acme/projects/HAM/work-items"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(page(json!([]))))
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "work",
+            "list",
+            "--json",
+        ])
+        .assert()
+        .success();
+    let omitted = server.received_requests().await.unwrap()[0]
+        .url
+        .query()
+        .unwrap_or_default()
+        .to_string();
+    assert!(!omitted.contains("archived"), "{omitted}");
+
+    let dir = TempDir::new().unwrap();
+    base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "work",
+            "list",
+            "--archived",
+            "true",
+            "--json",
+        ])
+        .assert()
+        .success();
+    let archived_only = server
+        .received_requests()
+        .await
+        .unwrap()
+        .last()
+        .unwrap()
+        .url
+        .query()
+        .unwrap_or_default()
+        .to_string();
+    assert!(archived_only.contains("archived=true"), "{archived_only}");
+}
+
+/// CLI-18: help text must state the archived-state-filter semantics without
+/// implying that active and archived resources are returned together.
+#[test]
+fn archived_help_texts_describe_state_filter_semantics() {
+    for args in [
+        &["work", "list", "--help"][..],
+        &["org", "work", "--help"][..],
+        &["work", "mine", "--help"][..],
+        &["user", "work", "--help"][..],
+        &["project", "list", "--help"][..],
+    ] {
+        let output = Command::cargo_bin("hamstik")
+            .expect("hamstik binary")
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        let help = String::from_utf8(output.stdout).unwrap();
+        assert!(
+            !help.contains("Include archived"),
+            "'Include archived' wording leaked into {}: {help}",
+            args.join(" ")
+        );
+        assert!(
+            help.to_lowercase().contains("only archived"),
+            "help for {} must state archived-state semantics: {help}",
+            args.join(" ")
+        );
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn work_archive_sends_if_match_and_empty_body() {
     let server = MockServer::start().await;

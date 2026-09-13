@@ -42,7 +42,9 @@ pub struct ListProjectsOptions {
     pub limit: Option<u32>,
     /// Opaque continuation cursor from a previous page's `nextCursor`.
     pub cursor: Option<String>,
-    /// When true, list only archived Projects (default: only unarchived).
+    /// When true, list only archived Projects; when false or omitted, list
+    /// only unarchived Projects. This is an archived-state filter, not a
+    /// union: listing both states requires separate queries.
     pub archived: Option<bool>,
 }
 
@@ -132,7 +134,9 @@ pub struct ListWorkItemsQuery {
     pub due_after: Option<String>,
     /// Result ordering: `updated`, `dueDate`, `priority`, or `rank`.
     pub sort: Option<String>,
-    /// Include archived (true) or only unarchived (false) items.
+    /// Only archived (`true`) or only unarchived (`false`) items; the server
+    /// treats an omitted value as `false`. This is an archived-state filter,
+    /// not a union: listing both states requires separate queries.
     pub archived: Option<bool>,
     /// Sparse fieldset: comma-separated summary field names; an empty value
     /// selects the complete summary.

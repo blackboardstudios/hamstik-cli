@@ -224,5 +224,12 @@ API v1 (29 → 51 operations; all changes additive):
   `work link delete`, `work delete`).
 - `work link list --all` and `work activity --all` now honor `--limit` on
   every page, matching `work list --all` (`work`).
+- The `--archived` filter on Work Item collections (`work list`, `org work`,
+  `work mine`, `user work`) and `project list --archived` is now documented
+  accurately: it selects only archived (`true`) or only unarchived
+  (`false`/omitted) resources rather than "including" archived items
+  alongside active ones. Serialization was already correct and unchanged;
+  users who need both states in one result must issue separate queries
+  (`work`, `project`).
 
 [Unreleased]: https://github.com/blackboardstudios/hamstik-cli/commits/main

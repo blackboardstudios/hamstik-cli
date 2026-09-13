@@ -1252,6 +1252,201 @@ async fn lists_profile_work_with_reporter() {
     assert_eq!(reporter.name(), "R");
 }
 
+/// The `archived` query parameter is an archived-state filter, not an
+/// "include archived" union. These boundary tests pin the exact serialization
+/// for every Public API operation that accepts `archived`: omitted stays
+/// absent, `false`/`true` serialize literally, and the server treats an
+/// omitted value as `false` (only unarchived resources).
+#[tokio::test]
+async fn archived_filter_serialization_is_exact_across_collections() {
+    // (operation name, request future factory) pairs keep the three states
+    // symmetric without five copies of the same test body.
+    enum Collection {
+        ProjectWorkItems,
+        OrganizationWorkItems,
+        MyWork,
+        ProfileWork,
+        Projects,
+    }
+
+    async fn run_case(
+        server: &MockServer,
+        collection: Collection,
+        archived: Option<bool>,
+        expected_query: Option<&str>,
+    ) {
+        let client = client_for(&server.uri());
+        let work_query = || hamstik_api_client::ListWorkItemsQuery {
+            archived,
+            ..Default::default()
+        };
+        let project_query = || hamstik_api_client::ListProjectsOptions {
+            archived,
+            ..Default::default()
+        };
+        match collection {
+            Collection::ProjectWorkItems => {
+                client
+                    .list_work_items("acme", "HAM", work_query())
+                    .await
+                    .unwrap();
+            }
+            Collection::OrganizationWorkItems => {
+                client
+                    .list_organization_work_items("acme", work_query())
+                    .await
+                    .unwrap();
+            }
+            Collection::MyWork => {
+                client.list_my_work(work_query()).await.unwrap();
+            }
+            Collection::ProfileWork => {
+                client
+                    .list_user_profile_work("usr_cPbfeqnghA-RLpDVOMQhHg", work_query())
+                    .await
+                    .unwrap();
+            }
+            Collection::Projects => {
+                client.list_projects("acme", project_query()).await.unwrap();
+            }
+        }
+
+        let actual = server
+            .received_requests()
+            .await
+            .unwrap()
+            .last()
+            .unwrap()
+            .url
+            .query()
+            .unwrap_or_default()
+            .to_string();
+        match expected_query {
+            Some(expected) => {
+                assert_eq!(actual, expected, "unexpected query for {archived:?}");
+            }
+            None => {
+                assert!(!actual.contains("archived"), "unexpected query: {actual}");
+            }
+        }
+    }
+
+    let work_body = json!({"items":[],"page":{"limit":50,"hasMore":false,"nextCursor":null}});
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/organizations/acme/projects/HAM/work-items"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(work_body.clone()))
+        .mount(&server)
+        .await;
+    run_case(&server, Collection::ProjectWorkItems, None, None).await;
+    run_case(
+        &server,
+        Collection::ProjectWorkItems,
+        Some(false),
+        Some("archived=false"),
+    )
+    .await;
+    run_case(
+        &server,
+        Collection::ProjectWorkItems,
+        Some(true),
+        Some("archived=true"),
+    )
+    .await;
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/organizations/acme/work-items"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(work_body.clone()))
+        .mount(&server)
+        .await;
+    run_case(&server, Collection::OrganizationWorkItems, None, None).await;
+    run_case(
+        &server,
+        Collection::OrganizationWorkItems,
+        Some(false),
+        Some("archived=false"),
+    )
+    .await;
+    run_case(
+        &server,
+        Collection::OrganizationWorkItems,
+        Some(true),
+        Some("archived=true"),
+    )
+    .await;
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/my/work"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(work_body.clone()))
+        .mount(&server)
+        .await;
+    run_case(&server, Collection::MyWork, None, None).await;
+    run_case(
+        &server,
+        Collection::MyWork,
+        Some(false),
+        Some("archived=false"),
+    )
+    .await;
+    run_case(
+        &server,
+        Collection::MyWork,
+        Some(true),
+        Some("archived=true"),
+    )
+    .await;
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/users/usr_cPbfeqnghA-RLpDVOMQhHg/work"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(work_body.clone()))
+        .mount(&server)
+        .await;
+    run_case(&server, Collection::ProfileWork, None, None).await;
+    run_case(
+        &server,
+        Collection::ProfileWork,
+        Some(false),
+        Some("archived=false"),
+    )
+    .await;
+    run_case(
+        &server,
+        Collection::ProfileWork,
+        Some(true),
+        Some("archived=true"),
+    )
+    .await;
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/organizations/acme/projects"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "items":[],
+            "page":{"limit":50,"hasMore":false,"nextCursor":null}
+        })))
+        .mount(&server)
+        .await;
+    run_case(&server, Collection::Projects, None, None).await;
+    run_case(
+        &server,
+        Collection::Projects,
+        Some(false),
+        Some("archived=false"),
+    )
+    .await;
+    run_case(
+        &server,
+        Collection::Projects,
+        Some(true),
+        Some("archived=true"),
+    )
+    .await;
+}
+
 #[tokio::test]
 async fn profile_work_serializes_repeated_filters_booleans_fields_and_opaque_cursor() {
     let server = MockServer::start().await;
