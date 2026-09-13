@@ -158,6 +158,10 @@ pub struct AuthArgs {
 #[derive(Subcommand, Debug)]
 pub enum AuthCommand {
     /// Authenticate with a Personal Access Token.
+    ///
+    /// Interactive login prompts for the token; `--with-token` reads it from
+    /// stdin. `HAMSTIK_TOKEN` is ephemeral and is never persisted, so it is not
+    /// accepted as a login source.
     Login {
         /// Read the token from stdin instead of prompting.
         #[arg(long)]
@@ -983,7 +987,7 @@ pub struct WorkEditArgs {
     /// Work item key.
     pub key: String,
     /// New title.
-    #[arg(long, conflicts_with = "clear_description")]
+    #[arg(long)]
     pub title: Option<String>,
     /// New description text.
     #[arg(long, conflicts_with = "clear_description")]
@@ -1504,7 +1508,7 @@ impl ScopeArg {
 /// Sprint lifecycle states (request-side validation).
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SprintStateArg {
-    /// Scheduled but not started.
+    /// Active (in progress).
     #[value(name = "active")]
     Active,
     /// Completed.
@@ -1523,7 +1527,6 @@ impl SprintStateArg {
     }
 }
 
-#[cfg(test)]
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {

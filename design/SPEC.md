@@ -34,13 +34,14 @@ hamstik-cli/
 │
 ├── skills/
 │   └── hamstik/
-│       ├── SKILL.md
-│       └── references/
+│       └── SKILL.md
 │
-├── packaging/
 ├── scripts/
 └── README.md
 ```
+
+Distribution packaging (`packaging/`) is introduced by a later milestone, not by
+the Dogfooding Alpha.
 
 Avoid premature micro-crates.
 
@@ -1967,15 +1968,15 @@ Do not create hidden network calls beyond the configured Hamstik API.
 
 ---
 
-# 86. Public Repository Consideration
+# 86. Public Repository
 
-The CLI SHOULD be designed so the repository can be made public later if desired.
+The CLI repository is public. Repository licensing was decided explicitly:
+the project is distributed under Apache-2.0 (see `LICENSE`), and every source
+file carries an `SPDX-License-Identifier: Apache-2.0` header. Dependencies
+must remain compatible with Apache-2.0 distribution.
 
-Do NOT automatically add an open-source license.
-
-Repository licensing is a separate explicit business decision.
-
-No proprietary code from the main Hamstik application should be copied into the CLI repository merely for convenience.
+No proprietary code from the main Hamstik application should be copied into
+the CLI repository merely for convenience.
 
 The CLI should depend only on the documented Public API contract.
 

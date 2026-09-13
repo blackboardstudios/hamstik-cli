@@ -107,7 +107,6 @@ pub struct Resolution {
 }
 
 /// Selects the active profile name (SPEC §28).
-/// Selects the active profile name (SPEC §28).
 pub fn select_profile(
     config: &ConfigFile,
     cli_profile: Option<&str>,
@@ -133,7 +132,6 @@ pub fn select_profile(
 
 /// Resolves host/organization/project by precedence (SPEC §34).
 #[must_use]
-/// Resolves host/organization/project by precedence (SPEC §34).
 pub fn resolve(
     cli: (&Option<String>, &Option<String>, &Option<String>),
     env: &dyn Environment,
@@ -248,7 +246,6 @@ fn pick_string(
 
 /// Searches upward from `start` for the nearest `.hamstik.toml`.
 #[must_use]
-/// Searches upward from `start` for the nearest `.hamstik.toml`.
 pub fn discover(start: &Path) -> Option<PathBuf> {
     let mut current = Some(start);
     while let Some(dir) = current {
@@ -265,7 +262,6 @@ pub fn discover(start: &Path) -> Option<PathBuf> {
 ///
 /// Failures always name the file: `.hamstik.toml` is discovered by walking up
 /// from the working directory, so the user cannot guess which one broke.
-/// Loads and validates a context file.
 pub fn load(path: &Path) -> Result<ContextFile, CliError> {
     let metadata =
         fs::metadata(path).map_err(|err| fail(path, &format!("cannot read file ({err})")))?;
@@ -320,7 +316,6 @@ pub fn save(path: &Path, context: &ContextFile) -> Result<(), CliError> {
     Ok(())
 }
 
-#[cfg(test)]
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {

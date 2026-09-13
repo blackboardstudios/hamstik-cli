@@ -89,7 +89,6 @@ pub fn restrict_permissions(_path: &Path) -> io::Result<()> {
 }
 
 #[cfg(test)]
-#[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;

@@ -173,6 +173,9 @@ fn clear(session: &mut Session<'_>) -> Result<(), CliError> {
     let path = match &selection.context_path {
         Some(path) => path.clone(),
         None => {
+            if session.json() {
+                return emit_json(session, &json!({ "cleared": false, "contextFile": null }));
+            }
             session
                 .out
                 .human("no .hamstik.toml in scope")
@@ -187,10 +190,18 @@ fn clear(session: &mut Session<'_>) -> Result<(), CliError> {
         project: None,
     };
     context::save(&path, &document)?;
-    session
-        .out
-        .line(&format!("cleared context {}", path.display()))
-        .map_err(CliError::general)
+    let display = path.display().to_string();
+    emit_view(
+        session,
+        &json!({ "cleared": true, "contextFile": display }),
+        &display,
+        |session| {
+            session
+                .out
+                .line(&format!("cleared context {display}"))
+                .map_err(CliError::general)
+        },
+    )
 }
 
 fn init(session: &mut Session<'_>) -> Result<(), CliError> {
@@ -209,8 +220,21 @@ fn init(session: &mut Session<'_>) -> Result<(), CliError> {
         project: selection.project.value.clone(),
     };
     context::save(&path, &document)?;
-    session
-        .out
-        .line(&format!("created context {}", path.display()))
-        .map_err(CliError::general)
+    let display = path.display().to_string();
+    emit_view(
+        session,
+        &json!({
+            "created": true,
+            "contextFile": display,
+            "organization": document.organization,
+            "project": document.project,
+        }),
+        &display,
+        |session| {
+            session
+                .out
+                .line(&format!("created context {display}"))
+                .map_err(CliError::general)
+        },
+    )
 }

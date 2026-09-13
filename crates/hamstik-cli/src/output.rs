@@ -7,6 +7,7 @@
 //! to stderr, and `--json` output never contains ANSI codes. Failure rendering
 //! switches between a human message and the stable JSON envelope.
 
+use std::borrow::Cow;
 use std::io::{self, Write};
 
 use serde_json::Value;
@@ -69,8 +70,12 @@ impl Output {
     }
 
     /// Writes a human content line to stdout.
+    ///
+    /// Server-influenced text is filtered by [`sanitize_for_terminal`] first so
+    /// resource content cannot smuggle terminal control sequences into the
+    /// user's session.
     pub fn line(&mut self, text: &str) -> io::Result<()> {
-        writeln!(self.out, "{text}")
+        writeln!(self.out, "{}", sanitize_for_terminal(text))
     }
 
     /// Writes raw text directly to stdout (used for completion scripts).
@@ -105,8 +110,11 @@ impl Output {
     }
 
     /// Warnings/progress to stderr.
+    ///
+    /// Filtered like [`Output::line`] because diagnostics can quote server
+    /// text through callers.
     pub fn warn(&mut self, text: &str) {
-        let _ = writeln!(self.err, "{text}");
+        let _ = writeln!(self.err, "{}", sanitize_for_terminal(text));
     }
 
     /// Renders a failure: JSON envelope to stderr in `--json`, human otherwise.
@@ -137,10 +145,85 @@ impl Output {
     }
 }
 
+/// Strips terminal control sequences from server-influenced text while
+/// preserving the SGR sequences the CLI itself emits (color swatches, doctor
+/// status markers).
+///
+/// Human output embeds server-controlled strings (titles, descriptions,
+/// comment bodies, names). Unfiltered, a hostile or merely mischievous author
+/// could smuggle OSC/CSI sequences into another user's terminal (clipboard
+/// writes, window-title changes, cursor movement). Only well-formed SGR
+/// sequences (`ESC [ digits/semicolons m`) survive; every other escape
+/// sequence and control character is removed (tab and newline are kept, since
+/// detail views render multi-line descriptions). JSON output is untouched:
+/// `serde_json` escapes control characters itself.
+#[must_use]
+pub fn sanitize_for_terminal(input: &str) -> Cow<'_, str> {
+    let needs_filter = input
+        .chars()
+        .any(|c| c == '\u{1b}' || (c.is_control() && c != '\t' && c != '\n'));
+    if !needs_filter {
+        return Cow::Borrowed(input);
+    }
+
+    let chars: Vec<char> = input.chars().collect();
+    let mut out = String::with_capacity(input.len());
+    let mut index = 0;
+    while index < chars.len() {
+        let c = chars[index];
+        if c != '\u{1b}' {
+            if c == '\t' || c == '\n' || !c.is_control() {
+                out.push(c);
+            }
+            index += 1;
+            continue;
+        }
+
+        match chars.get(index + 1) {
+            // CSI: preserve only SGR (`...m`); drop every other final byte.
+            Some('[') => {
+                let mut end = index + 2;
+                while end < chars.len() && matches!(chars[end] as u32, 0x20..=0x3F) {
+                    end += 1;
+                }
+                if end < chars.len() && chars[end] == 'm' {
+                    out.extend(chars[index..=end].iter());
+                    index = end + 1;
+                } else if end < chars.len() && matches!(chars[end] as u32, 0x40..=0x7E) {
+                    index = end + 1;
+                } else {
+                    index += 2;
+                }
+            }
+            // OSC and other string-introduced sequences: skip to BEL or ST.
+            Some(']' | 'P' | 'X' | '^' | '_') => {
+                let mut end = index + 2;
+                while end < chars.len() {
+                    if chars[end] == '\u{7}' {
+                        end += 1;
+                        break;
+                    }
+                    if chars[end] == '\u{1b}' && end + 1 < chars.len() && chars[end + 1] == '\\' {
+                        end += 2;
+                        break;
+                    }
+                    end += 1;
+                }
+                index = end;
+            }
+            // A lone ESC (or ESC followed by an unknown byte) is dropped.
+            _ => index += 1,
+        }
+    }
+    Cow::Owned(out)
+}
+
 /// Renders a left-aligned, width-padded text table.
 ///
-/// Column widths are derived from the widest cell by *visible* width, so cells
-/// may contain ANSI SGR sequences (e.g. color swatches) without breaking
+/// Cells are passed through [`sanitize_for_terminal`] before measuring, so
+/// server content cannot inject terminal controls and our own SGR swatches
+/// survive unchanged. Column widths are derived from the widest cell by
+/// *visible* width, so cells may contain ANSI SGR sequences without breaking
 /// alignment. Empty input produces an empty string so callers can suppress the
 /// whole table.
 #[must_use]
@@ -148,20 +231,34 @@ pub fn render_table(headers: &[&str], rows: &[Vec<String>]) -> String {
     if headers.is_empty() {
         return String::new();
     }
+    let headers: Vec<String> = headers
+        .iter()
+        .map(|header| sanitize_for_terminal(header).into_owned())
+        .collect();
+    let rows: Vec<Vec<String>> = rows
+        .iter()
+        .map(|row| {
+            row.iter()
+                .map(|cell| sanitize_for_terminal(cell).into_owned())
+                .collect()
+        })
+        .collect();
+
     let columns = headers.len();
     let mut widths: Vec<usize> = headers.iter().map(|h| visible_width(h)).collect();
-    for row in rows {
+    for row in &rows {
         for (index, cell) in row.iter().enumerate().take(columns) {
             widths[index] = widths[index].max(visible_width(cell));
         }
     }
 
     let mut out = String::new();
-    write_row(&mut out, headers, &widths);
+    let header_cells: Vec<&str> = headers.iter().map(String::as_str).collect();
+    write_row(&mut out, &header_cells, &widths);
     let separator: Vec<String> = widths.iter().map(|w| "-".repeat(*w)).collect();
     let separator: Vec<&str> = separator.iter().map(String::as_str).collect();
     write_row(&mut out, &separator, &widths);
-    for row in rows {
+    for row in &rows {
         let cells: Vec<&str> = (0..columns)
             .map(|index| row.get(index).map(String::as_str).unwrap_or(""))
             .collect();
@@ -211,7 +308,6 @@ fn write_row(out: &mut String, cells: &[&str], widths: &[usize]) {
 }
 
 #[cfg(test)]
-#[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
@@ -236,6 +332,48 @@ mod tests {
 
     fn text(sink: &Sink) -> String {
         String::from_utf8(sink.0.borrow().clone()).unwrap()
+    }
+
+    #[test]
+    fn sanitize_for_terminal_keeps_sgr_and_strips_escapes() {
+        assert_eq!(sanitize_for_terminal("plain text"), "plain text");
+        assert_eq!(
+            sanitize_for_terminal("a\x1b[31mb\x1b[0m"),
+            "a\x1b[31mb\x1b[0m"
+        );
+        assert_eq!(sanitize_for_terminal("a\x1b[2Jb"), "ab");
+        assert_eq!(sanitize_for_terminal("a\x1b]0;pwned\x07b"), "ab");
+        assert_eq!(
+            sanitize_for_terminal("a\x1b]52;c;cGF5bG9hZA==\x1b\\b"),
+            "ab"
+        );
+        assert_eq!(sanitize_for_terminal("a\rb\u{7}c\u{0}d"), "abcd");
+        assert_eq!(
+            sanitize_for_terminal("keep\ttabs\nand newlines"),
+            "keep\ttabs\nand newlines"
+        );
+        assert_eq!(sanitize_for_terminal("\x1b"), "");
+    }
+
+    #[test]
+    fn line_filters_terminal_escape_sequences() {
+        let sink = Sink::default();
+        let mut out = Output::new(
+            Mode::Human,
+            false,
+            Box::new(sink.clone()),
+            Box::new(Sink::default()),
+        );
+        out.line("ok \x1b[2Jdone").unwrap();
+        assert_eq!(text(&sink), "ok done\n");
+    }
+
+    #[test]
+    fn table_filters_terminal_escape_sequences_in_cells() {
+        let rendered = render_table(&["KEY"], &[vec!["\x1b]0;title\x07HAM-1".to_string()]]);
+        assert!(!rendered.contains('\u{7}'));
+        assert!(!rendered.contains("title"));
+        assert!(rendered.contains("HAM-1"));
     }
 
     #[test]

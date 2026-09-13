@@ -139,7 +139,6 @@ fn is_loopback(url: &Url) -> bool {
 }
 
 #[cfg(test)]
-#[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;

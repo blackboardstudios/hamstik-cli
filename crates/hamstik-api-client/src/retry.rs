@@ -128,7 +128,6 @@ pub fn parse_retry_after(value: &str, now: SystemTime) -> Option<Duration> {
 pub type SharedSleeper = Arc<dyn Sleeper>;
 
 #[cfg(test)]
-#[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;

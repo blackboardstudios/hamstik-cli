@@ -7,8 +7,8 @@
 //! it in the CLI's dev-dependencies). [`HamstikClient`] is the production
 //! implementation built on `reqwest`. All transport concerns — authentication,
 //! idempotency, ETag capture, retry/backoff, error mapping, and request-id
-//! propagation — are handled centrally in [`HamstikClient::send_json`]; the
-//! trait methods only assemble request shapes.
+//! propagation — are handled centrally in `send_with_retry`; the trait methods
+//! only assemble request shapes.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -305,14 +305,33 @@ impl HamstikClient {
     where
         T: DeserializeOwned,
     {
+        let (response, _) = self
+            .send_with_retry(spec.retryable, || self.build(&spec, authenticated))
+            .await?;
+        let finalized = self.finalize(response).await?;
+        self.absorb_depleted_window(finalized.rate_limit).await;
+        Ok(finalized)
+    }
+
+    /// Sends one request, retrying transient failures under the policy.
+    ///
+    /// `build` is invoked per attempt: a retried request is always freshly
+    /// constructed. Returns the final response together with whether at least
+    /// one retry was performed, which lets callers distinguish "the server
+    /// says 404" from "a retry found it already gone".
+    async fn send_with_retry(
+        &self,
+        retryable: bool,
+        mut build: impl FnMut() -> Result<reqwest::RequestBuilder, ClientError>,
+    ) -> Result<(Response, bool), ClientError> {
         let mut attempt = 0u32;
         loop {
-            let request = self.build(&spec, authenticated)?;
+            let request = build()?;
             let response = match request.send().await {
                 Ok(response) => response,
                 Err(err) => {
                     let transient = err.is_connect() || err.is_timeout();
-                    if spec.retryable && transient && attempt + 1 < self.policy.attempts {
+                    if retryable && transient && attempt + 1 < self.policy.attempts {
                         self.sleeper
                             .sleep(backoff_delay(&self.policy, attempt))
                             .await;
@@ -322,16 +341,9 @@ impl HamstikClient {
                     return Err(ClientError::Network(err.to_string()));
                 }
             };
-
-            if let Some(response) = self
-                .retry_or_pass(response, spec.retryable, attempt)
-                .await?
-            {
-                let finalized = self.finalize(response).await?;
-                self.absorb_depleted_window(finalized.rate_limit).await;
-                return Ok(finalized);
+            if let Some(response) = self.retry_or_pass(response, retryable, attempt).await? {
+                return Ok((response, attempt > 0));
             }
-            // A retry was scheduled; rebuild the request for the next attempt.
             attempt += 1;
         }
     }
@@ -429,84 +441,59 @@ impl HamstikClient {
 
     /// Sends a request expecting a structured error or `204 No Content`.
     async fn send_void(&self, spec: RequestSpec<'_>) -> Result<ApiResponse<()>, ClientError> {
-        let mut attempt = 0u32;
-        loop {
-            let request = self.build(&spec, true)?;
-            let response = match request.send().await {
-                Ok(response) => response,
-                Err(err) => {
-                    let transient = err.is_connect() || err.is_timeout();
-                    if spec.retryable && transient && attempt + 1 < self.policy.attempts {
-                        self.sleeper
-                            .sleep(backoff_delay(&self.policy, attempt))
-                            .await;
-                        attempt += 1;
-                        continue;
-                    }
-                    return Err(ClientError::Network(err.to_string()));
-                }
-            };
-            if let Some(response) = self
-                .retry_or_pass(response, spec.retryable, attempt)
-                .await?
-            {
-                let status = response.status().as_u16();
-                if (200..300).contains(&status) {
-                    return self.finalize(response).await;
-                }
-                return Err(self.to_api_error(response).await);
-            }
-            attempt += 1;
+        let (response, retried) = self
+            .send_with_retry(spec.retryable, || self.build(&spec, true))
+            .await?;
+        let status = response.status().as_u16();
+        if (200..300).contains(&status) {
+            return self.finalize(response).await;
         }
+        if retried && status == 404 {
+            // Every `send_void` caller is a DELETE. A 404 observed on a retry
+            // means the resource existed when the first attempt was sent and
+            // is gone now: the delete has taken effect (either attempt one
+            // applied it, or another actor removed it), so the desired end
+            // state holds. Surfacing NOT_FOUND here would be a false failure.
+            // A first-attempt 404 never retries and still reports NOT_FOUND.
+            return Ok(ApiResponse {
+                value: (),
+                raw: Value::Null,
+                request_id: None,
+                etag: None,
+                idempotency_replayed: false,
+                location: None,
+                rate_limit: None,
+            });
+        }
+        Err(self.to_api_error(response).await)
     }
 
     /// Sends a request expecting binary bytes (attachment download), capping
     /// the body at [`MAX_BODY_BYTES`].
     async fn send_bytes(&self, spec: RequestSpec<'_>) -> Result<DownloadedAttachment, ClientError> {
-        let mut attempt = 0u32;
-        loop {
-            let request = self.build(&spec, true)?;
-            let response = match request.send().await {
-                Ok(response) => response,
-                Err(err) => {
-                    let transient = err.is_connect() || err.is_timeout();
-                    if spec.retryable && transient && attempt + 1 < self.policy.attempts {
-                        self.sleeper
-                            .sleep(backoff_delay(&self.policy, attempt))
-                            .await;
-                        attempt += 1;
-                        continue;
-                    }
-                    return Err(ClientError::Network(err.to_string()));
-                }
-            };
-            if let Some(response) = self
-                .retry_or_pass(response, spec.retryable, attempt)
-                .await?
-            {
-                let status = response.status().as_u16();
-                if !(200..300).contains(&status) {
-                    return Err(self.to_api_error(response).await);
-                }
-                let headers = response.headers().clone();
-                let bytes = read_body_capped(response).await?;
-                let content_disposition =
-                    header_str(&headers, &header_content_disposition()).map(str::to_string);
-                return Ok(DownloadedAttachment {
-                    bytes: bytes.to_vec(),
-                    file_name: file_name_from_disposition(content_disposition.as_deref()),
-                    content_type: header_str(&headers, &header_content_type()).map(str::to_string),
-                    content_disposition,
-                    content_length: header_str(&headers, &CONTENT_LENGTH)
-                        .and_then(|value| value.parse().ok()),
-                    cache_control: header_str(&headers, &CACHE_CONTROL).map(str::to_string),
-                    request_id: header_str(&headers, &header_request_id())
-                        .map(sanitize_server_text)
-                        .filter(|id| !id.is_empty()),
-                });
-            }
-            attempt += 1;
+        let (response, _) = self
+            .send_with_retry(spec.retryable, || self.build(&spec, true))
+            .await?;
+        let status = response.status().as_u16();
+        if !(200..300).contains(&status) {
+            return Err(self.to_api_error(response).await);
         }
+        let headers = response.headers().clone();
+        let bytes = read_body_capped(response).await?;
+        let content_disposition =
+            header_str(&headers, &header_content_disposition()).map(str::to_string);
+        Ok(DownloadedAttachment {
+            bytes: bytes.to_vec(),
+            file_name: file_name_from_disposition(content_disposition.as_deref()),
+            content_type: header_str(&headers, &header_content_type()).map(str::to_string),
+            content_disposition,
+            content_length: header_str(&headers, &CONTENT_LENGTH)
+                .and_then(|value| value.parse().ok()),
+            cache_control: header_str(&headers, &CACHE_CONTROL).map(str::to_string),
+            request_id: header_str(&headers, &header_request_id())
+                .map(sanitize_server_text)
+                .filter(|id| !id.is_empty()),
+        })
     }
 
     /// Uploads a file as `multipart/form-data` with a single `file` part.
@@ -517,38 +504,21 @@ impl HamstikClient {
         content_type: Option<&str>,
         bytes: Vec<u8>,
     ) -> Result<ApiResponse<Attachment>, ClientError> {
-        let mut attempt = 0u32;
-        loop {
-            let form = reqwest::multipart::Form::new().part(
-                "file",
-                reqwest::multipart::Part::bytes(bytes.clone())
-                    .file_name(file_name.to_string())
-                    .mime_str(content_type.unwrap_or("application/octet-stream"))
-                    .map_err(|err| ClientError::Protocol(format!("invalid content type: {err}")))?,
-            );
-            let request = self.build_multipart(spec, form)?;
-            let response = match request.send().await {
-                Ok(response) => response,
-                Err(err) => {
-                    let transient = err.is_connect() || err.is_timeout();
-                    if spec.retryable && transient && attempt + 1 < self.policy.attempts {
-                        self.sleeper
-                            .sleep(backoff_delay(&self.policy, attempt))
-                            .await;
-                        attempt += 1;
-                        continue;
-                    }
-                    return Err(ClientError::Network(err.to_string()));
-                }
-            };
-            if let Some(response) = self
-                .retry_or_pass(response, spec.retryable, attempt)
-                .await?
-            {
-                return self.finalize(response).await;
-            }
-            attempt += 1;
-        }
+        let (response, _) = self
+            .send_with_retry(spec.retryable, || {
+                let form = reqwest::multipart::Form::new().part(
+                    "file",
+                    reqwest::multipart::Part::bytes(bytes.clone())
+                        .file_name(file_name.to_string())
+                        .mime_str(content_type.unwrap_or("application/octet-stream"))
+                        .map_err(|err| {
+                            ClientError::Protocol(format!("invalid content type: {err}"))
+                        })?,
+                );
+                self.build_multipart(spec, form)
+            })
+            .await?;
+        self.finalize(response).await
     }
 
     fn build_multipart(

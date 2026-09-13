@@ -51,7 +51,6 @@ pub fn account_key(host: &str, user_id: &str) -> String {
 }
 
 /// OS credential store backed by the `keyring` crate.
-/// OS credential store backed by the `keyring` crate.
 pub struct KeyringCredentialStore;
 
 impl KeyringCredentialStore {
@@ -192,7 +191,6 @@ impl CredentialStore for MemoryCredentialStore {
     }
 }
 
-#[cfg(test)]
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {

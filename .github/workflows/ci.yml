@@ -38,7 +38,7 @@ jobs:
         run: cargo build --workspace --release
 
   # Advisory + license gate for the committed lockfile. Dependabot bumps
-  # versions; this gate catches known RUSTSEC advisories and license/duplicate
+  # versions; this gate catches known RUSTSEC advisories and license/source
   # policy violations between bumps.
   deny:
     name: Advisories and licenses

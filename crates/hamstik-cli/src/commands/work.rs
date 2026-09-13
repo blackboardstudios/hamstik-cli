@@ -967,26 +967,22 @@ fn render_attachment(
 
 /// Reads upload bytes from a path or stdin (`-`), capping at the response-body
 /// budget (10 MiB), and derives a default file name from the path.
+///
+/// Both sources are streamed through the cap, so an oversized or misdirected
+/// stream is rejected at the first excess byte instead of being buffered.
 fn read_upload(file: &str, explicit_name: Option<&str>) -> Result<(Vec<u8>, String), String> {
     const MAX_UPLOAD_BYTES: usize = hamstik_api_client::client::MAX_BODY_BYTES;
     let (bytes, default_name) = if file == "-" {
-        use std::io::Read;
-        let mut buffer = Vec::new();
-        std::io::stdin()
-            .read_to_end(&mut buffer)
+        let stdin = std::io::stdin();
+        let bytes = crate::input::read_bytes_capped(stdin.lock(), MAX_UPLOAD_BYTES)
             .map_err(|err| format!("cannot read stdin: {err}"))?;
-        if buffer.len() > MAX_UPLOAD_BYTES {
-            return Err(format!("upload exceeds the {MAX_UPLOAD_BYTES} byte limit"));
-        }
-        (buffer, "attachment".to_string())
+        (bytes, "attachment".to_string())
     } else {
         let path = std::path::Path::new(file);
-        let metadata =
-            std::fs::metadata(path).map_err(|err| format!("cannot read {file}: {err}"))?;
-        if metadata.len() > MAX_UPLOAD_BYTES as u64 {
-            return Err(format!("upload exceeds the {MAX_UPLOAD_BYTES} byte limit"));
-        }
-        let bytes = std::fs::read(path).map_err(|err| format!("cannot read {file}: {err}"))?;
+        let handle =
+            std::fs::File::open(path).map_err(|err| format!("cannot read {file}: {err}"))?;
+        let bytes = crate::input::read_bytes_capped(handle, MAX_UPLOAD_BYTES)
+            .map_err(|err| format!("cannot read {file}: {err}"))?;
         let name = path
             .file_name()
             .and_then(std::ffi::OsStr::to_str)
@@ -1273,6 +1269,7 @@ async fn list_links(
         let org = org.to_string();
         let project = project.to_string();
         let key = key.to_string();
+        let limit = pagination.limit;
         let page = follow_all(move |cursor| {
             let fetch_api = fetch_api.clone();
             let org = org.clone();
@@ -1280,15 +1277,7 @@ async fn list_links(
             let key = key.to_string();
             async move {
                 let response = fetch_api
-                    .list_work_item_links(
-                        &org,
-                        &project,
-                        &key,
-                        ListOptions {
-                            limit: None,
-                            cursor,
-                        },
-                    )
+                    .list_work_item_links(&org, &project, &key, ListOptions { limit, cursor })
                     .await?;
                 Ok(PageItems::new(
                     response.value.items,
@@ -1361,6 +1350,7 @@ async fn activity(
         let project = project.clone();
         let key = key.to_string();
         let since = opts.since.clone();
+        let limit = pagination.limit;
         let page = follow_all(move |cursor| {
             let fetch_api = fetch_api.clone();
             let org = org.clone();
@@ -1369,7 +1359,7 @@ async fn activity(
             let since = since.clone();
             async move {
                 let opts = ActivityOptions {
-                    limit: None,
+                    limit,
                     cursor,
                     since: since.clone(),
                 };
@@ -1529,24 +1519,19 @@ async fn delete(
 }
 
 /// Reads the bulk operations JSON payload (path or `-` for stdin), capped.
+///
+/// Both sources are read through the byte cap so a misdirected stream cannot
+/// exhaust memory before the size check.
 fn read_operations<T: DeserializeOwned>(path: &str) -> Result<Vec<T>, CliError> {
     const MAX_OPERATIONS_BYTES: usize = 1024 * 1024;
     let text = if path == "-" {
-        use std::io::Read;
-        let mut buffer = String::new();
-        std::io::stdin()
-            .read_to_string(&mut buffer)
-            .map_err(|err| CliError::usage(format!("cannot read stdin: {err}")))?;
-        buffer
+        let stdin = std::io::stdin();
+        crate::input::read_capped(stdin.lock(), MAX_OPERATIONS_BYTES)
+            .map_err(|err| CliError::usage(format!("cannot read stdin: {err}")))?
     } else {
-        let metadata = std::fs::metadata(path)
+        let handle = std::fs::File::open(path)
             .map_err(|err| CliError::usage(format!("cannot read {path}: {err}")))?;
-        if metadata.len() > MAX_OPERATIONS_BYTES as u64 {
-            return Err(CliError::usage(format!(
-                "operations file exceeds the {MAX_OPERATIONS_BYTES} byte limit"
-            )));
-        }
-        std::fs::read_to_string(path)
+        crate::input::read_capped(handle, MAX_OPERATIONS_BYTES)
             .map_err(|err| CliError::usage(format!("cannot read {path}: {err}")))?
     };
     let items: Vec<T> = serde_json::from_str(&text).map_err(|err| {

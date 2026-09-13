@@ -23,7 +23,7 @@ stable Rust works; `cargo` installs the pinned toolchain automatically.
 ## Cloning and building
 
 ```bash
-git clone https://github.com/bbs-steven/hamstik-cli.git
+git clone https://github.com/blackboardstudios/hamstik-cli.git
 cd hamstik-cli
 cargo build
 cargo run -p hamstik-cli -- --help
@@ -39,6 +39,11 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace
 cargo build --workspace --release
 ```
+
+The optional helper `scripts/do-prechecks.py` runs the same gates in fail-fast order
+plus `cargo deny check` and `git diff --check`. It needs Python 3 and the `rich`
+package (`python3 -m pip install rich`); it is a convenience wrapper, not a build
+requirement.
 
 ## Tests
 

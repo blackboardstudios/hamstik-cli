@@ -272,6 +272,63 @@ async fn does_not_retry_patch() {
     assert_eq!(server.received_requests().await.unwrap().len(), 1);
 }
 
+/// A `DELETE` is idempotent: when the first attempt fails transiently and the
+/// retry finds the resource already gone, the desired end state holds and the
+/// operation must report success instead of a false NOT_FOUND.
+#[tokio::test]
+async fn delete_treats_404_after_retry_as_success() {
+    let server = MockServer::start().await;
+    let count = Arc::new(AtomicUsize::new(0));
+    Mock::given(method("DELETE"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1/comments/c1",
+        ))
+        .respond_with(move |_: &Request| {
+            let attempt = count.fetch_add(1, Ordering::SeqCst);
+            if attempt == 0 {
+                ResponseTemplate::new(503)
+            } else {
+                ResponseTemplate::new(404).set_body_json(json!({
+                    "error": {"code": "NOT_FOUND", "message": "already deleted"}
+                }))
+            }
+        })
+        .mount(&server)
+        .await;
+
+    let client = client_for(&server.uri());
+    let response = client
+        .delete_comment("acme", "HAM", "HAM-1", "c1")
+        .await
+        .unwrap();
+    assert!(response.raw.is_null());
+    assert_eq!(server.received_requests().await.unwrap().len(), 2);
+}
+
+/// A first-attempt 404 is a real not-found and is never retried, so it must
+/// keep surfacing as NOT_FOUND.
+#[tokio::test]
+async fn delete_reports_first_attempt_404() {
+    let server = MockServer::start().await;
+    Mock::given(method("DELETE"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1/comments/c1",
+        ))
+        .respond_with(ResponseTemplate::new(404).set_body_json(json!({
+            "error": {"code": "NOT_FOUND", "message": "no such comment"}
+        })))
+        .mount(&server)
+        .await;
+
+    let client = client_for(&server.uri());
+    let err = client
+        .delete_comment("acme", "HAM", "HAM-1", "c1")
+        .await
+        .unwrap_err();
+    assert_eq!(err.as_api().unwrap().status, 404);
+    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+}
+
 #[tokio::test]
 async fn concurrency_errors_preserve_precondition_metadata() {
     let server = MockServer::start().await;

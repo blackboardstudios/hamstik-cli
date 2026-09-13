@@ -71,6 +71,13 @@ in-progress first release and will be dated and versioned when it ships.
   xterm-256 fallback); the bracket frame and hex text stay in plain
   foreground so extreme colors such as black-on-black remain legible.
   Color-disabled and `--json` output are unchanged.
+- `work comment list --exclude-deleted` hides soft-deleted comments instead of
+  rendering `(deleted)` placeholders (`work comment`).
+- The API client captures the documented `RateLimit-Limit` /
+  `RateLimit-Remaining` / `RateLimit-Reset` headers on responses and errors.
+  A successful request that leaves the window depleted waits out the reset
+  (capped at the same 30 s bound as `Retry-After`) instead of sending the
+  next request straight into a guaranteed `429`.
 
 ### Changed
 
@@ -93,41 +100,8 @@ in-progress first release and will be dated and versioned when it ships.
   (`authentication` context in `GET /me`).
 - Table rendering pads columns by visible width, so cells containing ANSI
   escape sequences (color swatches) no longer break column alignment.
-
-### Fixed
-
-- `doctor` now exits nonzero when a credential-store read fails, reports an
-  invalid `HAMSTIK_TOKEN` only once, distinguishes global configuration from
-  local context failures, preserves API error/request metadata, and avoids
-  interactive terminal samples in redirected output.
-- `work edit --parent` and `work create --parent` forward the current API's
-  bounded parent identifier directly so the server remains authoritative for
-  identifier resolution and validation (`work`).
-- `work label add|remove --label` accepts a label name (case-insensitive;
-  labels are stored lowercase) in addition to a UUID. Attach-by-name uses the
-  current request body directly; detach-by-name resolves the id required by
-  the DELETE path (`work label`).
-- `--assignee me` on `work create|edit` resolves to the caller's `usr_` public
-  ID via `GET /me` before sending; the server only accepts ids on writes
-  (`work`).
-- `user view|work|activity|avatar` accept `me` as the target, resolving it the
-  same way (`user`).
-- `--host` no longer hides a profile's stored credential: the lookup tries the
-  selected host first, then the profile host recorded at login, and the
-  failure message names both hosts when both were tried (`auth`, `doctor`).
-- Human API errors always include `requestId`; `--verbose` additionally shows
-  the HTTP status, matching the structured information retained by `--json`
-  (`output`).
-
-### Added
-
-- `work comment list --exclude-deleted` hides soft-deleted comments instead of
-  rendering `(deleted)` placeholders (`work comment`).
-- The API client captures the documented `RateLimit-Limit` /
-  `RateLimit-Remaining` / `RateLimit-Reset` headers on responses and errors.
-  A successful request that leaves the window depleted waits out the reset
-  (capped at the same 30 s bound as `Retry-After`) instead of sending the
-  next request straight into a guaranteed `429`.
+- Retry/backoff is now implemented once in the API client and shared by JSON,
+  void, binary, and multipart sends instead of four near-identical loops.
 
 ### Changed (API sync)
 
@@ -165,9 +139,6 @@ API v1 (29 → 51 operations; all changes additive):
   `fields` fieldsets on `work list` and `org work`.
 - Assignees now accept immutable public IDs (`usr_...`) on create/edit,
   mapped to `assigneePublicId`; legacy UUIDs keep using `assigneeId`.
-
-### Changed (API sync)
-
 - `user work` decodes the dedicated profile Work projection
   (`ProfileWorkItemList`) and gained a `REPORTER` table column; the
   reporter is rendered from the complete projection and shows `-` when
@@ -194,4 +165,64 @@ API v1 (29 → 51 operations; all changes additive):
 - `project list` output gained a `STATE` column; `project view` gained
   `revision` and `archived` detail lines (`0.x`, pre-release).
 
-[Unreleased]: https://github.com/bbs-steven/hamstik-cli/commits/main
+### Security
+
+- Human-readable output now filters server-influenced text through a
+  control-sequence sanitizer that keeps only SGR color sequences and strips
+  every other escape/control character. Work Item titles, descriptions,
+  comments, and other resource content can no longer inject OSC/CSI sequences
+  (clipboard writes, cursor movement, title changes) into the user's terminal.
+  `--json` output is byte-faithful and relies on JSON escaping.
+- Upload (`work attachment upload`) and bulk operations (`--operations-file -`)
+  now read stdin through the same streaming size caps as file inputs, so an
+  oversized or misdirected stream is rejected at the first excess byte instead
+  of being buffered whole.
+
+### Fixed
+
+- `doctor` now exits nonzero when a credential-store read fails, reports an
+  invalid `HAMSTIK_TOKEN` only once, distinguishes global configuration from
+  local context failures, preserves API error/request metadata, and avoids
+  interactive terminal samples in redirected output.
+- `work edit --parent` and `work create --parent` forward the current API's
+  bounded parent identifier directly so the server remains authoritative for
+  identifier resolution and validation (`work`).
+- `work label add|remove --label` accepts a label name (case-insensitive;
+  labels are stored lowercase) in addition to a UUID. Attach-by-name uses the
+  current request body directly; detach-by-name resolves the id required by
+  the DELETE path (`work label`).
+- `--assignee me` on `work create|edit` resolves to the caller's `usr_` public
+  ID via `GET /me` before sending; the server only accepts ids on writes
+  (`work`).
+- `user view|work|activity|avatar` accept `me` as the target, resolving it the
+  same way (`user`).
+- `--host` no longer hides a profile's stored credential: the lookup tries the
+  selected host first, then the profile host recorded at login, and the
+  failure message names both hosts when both were tried (`auth`, `doctor`).
+- Human API errors always include `requestId`; `--verbose` additionally shows
+  the HTTP status, matching the structured information retained by `--json`
+  (`output`).
+- Interactive prompts are now disabled whenever `--json` or `--no-input` is
+  active (prompting additionally requires an interactive stdout, not just
+  stdin). Missing required values fail deterministically with exit 2 instead
+  of prompting (PRD §24/§30, SPEC §41; `work create`, `sprint create`,
+  `project create`, `label create`, `auth login`).
+- `auth login` no longer consumes `HAMSTIK_TOKEN` and writes it to the OS
+  credential store. An environment token is ephemeral (SPEC §27, PRD §6.3);
+  persistence now requires an explicit `auth login --with-token`, and a set
+  `HAMSTIK_TOKEN` produces a clear usage error instead.
+- `auth switch --json`, `context init --json`, and `context clear --json` now
+  emit JSON on stdout; `auth switch` and `context init|clear` also honor
+  `--quiet`. Previously they printed human text in `--json` mode, violating
+  the stdout contract.
+- `work edit --title` no longer conflicts with `--clear-description`; both may
+  be combined (`work edit`).
+- Retrying a `DELETE` after a transient failure no longer reports a false
+  `NOT_FOUND` when the retry finds the resource already gone. A 404 on a
+  retry is treated as success (the desired end state holds); a first-attempt
+  404 still fails as before (`work comment delete`, `work attachment delete`,
+  `work link delete`, `work delete`).
+- `work link list --all` and `work activity --all` now honor `--limit` on
+  every page, matching `work list --all` (`work`).
+
+[Unreleased]: https://github.com/blackboardstudios/hamstik-cli/commits/main

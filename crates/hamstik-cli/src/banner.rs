@@ -53,7 +53,6 @@ pub fn root_help_template() -> String {
 }
 
 #[cfg(test)]
-#[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;

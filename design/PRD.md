@@ -989,12 +989,12 @@ Conceptual structure:
 ```text
 skills/
 └── hamstik/
-    ├── SKILL.md
-    └── references/
-        ├── work-items.md
-        ├── context.md
-        └── cli-output.md
+    └── SKILL.md
 ```
+
+The canonical entry point is always `SKILL.md`. It MAY grow supporting files
+under `skills/hamstik/references/` when a topic outgrows the main document;
+none exist yet.
 
 The Skill teaches:
 
@@ -1186,19 +1186,20 @@ The initial CLI does not need:
 
 - OAuth login yet;
 - MCP;
-- public Sprint CRUD;
+- public Sprint edit/delete (creation and transitions have since shipped);
 - public Board CRUD;
-- public Label CRUD;
+- public Label edit/delete (listing and creation have since shipped);
 - billing management;
 - Organization administration;
 - App administration;
 - Gitea management;
 - Audit Compliance management;
-- Work Item deletion;
 - offline editing;
 - local data synchronization.
 
-These can be added as the Public API expands.
+Work Item soft-deletion (`work delete`) and the partial Sprint/Label surfaces
+above were added after this list was written, following the Public API. The
+remaining items can be added as the Public API expands.
 
 ---
 

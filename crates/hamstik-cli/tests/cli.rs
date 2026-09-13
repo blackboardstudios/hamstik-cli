@@ -8,12 +8,15 @@
 //! wiremock server. Credentials use the ephemeral `HAMSTIK_TOKEN` path so the
 //! tests never touch an OS keyring.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+
 use assert_cmd::Command;
 use predicates::prelude::*;
 use serde_json::{Value, json};
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
+use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
 /// A page envelope helper.
 fn page(items: Value) -> Value {
@@ -3299,4 +3302,453 @@ async fn structured_api_errors_preserve_fields_details_and_request_id() {
         "has an invalid shape"
     );
     assert_eq!(body["error"]["details"]["rule"], "slug");
+}
+
+// ---- Exit-code coverage, prompt gating, and retry replay -------------------
+
+/// A `hamstik` command wired to `server` with retries left at the default
+/// policy (unlike [`base`], which disables them).
+fn retrying_command(server: &MockServer, dir: &TempDir) -> Command {
+    let mut cmd = Command::cargo_bin("hamstik").expect("hamstik binary");
+    cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
+    cmd.env("HAMSTIK_HOST", server.uri());
+    cmd.env("HAMSTIK_TOKEN", "secret-token");
+    cmd.env_remove("HAMSTIK_PROFILE");
+    cmd.env_remove("HAMSTIK_ORG");
+    cmd.env_remove("HAMSTIK_PROJECT");
+    cmd.current_dir(dir.path());
+    cmd
+}
+
+/// 403/INSUFFICIENT_SCOPE maps to exit 4 (SPEC §52).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn forbidden_maps_to_exit_four() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1",
+        ))
+        .respond_with(ResponseTemplate::new(403).set_body_json(json!({
+            "error": {"code": "INSUFFICIENT_SCOPE", "message": "missing work-item:read scope"},
+            "requestId": "r-forbidden"
+        })))
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    base(&server, &dir)
+        .args(["--org", "acme", "--project", "HAM", "work", "view", "HAM-1"])
+        .assert()
+        .code(4)
+        .stderr(predicate::str::contains("INSUFFICIENT_SCOPE"));
+}
+
+/// 429 with no usable `Retry-After` maps to exit 7 (SPEC §52).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn rate_limited_maps_to_exit_seven() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1",
+        ))
+        .respond_with(ResponseTemplate::new(429).set_body_json(json!({
+            "error": {"code": "RATE_LIMITED", "message": "too many requests"},
+            "requestId": "r-limited"
+        })))
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    base(&server, &dir)
+        .args(["--org", "acme", "--project", "HAM", "work", "view", "HAM-1"])
+        .assert()
+        .code(7)
+        .stderr(predicate::str::contains("RATE_LIMITED"));
+}
+
+/// A transport failure maps to exit 8 (SPEC §52).
+#[test]
+fn network_failure_maps_to_exit_eight() {
+    // Bind then drop a loopback port so the connect attempt is refused
+    // immediately, with no external network dependency.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+
+    let dir = TempDir::new().unwrap();
+    config_command(&dir)
+        .env("HAMSTIK_HOST", format!("http://127.0.0.1:{port}"))
+        .env("HAMSTIK_TOKEN", "secret-token")
+        .args(["--no-retry", "auth", "status"])
+        .assert()
+        .code(8);
+}
+
+/// 412/REVISION_CONFLICT on an ETag-protected edit maps to exit 6, and the
+/// edit sends `If-Match` from the freshly read revision.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn revision_conflict_maps_to_exit_six() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("ETag", "\"wi-3\"")
+                .set_body_json(work_item_json("todo", 3)),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1",
+        ))
+        .respond_with(ResponseTemplate::new(412).set_body_json(json!({
+            "error": {
+                "code": "REVISION_CONFLICT",
+                "message": "revision changed",
+                "details": {"expectedRevision": 3, "currentRevision": 4}
+            },
+            "requestId": "r-conflict"
+        })))
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "work",
+            "edit",
+            "HAM-1",
+            "--title",
+            "Changed",
+        ])
+        .assert()
+        .code(6)
+        .stderr(predicate::str::contains("REVISION_CONFLICT"));
+
+    let requests = server.received_requests().await.unwrap();
+    let patch = requests
+        .iter()
+        .find(|request| request.method == wiremock::http::Method::PATCH)
+        .expect("PATCH request");
+    assert_eq!(
+        patch.headers.get("if-match").unwrap().to_str().unwrap(),
+        "\"wi-3\""
+    );
+}
+
+/// `--no-input` turns a missing required value into a usage error before any
+/// request is sent; it can never hang waiting for a prompt (PRD §30).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn no_input_fails_instead_of_prompting() {
+    let server = MockServer::start().await;
+    let dir = TempDir::new().unwrap();
+    base(&server, &dir)
+        .env("HAMSTIK_ORG", "acme")
+        .env("HAMSTIK_PROJECT", "HAM")
+        .args(["work", "create", "--no-input"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("--title"));
+    assert!(server.received_requests().await.unwrap().is_empty());
+}
+
+/// A transient failure is retried with the *same* idempotency key, and a
+/// server-signaled replay surfaces as a warning (SPEC §76).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn create_retries_with_same_idempotency_key_and_warns_on_replay() {
+    let server = MockServer::start().await;
+    let keys: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let first = Arc::new(AtomicBool::new(true));
+    let seen_keys = keys.clone();
+    let seen_first = first.clone();
+    Mock::given(method("POST"))
+        .and(path("/api/v1/organizations/acme/projects/HAM/work-items"))
+        .respond_with(move |request: &Request| {
+            let key = request
+                .headers
+                .get("idempotency-key")
+                .map(|value| value.to_str().unwrap().to_string())
+                .unwrap_or_default();
+            seen_keys.lock().unwrap().push(key);
+            if seen_first.swap(false, Ordering::SeqCst) {
+                ResponseTemplate::new(503)
+            } else {
+                ResponseTemplate::new(201)
+                    .insert_header("Idempotency-Replayed", "true")
+                    .set_body_json(work_item_json("todo", 1))
+            }
+        })
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    retrying_command(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "work",
+            "create",
+            "--title",
+            "Retried",
+        ])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("replayed"));
+
+    let keys = keys.lock().unwrap();
+    assert_eq!(keys.len(), 2, "expected a retry");
+    assert!(!keys[0].is_empty(), "idempotency key must be generated");
+    assert_eq!(
+        keys[0], keys[1],
+        "retry must reuse the same idempotency key"
+    );
+}
+
+/// `--all` follows cursors and aggregates every page (SPEC §43).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn work_list_all_follows_cursor_pages() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/organizations/acme/projects/HAM/work-items"))
+        .respond_with(move |request: &Request| {
+            let cursor = request
+                .url
+                .query_pairs()
+                .find(|(key, _)| key == "cursor")
+                .map(|(_, value)| value.into_owned());
+            match cursor.as_deref() {
+                None => ResponseTemplate::new(200).set_body_json(json!({
+                    "items": [work_item_json("todo", 1)],
+                    "page": {"limit": 50, "hasMore": true, "nextCursor": "page-two"}
+                })),
+                Some("page-two") => ResponseTemplate::new(200).set_body_json(json!({
+                    "items": [work_item_json("done", 2)],
+                    "page": {"limit": 50, "hasMore": false, "nextCursor": null}
+                })),
+                Some(other) => panic!("unexpected cursor {other}"),
+            }
+        })
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    let output = base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "work",
+            "list",
+            "--all",
+            "--limit",
+            "2",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(body["items"].as_array().unwrap().len(), 2);
+    assert_eq!(body["items"][0]["status"], "todo");
+    assert_eq!(body["items"][1]["status"], "done");
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 2);
+    for request in &requests {
+        let limit = request
+            .url
+            .query_pairs()
+            .find(|(key, _)| key == "limit")
+            .map(|(_, value)| value.into_owned());
+        assert_eq!(
+            limit.as_deref(),
+            Some("2"),
+            "--limit must apply to every page"
+        );
+    }
+}
+
+/// `auth login` must not persist `HAMSTIK_TOKEN`: an environment token is
+/// ephemeral (SPEC §27, PRD §6.3).
+#[test]
+fn auth_login_rejects_env_token() {
+    let dir = TempDir::new().unwrap();
+    config_command(&dir)
+        .env("HAMSTIK_TOKEN", "secret-token")
+        .args(["auth", "login"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("ephemeral"));
+    assert!(
+        !dir.path().join("config.toml").exists(),
+        "login must not write profile state when it refuses"
+    );
+}
+
+/// `auth switch --json` emits JSON rather than a human line.
+#[test]
+fn auth_switch_json_emits_json() {
+    let dir = TempDir::new().unwrap();
+    std::fs::write(dir.path().join("config.toml"), TWO_PROFILES).unwrap();
+
+    let output = config_command(&dir)
+        .args(["auth", "switch", "two", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(body["activeProfile"], "two");
+}
+
+/// `context init --json` and `context clear --json` emit JSON.
+#[test]
+fn context_init_and_clear_honor_json() {
+    let dir = TempDir::new().unwrap();
+    let output = config_command(&dir)
+        .args(["context", "init", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(body["created"], true);
+    assert!(
+        body["contextFile"]
+            .as_str()
+            .unwrap()
+            .ends_with(".hamstik.toml")
+    );
+
+    let output = config_command(&dir)
+        .args(["context", "clear", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(body["cleared"], true);
+}
+
+/// `--title` and `--clear-description` are independent and may be combined.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn work_edit_title_with_clear_description_is_accepted() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("ETag", "\"wi-1\"")
+                .set_body_json(work_item_json("todo", 1)),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(work_item_json("todo", 2)))
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "work",
+            "edit",
+            "HAM-1",
+            "--title",
+            "Renamed",
+            "--clear-description",
+        ])
+        .assert()
+        .success();
+
+    let patch = server
+        .received_requests()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|request| request.method == wiremock::http::Method::PATCH)
+        .expect("PATCH request");
+    let body: Value = serde_json::from_slice(&patch.body).unwrap();
+    assert_eq!(body["title"], "Renamed");
+    assert!(
+        body["description"].is_null(),
+        "clear sends an explicit null"
+    );
+}
+
+/// A local I/O failure maps to exit 1 (general failure).
+#[test]
+fn local_io_failure_maps_to_exit_one() {
+    let dir = TempDir::new().unwrap();
+    config_command(&dir)
+        .env("HAMSTIK_HOST", "http://127.0.0.1:1")
+        .env("HAMSTIK_TOKEN", "secret-token")
+        .env("HAMSTIK_ORG", "acme")
+        .env("HAMSTIK_PROJECT", "HAM")
+        .args([
+            "--no-retry",
+            "work",
+            "edit",
+            "HAM-1",
+            "--description-file",
+            "/nonexistent/hamstik-nope.md",
+        ])
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("cannot read text"));
+}
+
+/// Bulk operations read from stdin are size-capped before buffering.
+#[test]
+fn bulk_operations_stdin_is_capped() {
+    let dir = TempDir::new().unwrap();
+    let big = "x".repeat(1024 * 1024 + 1);
+    config_command(&dir)
+        .env("HAMSTIK_HOST", "http://127.0.0.1:1")
+        .env("HAMSTIK_TOKEN", "secret-token")
+        .env("HAMSTIK_ORG", "acme")
+        .env("HAMSTIK_PROJECT", "HAM")
+        .args([
+            "--no-retry",
+            "work",
+            "bulk",
+            "create",
+            "--operations-file",
+            "-",
+        ])
+        .write_stdin(big)
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("byte limit"));
 }

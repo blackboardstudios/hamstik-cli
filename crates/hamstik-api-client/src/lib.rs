@@ -30,7 +30,6 @@ pub use pagination::{MAX_FOLLOW_ITEMS, MAX_FOLLOW_PAGES, Page, PageItems, follow
 pub use retry::{RetryPolicy, Sleeper, TokioSleeper};
 
 #[cfg(test)]
-#[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;

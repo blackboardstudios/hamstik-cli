@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 """Run the Hamstik CLI's local quality gates in fail-fast order.
 
-The checks mirror the repository's canonical gate list (AGENTS.md "Quality
-gates") plus the advisory/license gate:
+The checks mirror the repository's canonical quality gates plus dependency-policy
+and Git diff hygiene checks:
 
     cargo fmt --all --check
-    cargo clippy --workspace --all-targets --all-features -- -D warnings
-    cargo test --workspace
-    cargo build --workspace --release
-    cargo deny check advisories licenses sources
+    cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+    cargo test --locked --workspace
+    cargo build --locked --workspace --release
+    cargo deny --locked check
     git diff --check
+    git diff --cached --check
 
 Examples:
     ./scripts/do-prechecks.py
-    ./scripts/do-prechecks.py --skip-deny      # when cargo-deny is unavailable
-    ./scripts/do-prechecks.py --only fmt,clippy
+    ./scripts/do-prechecks.py --skip-deny
+    ./scripts/do-prechecks.py --skip-build
+    ./scripts/do-prechecks.py --only format,clippy
+    ./scripts/do-prechecks.py --only whitespace
 """
 
 from __future__ import annotations
@@ -48,6 +51,7 @@ except ModuleNotFoundError:
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
 ANSI_ESCAPE_PATTERN = re.compile(
     r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))"
 )
@@ -63,6 +67,7 @@ console = Console(highlight=False)
 class Check:
     """One fail-fast quality gate."""
 
+    key: str
     name: str
     command: tuple[str, ...]
     detail: str
@@ -89,16 +94,16 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Run the repository's quality gates in fail-fast order: format, "
-            "lint, tests, then the production release build. Stop immediately "
-            "when a check fails."
+            "lint, tests, release build, dependency policy, and Git diff hygiene. "
+            "Stop immediately when a check fails."
         )
     )
     parser.add_argument(
         "--skip-deny",
         action="store_true",
         help=(
-            "Skip the cargo-deny advisory/license/source gate (useful when "
-            "cargo-deny is not installed locally; CI still enforces it)."
+            "Skip the cargo-deny dependency-policy gate (useful when cargo-deny "
+            "is not installed locally; CI should still enforce it)."
         ),
     )
     parser.add_argument(
@@ -111,7 +116,8 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=(
             "Comma-separated subset of checks to run "
-            "(format, clippy, tests, release, advisories, whitespace)."
+            "(format, clippy, tests, release, deny, whitespace). "
+            "'advisories' is accepted as a backwards-compatible alias for 'deny'."
         ),
     )
     return parser.parse_args()
@@ -119,17 +125,23 @@ def parse_args() -> argparse.Namespace:
 
 def checks_for(*, skip_deny: bool, skip_build: bool, only: str | None) -> list[Check]:
     """Return checks ordered from quick feedback to longest-running work."""
+
     checks = [
         Check(
+            key="format",
             name="Format",
             command=("cargo", "fmt", "--all", "--check"),
-            detail="Verify every file matches rustfmt's canonical formatting.",
+            detail="Verify every Rust file matches rustfmt's canonical formatting.",
+            require_files=("Cargo.toml",),
+            require_tools=("cargo",),
         ),
         Check(
+            key="clippy",
             name="Clippy",
             command=(
                 "cargo",
                 "clippy",
+                "--locked",
                 "--workspace",
                 "--all-targets",
                 "--all-features",
@@ -137,45 +149,83 @@ def checks_for(*, skip_deny: bool, skip_build: bool, only: str | None) -> list[C
                 "-D",
                 "warnings",
             ),
-            detail="Lint all targets with warnings denied (includes missing_docs and unwrap/expect lints).",
-        ),
-        Check(
-            name="Tests",
-            command=("cargo", "test", "--workspace"),
-            detail="Run the complete unit, doc, and integration test suites.",
-        ),
-        Check(
-            name="Release build",
-            command=("cargo", "build", "--workspace", "--release"),
-            detail="Build the optimized release binary and reject warning output.",
-            reject_warnings=True,
-        ),
-        Check(
-            name="Advisories and licenses",
-            command=("cargo", "deny", "check", "advisories", "licenses", "sources"),
             detail=(
-                "Enforce RUSTSEC advisory, dependency license, and registry "
-                "source policy against the committed lockfile."
+                "Lint all workspace targets and features with warnings denied "
+                "without allowing Cargo.lock to change."
             ),
-            require_files=("deny.toml",),
-            require_tools=("cargo-deny",),
+            require_files=("Cargo.toml", "Cargo.lock"),
+            require_tools=("cargo",),
         ),
         Check(
-            name="Whitespace",
+            key="tests",
+            name="Tests",
+            command=("cargo", "test", "--locked", "--workspace"),
+            detail=(
+                "Run the complete workspace unit, doc, and integration test suites "
+                "without allowing Cargo.lock to change."
+            ),
+            require_files=("Cargo.toml", "Cargo.lock"),
+            require_tools=("cargo",),
+        ),
+        Check(
+            key="release",
+            name="Release build",
+            command=("cargo", "build", "--locked", "--workspace", "--release"),
+            detail=(
+                "Build the optimized workspace release artifacts with the lockfile "
+                "held fixed and reject compiler warning output."
+            ),
+            reject_warnings=True,
+            require_files=("Cargo.toml", "Cargo.lock"),
+            require_tools=("cargo",),
+        ),
+        Check(
+            key="deny",
+            name="Dependency policy",
+            command=("cargo", "deny", "--locked", "check"),
+            detail=(
+                "Run the complete cargo-deny policy, including advisories, bans, "
+                "licenses, and sources, against the committed lockfile."
+            ),
+            require_files=("Cargo.toml", "Cargo.lock", "deny.toml"),
+            require_tools=("cargo", "cargo-deny"),
+        ),
+        Check(
+            key="whitespace",
+            name="Working tree diff",
             command=("git", "diff", "--check"),
-            detail="Reject trailing whitespace and conflict markers in the diff.",
+            detail=(
+                "Reject whitespace errors and conflict markers in unstaged changes."
+            ),
+            require_tools=("git",),
+        ),
+        Check(
+            key="whitespace",
+            name="Staged diff",
+            command=("git", "diff", "--cached", "--check"),
+            detail=(
+                "Reject whitespace errors and conflict markers in staged changes "
+                "that are about to be committed."
+            ),
+            require_tools=("git",),
         ),
     ]
 
     if skip_build:
-        checks = [check for check in checks if check.name != "Release build"]
+        checks = [check for check in checks if check.key != "release"]
     if skip_deny:
-        checks = [check for check in checks if check.name != "Advisories and licenses"]
+        checks = [check for check in checks if check.key != "deny"]
 
     if only is not None:
         selected = {name.strip().lower() for name in only.split(",") if name.strip()}
-        known = {check.name.split()[0].lower(): check.name for check in checks}
-        unknown = selected - set(known)
+
+        # Preserve compatibility with the original script's "--only advisories".
+        if "advisories" in selected:
+            selected.remove("advisories")
+            selected.add("deny")
+
+        known = {check.key for check in checks}
+        unknown = selected - known
         if unknown:
             console.print(
                 Panel(
@@ -187,31 +237,31 @@ def checks_for(*, skip_deny: bool, skip_build: bool, only: str | None) -> list[C
                 )
             )
             raise SystemExit(2)
-        checks = [check for check in checks if check.name.split()[0].lower() in selected]
+
+        checks = [check for check in checks if check.key in selected]
 
     return checks
 
 
 def validate_environment(checks: Sequence[Check]) -> None:
-    """Fail before doing work when the checkout cannot run project commands."""
-    problems: list[str] = []
-    if shutil.which("cargo") is None:
-        problems.append("cargo is not available on PATH")
-    if not (REPO_ROOT / "Cargo.toml").is_file():
-        problems.append(f"Cargo.toml was not found under {REPO_ROOT}")
+    """Fail before doing work when an enabled check cannot run."""
 
-    required_tools = {
-        tool for check in checks for tool in check.require_tools
-    }
+    problems: list[str] = []
+
+    required_tools = {tool for check in checks for tool in check.require_tools}
     for tool in sorted(required_tools):
         if shutil.which(tool) is None:
-            problems.append(f"{tool} is not available on PATH (required by an enabled check)")
-    required_files = {
-        file for check in checks for file in check.require_files
-    }
+            problems.append(
+                f"{tool} is not available on PATH (required by an enabled check)"
+            )
+
+    required_files = {file for check in checks for file in check.require_files}
     for file in sorted(required_files):
         if not (REPO_ROOT / file).is_file():
             problems.append(f"{file} was not found under {REPO_ROOT}")
+
+    if not checks:
+        problems.append("no prechecks are enabled")
 
     if problems:
         message = "\n".join(f"• {problem}" for problem in problems)
@@ -235,6 +285,7 @@ def strip_terminal_codes(value: str) -> str:
 
 def print_process_line(line: str) -> None:
     """Render child output live while preserving any ANSI styling it contains."""
+
     value = line.rstrip("\r\n")
     if value:
         console.print(Text.from_ansi(value), soft_wrap=True)
@@ -266,6 +317,7 @@ def run_check(check: Check, *, position: int, total: int) -> CheckResult:
             bufsize=1,
         )
         assert process.stdout is not None
+
         for line in process.stdout:
             print_process_line(line)
             normalized = strip_terminal_codes(line).strip()
@@ -275,7 +327,9 @@ def run_check(check: Check, *, position: int, total: int) -> CheckResult:
                 and COMPILER_WARNING_PATTERN.search(normalized)
             ):
                 warning_lines.append(normalized)
+
         returncode = process.wait()
+
     except KeyboardInterrupt:
         if process is not None and process.poll() is None:
             process.terminate()
@@ -284,10 +338,12 @@ def run_check(check: Check, *, position: int, total: int) -> CheckResult:
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
+
         console.print("\n[yellow]Prechecks interrupted.[/yellow]")
         raise SystemExit(130)
 
     elapsed = time.monotonic() - started_at
+
     return CheckResult(
         check=check,
         returncode=returncode,
@@ -298,17 +354,21 @@ def run_check(check: Check, *, position: int, total: int) -> CheckResult:
 
 def print_failure(result: CheckResult, *, remaining: Sequence[Check]) -> None:
     reasons: list[str] = []
+
     if result.returncode != 0:
         reasons.append(f"Command exited with status {result.returncode}.")
+
     if result.warning_lines:
         reasons.append(
             f"The build emitted {len(result.warning_lines)} unique warning "
             f"marker{'s' if len(result.warning_lines) != 1 else ''}:"
         )
         reasons.extend(f"  • {escape(line)}" for line in result.warning_lines)
+
     if remaining:
         reasons.append(
-            "Fail-fast mode did not run: " + ", ".join(check.name for check in remaining)
+            "Fail-fast mode did not run: "
+            + ", ".join(check.name for check in remaining)
         )
 
     console.print()
@@ -326,6 +386,7 @@ def print_success(results: Sequence[CheckResult]) -> None:
     table.add_column("Check")
     table.add_column("Result", justify="center")
     table.add_column("Time", justify="right")
+
     for result in results:
         table.add_row(
             result.check.name,
@@ -334,6 +395,7 @@ def print_success(results: Sequence[CheckResult]) -> None:
         )
 
     total_seconds = sum(result.elapsed_seconds for result in results)
+
     console.print()
     console.print(table)
     console.print(
@@ -347,28 +409,35 @@ def print_success(results: Sequence[CheckResult]) -> None:
 
 def main() -> int:
     options = parse_args()
+
     checks = checks_for(
         skip_deny=options.skip_deny,
         skip_build=options.skip_build,
         only=options.only,
     )
+
     validate_environment(checks)
 
     console.print(
         Panel(
-            "Quick gates run first; execution stops on the first failure.",
+            "Quick gates run first; execution stops on the first failure. "
+            "Cargo dependency resolution is locked, and both unstaged and staged "
+            "Git diffs are checked before success is reported.",
             title="[bold]Hamstik CLI prechecks[/bold]",
             border_style="cyan",
         )
     )
 
     results: list[CheckResult] = []
+
     for index, check in enumerate(checks):
         result = run_check(check, position=index + 1, total=len(checks))
         results.append(result)
+
         if not result.passed:
             print_failure(result, remaining=checks[index + 1 :])
             return result.returncode if result.returncode else 1
+
         console.print(
             f"[bold green]PASS[/bold green] {escape(check.name)} "
             f"[dim]({result.elapsed_seconds:.1f}s)[/dim]"

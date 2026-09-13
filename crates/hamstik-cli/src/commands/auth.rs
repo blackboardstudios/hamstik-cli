@@ -13,7 +13,7 @@ use crate::credentials;
 use crate::error::CliError;
 use crate::input::read_token;
 
-use super::{emit_json, emit_table};
+use super::{emit_json, emit_table, emit_view};
 
 /// Runs the `auth` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &AuthArgs) -> Result<(), CliError> {
@@ -49,8 +49,15 @@ async fn login(session: &mut Session<'_>, with_token: bool) -> Result<(), CliErr
         let stdin = std::io::stdin();
         read_token(stdin.lock())
             .map_err(|err| CliError::usage(format!("cannot read token: {err}")))?
-    } else if let Some(token) = session.env.var("HAMSTIK_TOKEN") {
-        token
+    } else if session.env.var("HAMSTIK_TOKEN").is_some() {
+        // SPEC §27/PRD §6.3: an environment token is ephemeral and must never
+        // be written to the credential store. Persisting one is an explicit
+        // act (`--with-token`), never an implicit side effect of login.
+        return Err(CliError::usage(
+            "HAMSTIK_TOKEN is ephemeral and is never stored; use \
+             `hamstik auth login --with-token` to persist a token, or unset \
+             HAMSTIK_TOKEN to log in interactively",
+        ));
     } else if session.can_prompt() {
         session
             .prompt
@@ -58,7 +65,7 @@ async fn login(session: &mut Session<'_>, with_token: bool) -> Result<(), CliErr
             .map_err(|err| CliError::general(format!("prompt failed: {err}")))?
     } else {
         return Err(CliError::usage(
-            "no token provided; use --with-token, set HAMSTIK_TOKEN, or run interactively",
+            "no token provided; use --with-token or run interactively",
         ));
     };
 
@@ -286,10 +293,17 @@ fn switch(session: &mut Session<'_>, name: &str) -> Result<(), CliError> {
     }
     config.active_profile = Some(name.to_string());
     session.config.save(&config)?;
-    session
-        .out
-        .line(&format!("Active profile: {name}"))
-        .map_err(CliError::general)
+    emit_view(
+        session,
+        &json!({ "activeProfile": name }),
+        name,
+        |session| {
+            session
+                .out
+                .line(&format!("Active profile: {name}"))
+                .map_err(CliError::general)
+        },
+    )
 }
 
 fn logout(session: &mut Session<'_>) -> Result<(), CliError> {

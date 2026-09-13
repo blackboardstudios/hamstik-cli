@@ -344,10 +344,17 @@ impl Session<'_> {
         self.factory.build(&request)
     }
 
-    /// Returns true when interactive prompting is permitted.
+    /// Returns true when interactive prompting is permitted (SPEC §41).
+    ///
+    /// Both streams must be interactive, and neither `--no-input` nor `--json`
+    /// may be set; otherwise a missing required value is a deterministic usage
+    /// error instead of a prompt (PRD §30).
     #[must_use]
     pub fn can_prompt(&self) -> bool {
-        !self.global.no_input && self.env.stdin_is_terminal()
+        !self.global.no_input
+            && !self.global.json
+            && self.env.stdin_is_terminal()
+            && self.env.stdout_is_terminal()
     }
 
     /// Whether ANSI colors may decorate human output this invocation.
@@ -474,13 +481,20 @@ mod tests {
 
     struct StaticEnvironment {
         vars: BTreeMap<String, String>,
+        terminals: bool,
     }
 
     impl StaticEnvironment {
         fn new() -> Self {
             Self {
                 vars: BTreeMap::new(),
+                terminals: false,
             }
+        }
+
+        fn with_terminals(mut self) -> Self {
+            self.terminals = true;
+            self
         }
     }
 
@@ -489,10 +503,10 @@ mod tests {
             self.vars.get(key).cloned()
         }
         fn stdout_is_terminal(&self) -> bool {
-            false
+            self.terminals
         }
         fn stdin_is_terminal(&self) -> bool {
-            false
+            self.terminals
         }
     }
 
@@ -516,7 +530,11 @@ mod tests {
     /// trait's `set` (writes are visible to the session's reads). Profile
     /// metadata rides on the selection, not the session.
     fn test_session() -> Session<'static> {
-        let global = crate::args::GlobalOptions {
+        test_session_with(test_global(), false)
+    }
+
+    fn test_global() -> crate::args::GlobalOptions {
+        crate::args::GlobalOptions {
             host: None,
             profile: None,
             org: None,
@@ -528,8 +546,15 @@ mod tests {
             no_input: false,
             no_retry: false,
             ca_bundle: None,
-        };
-        let env = Box::new(StaticEnvironment::new());
+        }
+    }
+
+    fn test_session_with(global: crate::args::GlobalOptions, terminals: bool) -> Session<'static> {
+        let mut env = StaticEnvironment::new();
+        if terminals {
+            env = env.with_terminals();
+        }
+        let env = Box::new(env);
         let config_store = crate::config::ConfigStore::new("/tmp/kilo/cred-test-config.toml");
         let out = Output::new(
             Mode::Human,
@@ -619,5 +644,26 @@ mod tests {
         assert!(err.message.contains("https://a.example"), "{err}");
         assert!(err.message.contains("https://b.example"), "{err}");
         assert_eq!(err.exit_code(), 2);
+    }
+
+    #[test]
+    fn can_prompt_requires_interactive_streams() {
+        assert!(test_session_with(test_global(), true).can_prompt());
+        assert!(!test_session_with(test_global(), false).can_prompt());
+    }
+
+    #[test]
+    fn can_prompt_is_disabled_by_json_and_no_input() {
+        let json_global = crate::args::GlobalOptions {
+            json: true,
+            ..test_global()
+        };
+        assert!(!test_session_with(json_global, true).can_prompt());
+
+        let no_input_global = crate::args::GlobalOptions {
+            no_input: true,
+            ..test_global()
+        };
+        assert!(!test_session_with(no_input_global, true).can_prompt());
     }
 }

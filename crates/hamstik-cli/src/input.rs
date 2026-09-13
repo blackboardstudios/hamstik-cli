@@ -47,7 +47,19 @@ pub const MAX_TEXT_BYTES: usize = 1024 * 1024;
 /// Reads up to `max` bytes from `reader`, failing once the stream is larger.
 ///
 /// Reading stops at the first oversize byte; the excess is never buffered.
-pub fn read_capped(mut reader: impl Read, max: usize) -> io::Result<String> {
+pub fn read_capped(reader: impl Read, max: usize) -> io::Result<String> {
+    let buffer = read_bytes_capped(reader, max)?;
+    String::from_utf8(buffer)
+        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.utf8_error()))
+}
+
+/// Reads up to `max` bytes from `reader` as raw bytes, failing once the stream
+/// is larger.
+///
+/// Binary counterpart of [`read_capped`] for uploads: reading stops at the
+/// first oversize byte, so an oversized or misdirected stream is rejected
+/// before it can be buffered.
+pub fn read_bytes_capped(mut reader: impl Read, max: usize) -> io::Result<Vec<u8>> {
     let mut buffer = Vec::with_capacity(8 * 1024);
     let mut chunk = [0u8; 8 * 1024];
     loop {
@@ -63,8 +75,7 @@ pub fn read_capped(mut reader: impl Read, max: usize) -> io::Result<String> {
         }
         buffer.extend_from_slice(&chunk[..read]);
     }
-    String::from_utf8(buffer)
-        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.utf8_error()))
+    Ok(buffer)
 }
 
 /// Reads a first-line token (e.g. a PAT piped via `--with-token`).
@@ -152,7 +163,6 @@ pub fn resolve_text(
 }
 
 #[cfg(test)]
-#[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
@@ -208,6 +218,15 @@ mod tests {
     fn missing_file_reports_io_error() {
         let mut stdin = Cursor::new(Vec::new());
         assert!(resolve_text(None, Some("/nope/missing"), &mut stdin).is_err());
+    }
+
+    #[test]
+    fn binary_reads_accept_non_utf8_and_enforce_the_cap() {
+        let bytes = read_bytes_capped(Cursor::new(vec![0xff, 0x00, 0xfe]), 8).unwrap();
+        assert_eq!(bytes, vec![0xff, 0x00, 0xfe]);
+        let err = read_bytes_capped(Cursor::new(vec![b'x'; 9]), 8).unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+        assert!(err.to_string().contains("byte limit"));
     }
 
     #[test]

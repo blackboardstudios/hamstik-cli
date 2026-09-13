@@ -28,3 +28,8 @@ Thumbs.db
 # Note: intentional examples such as `.env.example` are NOT ignored.
 .env
 .env.*
+!.env.example
+
+# Python caches from the optional developer precheck script
+__pycache__/
+*.pyc

@@ -237,7 +237,6 @@ pub fn unique_profile_name(config: &ConfigFile, base: &str, user_id: &str, host:
 }
 
 #[cfg(test)]
-#[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;

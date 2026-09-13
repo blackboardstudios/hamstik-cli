@@ -17,7 +17,7 @@ scripts, and agent workflows.
 > **Status:** Pre-alpha. The current Public API v1 command surface is implemented,
 > but packaging and the first supported release are still under development.
 
-[![CI](https://github.com/bbs-steven/hamstik-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/bbs-steven/hamstik-cli/actions/workflows/ci.yml)
+[![CI](https://github.com/blackboardstudios/hamstik-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/blackboardstudios/hamstik-cli/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 ## Quick start
@@ -26,7 +26,7 @@ The CLI is not yet distributed as an installable package. Build it from source
 and install the resulting development binary into Cargo's binary directory:
 
 ```bash
-git clone https://github.com/bbs-steven/hamstik-cli.git
+git clone https://github.com/blackboardstudios/hamstik-cli.git
 cd hamstik-cli
 cargo build --workspace
 cargo install --path crates/hamstik-cli --locked
@@ -61,9 +61,11 @@ identity banner:
 🐹 hamstik cli v0.1.0      © Blackboard Studios LLC
 ```
 
-The banner appears only on the human root help and version surfaces (`hamstik`,
-`-h`/`--help`, `-V`/`--version`, and `version`). It is intentionally omitted
-from `--json` machine output, subcommand help, and completion scripts.
+The banner appears on the human help surfaces (`hamstik` with no command,
+`-h`/`--help`, and the `version` subcommand). The machine-parsed `-V`/`--version`
+surface stays terse: it prints a single `hamstik <version>` line. The banner is
+intentionally omitted from `--json` machine output, subcommand help, and
+completion scripts.
 
 ## Why Hamstik CLI?
 
@@ -111,9 +113,8 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   with secrets held only in the OS credential store;
 - working context — `hamstik context show|set|clear|init` backed by a
   project-local `.hamstik.toml` plus global profile defaults;
-- organizations and projects — `hamstik org ...` and `hamstik project ...`
-  (`list`, `view`, `create`, `edit`, `archive`, `unarchive`, `activity`,
-  `use`);
+- organizations and projects — `hamstik org list|view|use` and
+  `hamstik project list|view|create|edit|archive|unarchive|activity|use`;
 - member directory — `hamstik org members` and Organization-wide work via
   `hamstik org work` (`--mine` for the authenticated user);
 - user profiles — `hamstik user view|work|activity|avatar` for
@@ -263,7 +264,10 @@ Stable process exit codes are:
 ## Credentials, profiles, and logout
 
 `hamstik auth login` validates the PAT against `GET /api/v1/me` before storing
-anything. Two things are then kept in two different places:
+anything. Interactive login prompts for the token; `--with-token` reads it from
+stdin. `HAMSTIK_TOKEN` is deliberately not a login source: an environment token
+is ephemeral by contract and is never written to the credential store
+(SPEC §27). Two things are then kept in two different places:
 
 | What | Where |
 | --- | --- |
@@ -348,8 +352,9 @@ Prerequisites:
 No Node.js, Python, or other language runtime is required.
 
 The optional live OpenAPI drift workflow additionally requires a POSIX shell,
-`curl`, `jq`, `cmp`, and `install`. It is not part of normal builds or
-tests.
+`curl`, `jq`, `cmp`, and `install`. The optional `scripts/do-prechecks.py`
+helper needs Python 3 with the `rich` package. Neither is part of normal builds
+or tests.
 
 ```bash
 cargo build --workspace

@@ -46,6 +46,9 @@ fn every_openapi_operation_is_deliberately_supported() {
     let entries = manifest["operations"]
         .as_array()
         .expect("manifest operations array");
+    let client_source =
+        std::fs::read_to_string(root.join("crates/hamstik-api-client/src/client.rs"))
+            .expect("read API-client source");
     let mut manifested = BTreeSet::new();
     for entry in entries {
         let operation_id = entry["operationId"].as_str().expect("manifest operationId");
@@ -58,11 +61,13 @@ fn every_openapi_operation_is_deliberately_supported() {
             .unwrap_or_else(|| panic!("stale manifest operation: {operation_id}"));
         assert_eq!(entry["method"].as_str(), Some(expected.0.as_str()));
         assert_eq!(entry["path"].as_str(), Some(expected.1.as_str()));
+        let client_method = entry["client"]
+            .as_str()
+            .filter(|name| !name.is_empty())
+            .unwrap_or_else(|| panic!("{operation_id} has no API-client method"));
         assert!(
-            entry["client"]
-                .as_str()
-                .is_some_and(|name| !name.is_empty()),
-            "{operation_id} has no API-client method"
+            client_source.contains(&format!("fn {client_method}(")),
+            "{operation_id}: API-client method `{client_method}` is not defined in client.rs"
         );
         assert!(
             entry["cli"]
