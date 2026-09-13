@@ -42,7 +42,7 @@ httpdate = "1"
 # CLI
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4"
-toml = "0.8"
+toml = "1.1"
 directories = "6"
 keyring = "3"
 rpassword = "7"
