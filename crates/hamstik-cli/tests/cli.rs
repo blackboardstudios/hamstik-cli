@@ -891,6 +891,35 @@ fn version_json_is_machine_readable_and_banner_free() {
     assert!(!stdout.contains(BANNER_ART), "banner leaked into --json");
     let body: Value = serde_json::from_str(&stdout).unwrap();
     assert_eq!(body["version"], env!("CARGO_PKG_VERSION"));
+    // Build identity (CLI-27): additive fields, always present. `commit` is a
+    // full sha1 or the literal "unknown" (source-tarball builds); `target` is
+    // the compile-time Rust target triple.
+    assert_eq!(body["target"], hamstik_cli::build_info::TARGET);
+    let commit = body["commit"].as_str().unwrap();
+    assert!(!commit.is_empty());
+    if commit != hamstik_cli::build_info::UNKNOWN_COMMIT {
+        assert_eq!(commit.len(), 40, "full commit expected: {commit}");
+        assert!(commit.bytes().all(|b| b.is_ascii_hexdigit()));
+    }
+}
+
+/// Human `hamstik version` extends the banner with build-identity lines
+/// (CLI-27); the banner art/footer stay byte-identical to the help surfaces.
+#[test]
+fn version_human_output_reports_build_identity() {
+    let dir = TempDir::new().unwrap();
+    let output = banner_command(&dir).arg("version").output().unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains(BANNER_ART) && stdout.contains(BANNER_FOOTER));
+    assert!(
+        stdout.contains("\ncommit    "),
+        "commit line missing: {stdout}"
+    );
+    assert!(
+        stdout.contains(&format!("\ntarget    {}", hamstik_cli::build_info::TARGET)),
+        "target line missing: {stdout}"
+    );
 }
 
 #[test]

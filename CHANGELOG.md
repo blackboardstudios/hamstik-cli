@@ -15,6 +15,34 @@ in-progress first release and will be dated and versioned when it ships.
 
 ### Added
 
+- Versioned release builds (CLI-27): pushing a version tag (`vX.Y.Z`) now
+  triggers a cargo-dist release pipeline that builds, smoke-tests, and
+  publishes archives for the supported platform matrix — Linux glibc x64 and
+  arm64 (`.tar.gz`), macOS Intel and Apple Silicon (`.tar.gz`), and Windows
+  x64 (`.zip`), each with a sha256 checksum. The pipeline fails closed when
+  the tag, the workspace `Cargo.toml` version, and the matching
+  `CHANGELOG.md` release section disagree, and runs artifact-level smoke
+  tests (the released binary itself: `--help`, `version`, and an offline
+  `doctor --local-only`) before anything is published. Pull requests
+  validate the release configuration in plan mode only. See
+  `design/RELEASE.md` for the target matrix, exclusions, and maintenance
+  workflow.
+- `hamstik version` now reports build identity: human output adds
+  `commit` (short source commit) and `target` (Rust target triple) lines
+  under the banner, and `--json` output adds additive `commit` (full
+  commit sha, or `"unknown"` when built outside a git checkout) and
+  `target` fields. The existing `version` field and the `hamstik
+  --version`/`-V` terse line are unchanged.
+
+### Internal
+
+- `release-gate` workspace crate: the dependency-free tag/version/changelog
+  consistency check run by the release workflow, with unit tests covering
+  tag parsing, workspace-version extraction, and changelog release-section
+  matching.
+
+### Added
+
 - `context explain` (CLI-12): an offline precedence report for every resolved
   setting — host, Organization, Project, profile, credential source, and
   color/input/retry behavior — showing the winning source, every shadowed

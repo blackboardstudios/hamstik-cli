@@ -67,6 +67,21 @@ surface stays terse: it prints a single `hamstik <version>` line. The banner is
 intentionally omitted from `--json` machine output, subcommand help, and
 completion scripts.
 
+Human `hamstik version` extends the banner with build identity — the source
+commit and the Rust target triple the binary was built for — so a release
+artifact can be identified at a glance:
+
+```text
+🐹 hamstik cli v0.1.0      © Blackboard Studios LLC
+
+commit    edcd8f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e
+target    aarch64-apple-darwin
+```
+
+`hamstik version --json` carries the same identity additively (`version`,
+`commit`, `target` fields; `commit` is the full sha or `"unknown"` when the
+binary was built outside a git checkout). See [design/RELEASE.md](design/RELEASE.md).
+
 ## Why Hamstik CLI?
 
 ![Why Hamstik CLI?](assets/github/why-hamstik-cli.png)
@@ -636,6 +651,9 @@ The detailed product and technical direction lives in:
 - [design/SPEC.md](design/SPEC.md) — technical specification
 - [design/VERSIONING.md](design/VERSIONING.md) — semantic-versioning policy
   (how MAJOR/MINOR/PATCH are chosen)
+- [design/RELEASE.md](design/RELEASE.md) — release build system: supported
+  target matrix, tag-triggered versioned archives, the version/tag
+  consistency gate, and artifact smoke tests
 
 Notable changes are tracked in [CHANGELOG.md](CHANGELOG.md) following the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.

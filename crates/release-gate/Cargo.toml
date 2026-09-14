@@ -1,0 +1,18 @@
+[package]
+name = "release-gate"
+description = "Fail-closed tag/version/changelog consistency gate for Hamstik CLI releases"
+publish = false
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "release-gate"
+path = "src/main.rs"

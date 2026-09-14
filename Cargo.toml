@@ -2,6 +2,9 @@
 members = [
     "crates/hamstik-cli",
     "crates/hamstik-api-client",
+    # Release tooling (CLI-27): fail-closed tag/version/changelog gate run by
+    # .github/workflows/release.yml; see design/RELEASE.md.
+    "crates/release-gate",
 ]
 resolver = "2"
 
@@ -56,3 +59,8 @@ pretty_assertions = "1"
 
 [profile.release]
 lto = "thin"
+
+# The profile that 'dist' will build with. Release already sets lto = "thin";
+# dist builds should match the plain release profile exactly.
+[profile.dist]
+inherits = "release"

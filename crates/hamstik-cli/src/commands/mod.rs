@@ -123,15 +123,32 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
     }
 }
 
+/// `hamstik version`: release identity for the running binary (CLI-27).
+///
+/// JSON output keeps the stable `version` field and adds `commit`/`target`
+/// build metadata (additive per design/VERSIONING.md §3). Human output keeps
+/// the identity banner and appends the build-identity lines. Neither surface
+/// performs I/O: the values are compile-time constants (see
+/// [`crate::build_info`]).
 fn version(session: &mut Session<'_>) -> Result<(), CliError> {
-    let version = env!("CARGO_PKG_VERSION");
+    use crate::build_info;
     if session.json() {
-        emit_json(session, &serde_json::json!({ "version": version }))
+        emit_json(
+            session,
+            &serde_json::json!({
+                "version": build_info::VERSION,
+                "commit": build_info::COMMIT,
+                "target": build_info::TARGET,
+            }),
+        )
     } else {
-        session
-            .out
-            .line(&crate::banner::banner())
-            .map_err(CliError::general)
+        let details = format!(
+            "{}\n\ncommit    {}\ntarget    {}",
+            crate::banner::banner(),
+            build_info::short_commit(),
+            build_info::TARGET,
+        );
+        session.out.line(&details).map_err(CliError::general)
     }
 }
 

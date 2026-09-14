@@ -10,6 +10,13 @@ repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
 
+# Release builds of the `hamstik` binary are produced by cargo-dist
+# (see dist-workspace.toml and design/RELEASE.md). The crates themselves are
+# not published to crates.io; dist needs this marker to treat the bin as
+# releaseable despite `publish = false`.
+[package.metadata.dist]
+dist = true
+
 [[bin]]
 name = "hamstik"
 path = "src/main.rs"
