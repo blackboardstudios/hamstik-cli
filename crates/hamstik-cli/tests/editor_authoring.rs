@@ -6,6 +6,15 @@
 
 //! CLI-7: editor authoring, consistent stdin (`-`) conventions, and
 //! HTTP-boundary proofs that the sent body matches the selected source.
+//!
+//! Unix-only today: every fixture launches a `$VISUAL` shell script, which
+//! Windows cannot execute (a `.sh` is not a PE image, so the CLI correctly
+//! reports "cannot launch editor"). Editor behavior itself is shared across
+//! platforms; the spawn layer's Windows behavior is covered by the
+//! `editor::tests::*` unit tests and deserves PE-compatible integration
+//! fixtures in a follow-up.
+
+#![cfg(unix)]
 
 use assert_cmd::Command;
 use serde_json::{Value, json};
