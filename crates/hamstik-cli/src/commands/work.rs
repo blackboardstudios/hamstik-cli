@@ -35,7 +35,12 @@ pub async fn run(session: &mut Session<'_>, args: &WorkArgs) -> Result<(), CliEr
     match &args.command {
         WorkCommand::List(list_args) => list(session, list_args).await,
         WorkCommand::Mine(mine_args) => mine(session, mine_args).await,
-        WorkCommand::Search { query, pagination } => search(session, query, pagination).await,
+        WorkCommand::Search {
+            query,
+            file,
+            saved,
+            pagination,
+        } => search(session, query, file, saved, pagination).await,
         WorkCommand::View { key } => view(session, key).await,
         WorkCommand::Create(create_args) => create(session, create_args).await,
         WorkCommand::Edit(edit_args) => edit(session, edit_args).await,
@@ -141,9 +146,18 @@ async fn mine(session: &mut Session<'_>, args: &MyWorkArgs) -> Result<(), CliErr
 
 async fn search(
     session: &mut Session<'_>,
-    query: &str,
+    query: &Option<String>,
+    file: &Option<String>,
+    saved: &Option<String>,
     pagination: &crate::args::PaginationArgs,
 ) -> Result<(), CliError> {
+    let expression = crate::commands::squeakql::resolve_expression(
+        session,
+        query.as_deref(),
+        file.as_deref(),
+        saved.as_deref(),
+    )?;
+    let query = expression.as_str();
     if query.trim().is_empty() {
         return Err(CliError::usage("SqueakQL query must not be empty"));
     }
@@ -351,6 +365,25 @@ fn read_text(inline: Option<String>, file: Option<&str>) -> Result<Option<String
         .map_err(|err| CliError::general(format!("cannot read text: {err}")))
 }
 
+/// Resolves long-form text from inline, `--*-file`/stdin, or the editor.
+///
+/// Source conflicts are already rejected at argument-parse time (`conflicts_with`),
+/// so at most one source can be present here. `--editor` launches
+/// `$VISUAL`/`$EDITOR` on a secure temporary file; the editor's content
+/// becomes the value (see [`crate::editor::edit_text`]).
+fn read_long_text(
+    session: &Session<'_>,
+    inline: Option<String>,
+    file: Option<&str>,
+    editor: bool,
+    what: &str,
+) -> Result<Option<String>, CliError> {
+    if editor {
+        return crate::editor::edit_text(session.env, session.global.no_input, what).map(Some);
+    }
+    read_text(inline, file)
+}
+
 /// Resolves the `--assignee` value into the preferred wire form: a `usr_`
 /// public ID goes to `assigneePublicId`, everything else to legacy
 /// `assigneeId` (UUID, `me`, or `none`).
@@ -460,7 +493,13 @@ async fn create(session: &mut Session<'_>, args: &WorkCreateArgs) -> Result<(), 
         return Err(CliError::usage("title must not be empty"));
     }
 
-    let description = read_text(args.description.clone(), args.description_file.as_deref())?;
+    let description = read_long_text(
+        session,
+        args.description.clone(),
+        args.description_file.as_deref(),
+        args.description_editor,
+        "a work item description",
+    )?;
     let assignee = match &args.assignee {
         Some(value) => Some(super::resolve_user_arg(session, value).await?),
         None => None,
@@ -525,7 +564,14 @@ async fn edit(session: &mut Session<'_>, args: &WorkEditArgs) -> Result<(), CliE
     let description = if args.clear_description {
         Some(None)
     } else {
-        read_text(args.description.clone(), args.description_file.as_deref())?.map(Some)
+        read_long_text(
+            session,
+            args.description.clone(),
+            args.description_file.as_deref(),
+            args.description_editor,
+            "a work item description edit",
+        )?
+        .map(Some)
     };
     // A public ID (`usr_...`) must go to `assigneePublicId`; everything else
     // (legacy UUID) goes to `assigneeId`. Clearing targets whichever field the
@@ -1231,14 +1277,22 @@ async fn comment(session: &mut Session<'_>, args: &CommentArgs) -> Result<(), Cl
             key,
             body,
             body_file,
+            body_editor,
             parent,
             idempotency_key,
         } => {
             let selection = session.selection()?;
             let org = session.require_org(&selection)?;
             let project = session.require_project(&selection)?;
-            let text = read_text(body.clone(), body_file.as_deref())?.ok_or_else(|| {
-                CliError::usage("missing comment body; use --body or --body-file")
+            let text = read_long_text(
+                session,
+                body.clone(),
+                body_file.as_deref(),
+                *body_editor,
+                "a comment",
+            )?
+            .ok_or_else(|| {
+                CliError::usage("missing comment body; use --body, --body-file, or --body-editor")
             })?;
             if text.trim().is_empty() {
                 return Err(CliError::usage("comment body must not be empty"));
@@ -1298,13 +1352,21 @@ async fn comment(session: &mut Session<'_>, args: &CommentArgs) -> Result<(), Cl
             comment_id,
             body,
             body_file,
+            body_editor,
             idempotency_key,
         } => {
             let selection = session.selection()?;
             let org = session.require_org(&selection)?;
             let project = session.require_project(&selection)?;
-            let text = read_text(body.clone(), body_file.as_deref())?.ok_or_else(|| {
-                CliError::usage("missing comment body; use --body or --body-file")
+            let text = read_long_text(
+                session,
+                body.clone(),
+                body_file.as_deref(),
+                *body_editor,
+                "a comment edit",
+            )?
+            .ok_or_else(|| {
+                CliError::usage("missing comment body; use --body, --body-file, or --body-editor")
             })?;
             if text.trim().is_empty() {
                 return Err(CliError::usage("comment body must not be empty"));

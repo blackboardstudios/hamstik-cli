@@ -1,0 +1,190 @@
+// Copyright 2026 Blackboard Studios
+// SPDX-License-Identifier: Apache-2.0
+
+// Contract tests assert with unwrap/expect by design.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
+//! CLI-12: `context explain` precedence traces, offline behavior, and
+//! credential redaction.
+
+use assert_cmd::Command;
+use serde_json::Value;
+use tempfile::TempDir;
+
+fn local(dir: &TempDir) -> Command {
+    let mut cmd = Command::cargo_bin("hamstik").expect("hamstik binary");
+    cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
+    cmd.env_remove("HAMSTIK_PROFILE");
+    cmd.env_remove("HAMSTIK_ORG");
+    cmd.env_remove("HAMSTIK_PROJECT");
+    cmd.env_remove("HAMSTIK_HOST");
+    cmd.env_remove("HAMSTIK_TOKEN");
+    cmd.current_dir(dir.path());
+    cmd.arg("--no-input");
+    cmd
+}
+
+/// The full precedence chain for one field, from `context explain --json`.
+fn chain<'a>(body: &'a Value, field: &str) -> &'a Value {
+    &body["values"][field]
+}
+
+/// Every configurable value reports its winning source and full chain; the
+/// report is local-only and represents HAMSTIK_TOKEN as presence only.
+#[test]
+fn explain_reports_complete_chains_offline() {
+    let dir = TempDir::new().unwrap();
+    let output = local(&dir)
+        .env("HAMSTIK_TOKEN", "secret-token-value")
+        .env("HAMSTIK_ORG", "env-org")
+        .args(["--org", "cli-org", "--json", "context", "explain"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{:?}", output.stderr);
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(body["localOnly"], true);
+    assert_eq!(body["schemaVersion"], 1);
+
+    // Organization: CLI wins, env is shadowed, both visible.
+    let organization = chain(&body, "organization");
+    assert_eq!(organization["winningSource"], "cli");
+    let sources = organization["sources"].as_array().unwrap();
+    assert_eq!(sources[0]["status"], "winner");
+    assert_eq!(sources[0]["value"], "cli-org");
+    assert_eq!(sources[1]["status"], "shadowed");
+    assert_eq!(sources[1]["value"], "env-org");
+
+    // Project: unset falls through to the default entry.
+    let project = chain(&body, "project");
+    assert_eq!(project["winningSource"], "default");
+    assert_eq!(project["sources"][0]["status"], "unset");
+
+    // Host falls back to the documented default.
+    let host = chain(&body, "host");
+    assert_eq!(host["winningSource"], "default");
+    assert_eq!(host["sources"][0]["value"], "https://hamstik.com");
+
+    // Token: presence only, never the value.
+    let token = chain(&body, "token");
+    assert_eq!(token["sources"][0]["source"], "environment");
+    let token_text = token.to_string();
+    assert!(
+        !token_text.contains("secret-token-value"),
+        "token material leaked: {token_text}"
+    );
+}
+
+/// Nearest-context-file discovery: a nested context file wins over one in a
+/// parent directory, and the discovery path is reported.
+#[test]
+fn explain_reports_nearest_context_file_discovery() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    let nested = root.join("a").join("b");
+    std::fs::create_dir_all(&nested).unwrap();
+    std::fs::write(
+        root.join(".hamstik.toml"),
+        "version = 1\norganization = \"parent-org\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        nested.join(".hamstik.toml"),
+        "version = 1\norganization = \"nearest-org\"\n",
+    )
+    .unwrap();
+
+    let output = Command::cargo_bin("hamstik")
+        .unwrap()
+        .env("HAMSTIK_CONFIG", root.join("config.toml"))
+        .current_dir(&nested)
+        .args(["--no-input", "--json", "context", "explain"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        body["contextDiscovery"]["found"]
+            .as_str()
+            .unwrap()
+            .ends_with("b/.hamstik.toml"),
+        "the nearest file must win: {body:?}"
+    );
+    assert_eq!(
+        chain(&body, "organization")["winningSource"],
+        "context_file"
+    );
+    assert_eq!(
+        chain(&body, "organization")["sources"][0]["value"],
+        "nearest-org"
+    );
+}
+
+/// Profile selection precedence mirrors the resolver: --profile beats
+/// HAMSTIK_PROFILE beats the config's active profile. Nonexistent profile
+/// names still fail selection (the resolver is authoritative), so this test
+/// uses existing profiles and verifies the shadowed chain in the JSON.
+#[test]
+fn explain_reports_profile_precedence_chain() {
+    let dir = TempDir::new().unwrap();
+    let config = "version = 1\nactive_profile = \"cfg\"\n\n[profiles.cfg]\nhost = \"https://cfg.example\"\nuser_id = \"u\"\nemail = \"u@cfg.example\"\n\n[profiles.env]\nhost = \"https://env.example\"\nuser_id = \"u\"\nemail = \"u@env.example\"\n";
+    std::fs::write(dir.path().join("config.toml"), config).unwrap();
+
+    let output = local(&dir)
+        .env("HAMSTIK_PROFILE", "env")
+        .args(["--profile", "env", "--json", "context", "explain"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{:?}", output.stderr);
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let sources = body["values"]["profile"]["sources"].as_array().unwrap();
+    assert_eq!(sources[0]["source"], "cli");
+    assert_eq!(sources[0]["status"], "winner");
+    assert_eq!(sources[1]["source"], "environment");
+    assert_eq!(sources[1]["status"], "shadowed");
+    assert_eq!(sources[2]["source"], "profile");
+    assert_eq!(sources[2]["status"], "shadowed");
+}
+
+/// Behavior resolution (color/input/retry) is reported with the same
+/// sources the commands actually use.
+#[test]
+fn explain_reports_behavior_resolution() {
+    let dir = TempDir::new().unwrap();
+    let output = local(&dir)
+        .args(["--json", "--no-retry", "context", "explain"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(body["behavior"]["retry"], "disabled (--no-retry)");
+    assert!(
+        !body["behavior"]["color"]["enabled"]
+            .as_bool()
+            .unwrap_or(true),
+        "piped stdout disables color"
+    );
+    assert_eq!(
+        body["behavior"]["input"],
+        "no-input (prompts and editors disabled)"
+    );
+}
+
+/// Human output names env vars, shows shadowed values, and states local-only.
+#[test]
+fn explain_human_output_is_actionable_and_local() {
+    let dir = TempDir::new().unwrap();
+    let output = local(&dir)
+        .env("HAMSTIK_TOKEN", "secret-token-value")
+        .args(["--org", "cli-org", "context", "explain"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("env var: HAMSTIK_ORG"), "{text}");
+    assert!(text.contains("(--flag)"), "{text}");
+    assert!(text.contains("this report is fully local"), "{text}");
+    assert!(
+        !text.contains("secret-token-value"),
+        "token leaked into human output"
+    );
+}

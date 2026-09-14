@@ -12,6 +12,7 @@ pub mod banner;
 pub mod config;
 pub mod context;
 pub mod credentials;
+pub mod editor;
 pub mod environment;
 pub mod error;
 pub mod exit;

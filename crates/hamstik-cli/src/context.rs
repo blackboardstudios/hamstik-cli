@@ -74,6 +74,38 @@ pub struct ResolvedField {
     pub source: Source,
 }
 
+/// A resolved value plus the complete precedence chain: the winning source
+/// and every lower-precedence source that offered a value but was shadowed.
+///
+/// The chain is computed by the same `pick` logic that selects the winner
+/// (`resolve`/`resolve_inner`), so it can never disagree with production
+/// resolution.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedChain {
+    /// The winning value/source pair, when any source provided one.
+    pub winner: Option<(String, Source)>,
+    /// Lower-precedence sources that also offered a value, in precedence
+    /// order (nearest first).
+    pub shadowed: Vec<(String, Source)>,
+}
+
+impl ResolvedChain {
+    /// The winning source, or [`Source::Default`] when nothing was set.
+    #[must_use]
+    pub fn source(&self) -> Source {
+        self.winner
+            .as_ref()
+            .map(|(_, source)| *source)
+            .unwrap_or(Source::Default)
+    }
+
+    /// The winning value, when any source provided one.
+    #[must_use]
+    pub fn value(&self) -> Option<&str> {
+        self.winner.as_ref().map(|(value, _)| value.as_str())
+    }
+}
+
 /// The `.hamstik.toml` document.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -152,6 +184,56 @@ pub fn resolve(
     resolution
 }
 
+/// Computes the full precedence chains behind a [`Resolution`] using the
+/// identical candidate-order logic as `resolve`, so the diagnostic view can
+/// never disagree with production resolution.
+///
+/// The host chain includes the built-in default host as the final fallback.
+#[must_use]
+pub fn explain_chains(
+    cli: (&Option<String>, &Option<String>, &Option<String>),
+    env: &dyn Environment,
+    context: Option<&ContextFile>,
+    profile: Option<&Profile>,
+) -> (ResolvedChain, ResolvedChain, ResolvedChain) {
+    let (cli_host, cli_org, cli_project) = cli;
+    let mut host_chain = chain_string(
+        cli_host.as_deref().map(|v| (v, Source::Cli)),
+        env.var("HAMSTIK_HOST").map(|v| (Some(v), Source::Env)),
+        context
+            .and_then(|c| c.host.as_deref())
+            .map(|v| (v, Source::ContextFile)),
+        profile.map(|p| (p.host.as_str(), Source::Profile)),
+    );
+    if host_chain.winner.is_none() {
+        host_chain.winner = Some((
+            hamstik_api_client::host::DEFAULT_HOST.to_string(),
+            Source::Default,
+        ));
+    }
+    let organization_chain = chain_string(
+        cli_org.as_deref().map(|v| (v, Source::Cli)),
+        env.var("HAMSTIK_ORG").map(|v| (Some(v), Source::Env)),
+        context
+            .and_then(|c| c.organization.as_deref())
+            .map(|v| (v, Source::ContextFile)),
+        profile
+            .and_then(|p| p.default_organization.as_deref())
+            .map(|v| (v, Source::Profile)),
+    );
+    let project_chain = chain_string(
+        cli_project.as_deref().map(|v| (v, Source::Cli)),
+        env.var("HAMSTIK_PROJECT").map(|v| (Some(v), Source::Env)),
+        context
+            .and_then(|c| c.project.as_deref())
+            .map(|v| (v, Source::ContextFile)),
+        profile
+            .and_then(|p| p.default_project.as_deref())
+            .map(|v| (v, Source::Profile)),
+    );
+    (host_chain, organization_chain, project_chain)
+}
+
 fn resolve_inner(
     cli_host: Option<&str>,
     cli_org: Option<&str>,
@@ -214,33 +296,52 @@ fn pick_string(
     context: Option<(&str, Source)>,
     profile: Option<(&str, Source)>,
 ) -> ResolvedField {
-    if let Some((value, source)) = cli {
-        return ResolvedField {
-            value: Some(value.to_string()),
-            source,
-        };
+    chain_string(
+        cli,
+        env.map(|(value, source)| (Some(value), source)),
+        context,
+        profile,
+    )
+    .into()
+}
+
+/// Computes the full precedence chain for one string setting.
+///
+/// `env` already carries its value (`Option<Option<String>>` is avoided by
+/// letting the caller pass `None` when the variable is absent).
+fn chain_string(
+    cli: Option<(&str, Source)>,
+    env: Option<(Option<String>, Source)>,
+    context: Option<(&str, Source)>,
+    profile: Option<(&str, Source)>,
+) -> ResolvedChain {
+    let candidates: [(Option<String>, Source); 4] = [
+        (cli.map(|(v, _)| v.to_string()), Source::Cli),
+        (env.and_then(|(value, _)| value), Source::Env),
+        (context.map(|(v, _)| v.to_string()), Source::ContextFile),
+        (profile.map(|(v, _)| v.to_string()), Source::Profile),
+    ];
+    let mut winner = None;
+    let mut shadowed = Vec::new();
+    for (value, source) in candidates {
+        if let Some(value) = value {
+            if winner.is_none() {
+                winner = Some((value, source));
+            } else {
+                shadowed.push((value, source));
+            }
+        }
     }
-    if let Some((value, source)) = env {
-        return ResolvedField {
-            value: Some(value),
+    ResolvedChain { winner, shadowed }
+}
+
+impl From<ResolvedChain> for ResolvedField {
+    fn from(chain: ResolvedChain) -> Self {
+        let source = chain.source();
+        Self {
+            value: chain.winner.map(|(value, _)| value),
             source,
-        };
-    }
-    if let Some((value, source)) = context {
-        return ResolvedField {
-            value: Some(value.to_string()),
-            source,
-        };
-    }
-    if let Some((value, source)) = profile {
-        return ResolvedField {
-            value: Some(value.to_string()),
-            source,
-        };
-    }
-    ResolvedField {
-        value: None,
-        source: Source::Default,
+        }
     }
 }
 

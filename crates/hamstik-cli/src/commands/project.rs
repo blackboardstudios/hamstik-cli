@@ -195,12 +195,20 @@ async fn create(
     if name.trim().is_empty() {
         return Err(CliError::usage("name must not be empty"));
     }
-    let description = resolve_text(
-        args.description.clone(),
-        args.description_file.as_deref(),
-        &mut std::io::stdin(),
-    )
-    .map_err(|err| CliError::general(format!("cannot read text: {err}")))?;
+    let description = if args.description_editor {
+        Some(crate::editor::edit_text(
+            session.env,
+            session.global.no_input,
+            "a project description",
+        )?)
+    } else {
+        resolve_text(
+            args.description.clone(),
+            args.description_file.as_deref(),
+            &mut std::io::stdin(),
+        )
+        .map_err(|err| CliError::general(format!("cannot read text: {err}")))?
+    };
     if let Some(key) = &args.key
         && key.trim().is_empty()
     {
@@ -265,6 +273,12 @@ async fn edit(
 
     let description = if args.clear_description {
         Some(None)
+    } else if args.description_editor {
+        Some(Some(crate::editor::edit_text(
+            session.env,
+            session.global.no_input,
+            "a project description edit",
+        )?))
     } else {
         resolve_text(
             args.description.clone(),

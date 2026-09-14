@@ -157,6 +157,148 @@ impl ConfigStore {
     }
 }
 
+/// One saved SqueakQL query: a name and a plain expression.
+///
+/// Saved queries are exactly the text sent to the SqueakQL endpoint — never
+/// credentials, request headers, or server-side constructs.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SavedQuery {
+    /// The plain SqueakQL expression.
+    pub query: String,
+    /// When the query was saved (RFC 3339, informational).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub saved_at: Option<String>,
+}
+
+/// The `queries.toml` document: named SqueakQL expressions for local reuse.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct SavedQueriesFile {
+    /// On-disk schema version.
+    pub version: u32,
+    /// Saved queries keyed by name.
+    #[serde(default)]
+    pub queries: BTreeMap<String, SavedQuery>,
+}
+
+impl Default for SavedQueriesFile {
+    fn default() -> Self {
+        Self {
+            version: SAVED_QUERIES_VERSION,
+            queries: BTreeMap::new(),
+        }
+    }
+}
+
+/// Maximum accepted `queries.toml` size (1 MiB).
+pub const MAX_SAVED_QUERIES_BYTES: u64 = 1024 * 1024;
+
+/// Current saved-queries schema version.
+pub const SAVED_QUERIES_VERSION: u32 = 1;
+
+/// Maximum number of saved queries (keeps the file reviewable and bounded).
+pub const MAX_SAVED_QUERIES: usize = 100;
+
+/// Maximum one saved query expression length (matches the API request cap
+/// with headroom for formatting).
+pub const MAX_SAVED_QUERY_LENGTH: usize = 4096;
+
+/// Reads and writes the saved-queries file (`queries.toml` next to the
+/// config).
+///
+/// Storage model (documented contract): one plain TOML file next to
+/// `config.toml` (so `HAMSTIK_CONFIG` relocates it identically), keyed by
+/// name, containing only expressions — never tokens or headers. Names are
+/// 1–64 characters of letters, digits, `-`, `_`. Writes are atomic and
+/// owner-restricted like the config.
+#[derive(Debug, Clone)]
+pub struct SavedQueryStore {
+    path: PathBuf,
+}
+
+impl SavedQueryStore {
+    /// Builds a store from the config path (the queries file sits next to it).
+    #[must_use]
+    pub fn adjacent_to(config_path: &Path) -> Self {
+        Self {
+            path: config_path
+                .parent()
+                .unwrap_or(Path::new("."))
+                .join("queries.toml"),
+        }
+    }
+
+    /// The file path this store reads and writes.
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Loads saved queries; an absent file is an empty document.
+    pub fn load(&self) -> Result<SavedQueriesFile, CliError> {
+        if !self.path.exists() {
+            return Ok(SavedQueriesFile::default());
+        }
+        let metadata = fs::metadata(self.path())
+            .map_err(|err| self.fail(&format!("cannot read file ({err})")))?;
+        if metadata.len() > MAX_SAVED_QUERIES_BYTES {
+            return Err(self.fail("file is too large (exceeds the 1 MiB limit)"));
+        }
+        let contents = fs::read_to_string(self.path())
+            .map_err(|err| self.fail(&format!("cannot read file ({err})")))?;
+        let file: SavedQueriesFile = toml::from_str(&contents).map_err(|err| {
+            self.fail(&format!(
+                "invalid saved-queries file (repair it, or delete it to start over; it holds only \
+                 plain query text): {err}"
+            ))
+        })?;
+        if file.version != SAVED_QUERIES_VERSION {
+            return Err(self.fail(&format!(
+                "schema version {} is not supported (this CLI uses version {SAVED_QUERIES_VERSION})",
+                file.version
+            )));
+        }
+        Ok(file)
+    }
+
+    /// Validates a saved-query name (1–64 chars: letters, digits, `-`, `_`).
+    pub fn validate_name(name: &str) -> Result<(), CliError> {
+        if name.is_empty() || name.len() > 64 {
+            return Err(CliError::usage(
+                "saved query name must be between 1 and 64 characters",
+            ));
+        }
+        if !name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(CliError::usage(
+                "saved query names may contain only letters, digits, '-', and '_'",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Atomically writes the saved-queries file.
+    pub fn save(&self, file: &SavedQueriesFile) -> Result<(), CliError> {
+        let serialized = toml::to_string_pretty(file)
+            .map_err(|err| self.fail(&format!("cannot serialize saved queries ({err})")))?;
+        fsutil::write_atomic(self.path(), serialized.as_bytes())
+            .and_then(|()| fsutil::restrict_permissions(self.path()))
+            .map_err(|err| self.fail(&format!("cannot write file ({err})")))?;
+        Ok(())
+    }
+
+    /// Builds a saved-queries failure naming the file.
+    fn fail(&self, reason: &str) -> CliError {
+        CliError::config(format!(
+            "{}: {reason}\nhint: repair or delete this file to recover; it holds only plain \
+             SqueakQL expressions",
+            self.path.display()
+        ))
+    }
+}
+
 /// Removes a profile from the document and repairs `active_profile`.
 ///
 /// Forgetting the active profile must not silently move the user to a

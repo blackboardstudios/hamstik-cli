@@ -179,7 +179,11 @@ fn subcommand_groups_match_documented_surface() {
             &["auth"],
             &["forget", "list", "login", "logout", "status", "switch"],
         ),
-        ("context", &["context"], &["clear", "init", "set", "show"]),
+        (
+            "context",
+            &["context"],
+            &["clear", "explain", "init", "set", "show"],
+        ),
         ("org", &["org"], &["list", "members", "use", "view", "work"]),
         (
             "project",
@@ -228,7 +232,11 @@ fn subcommand_groups_match_documented_surface() {
             ],
         ),
         ("user", &["user"], &["activity", "avatar", "view", "work"]),
-        ("squeakql", &["squeakql"], &["validate"]),
+        (
+            "squeakql",
+            &["squeakql"],
+            &["delete", "list", "save", "show", "validate"],
+        ),
         ("api", &["api"], &["openapi"]),
     ];
     for (label, group, expected) in cases {
@@ -350,6 +358,7 @@ fn representative_command_flags_match_documented_surface() {
             &[
                 "--assignee",
                 "--description",
+                "--description-editor",
                 "--description-file",
                 "--due-date",
                 "--idempotency-key",
@@ -374,6 +383,7 @@ fn representative_command_flags_match_documented_surface() {
                 "--clear-sprint",
                 "--clear-story-points",
                 "--description",
+                "--description-editor",
                 "--description-file",
                 "--due-date",
                 "--force",

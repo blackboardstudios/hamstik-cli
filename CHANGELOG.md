@@ -15,6 +15,30 @@ in-progress first release and will be dated and versioned when it ships.
 
 ### Added
 
+- `context explain` (CLI-12): an offline precedence report for every resolved
+  setting — host, Organization, Project, profile, credential source, and
+  color/input/retry behavior — showing the winning source, every shadowed
+  source, and context-file discovery. JSON output uses stable source/status
+  enums; HAMSTIK_TOKEN and stored credentials are represented only as
+  present/absent, never displayed. Malformed context files degrade the report
+  rather than aborting it (`context`).
+- SqueakQL query files and saved queries (CLI-8): `squeakql validate` and
+  `work search` accept `--file <PATH>` (`-` = stdin) alongside the existing
+  inline expression, with multi-source conflicts rejected at parse time and
+  one trailing newline stripped (all other content verbatim). A local
+  saved-query store (`queries.toml` next to the config; plain expressions
+  only, never credentials) with `squeakql list|show|save|delete`, name
+  validation, and `--saved <NAME>` on validate/search. Validation JSON
+  preserves the full Public API response including error spans; read-only
+  SqueakQL POSTs carry no Idempotency-Key (`squeakql`, `work`).
+- Editor authoring and consistent stdin conventions (CLI-7):
+  `--description-editor`/`--body-editor` launch `$VISUAL` (then `$EDITOR`,
+  then a platform default) on a secure owner-only temporary file removed on
+  every exit path; unchanged or empty content cancels the command without
+  sending. Source conflicts (inline + file + editor) fail at argument-parse
+  time. `--no-input` rejects editor authoring immediately. Text content is
+  preserved verbatim (Unicode, Markdown `#` headings, final-newline
+  semantics) (`work`, `project`).
 - Work Item watcher commands backed by the newly additive Public API
   operations (`getWorkItemWatcher`, `updateWorkItemWatcher`): `work watcher
   show|watch|unwatch|mute|unmute` report and change the authenticated user's

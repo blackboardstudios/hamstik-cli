@@ -200,6 +200,20 @@ hamstik work create --title "Document API" --dry-run --json
 hamstik work edit HAM-42 --priority high --dry-run --json
 hamstik work bulk create --operations-file create-operations.json --dry-run --json
 
+# Explain configuration precedence for every resolved setting (offline)
+hamstik context explain --json
+
+# SqueakQL from a file or stdin (no fragile shell quoting)
+hamstik squeakql validate --file query.sqql
+printf 'status = todo' | hamstik squeakql validate --file - --json
+hamstik squeakql save urgent 'priority >= urgent'
+hamstik work search --saved urgent --json
+
+# Long-form authoring in $VISUAL/$EDITOR
+hamstik work create --title "New design" --description-editor
+hamstik work comment add HAM-42 --body-editor
+hamstik --no-input work comment add HAM-42 --body-file - < comment.md
+
 # Watcher state (the authenticated user's own; never other watchers)
 hamstik work watcher show HAM-42 --json
 hamstik work watcher watch HAM-42
@@ -253,6 +267,50 @@ instead of sending anything.
   network requests.
 - Read commands (`work list`, `work view`, `me`, `doctor`, …) reject
   `--dry-run` with a usage error.
+
+## Context precedence diagnostics
+
+`hamstik context explain` reports how every resolved setting won precedence —
+host, Organization, Project, profile, credential source, plus color/input/retry
+behavior — fully offline (no network connection, no prompts):
+
+- each value shows its complete chain: the winning source and every lower-
+  precedence source that was shadowed (`--flag` > environment variable >
+  nearest `.hamstik.toml` > profile/global config > built-in default);
+- JSON output uses stable `source` and `status` enums (`winner`, `shadowed`,
+  `unset`) for CI troubleshooting;
+- HAMSTIK_TOKEN is represented only as present/absent — its value, stored
+  credential values, and proxy variables are never displayed;
+- context-file discovery (searched-from directory, filename, found path) is
+  included so an unexpected Organization or Project can be traced to the file
+  that set it.
+
+Diagnosing an unexpected host, Organization, Project, or profile:
+
+```bash
+hamstik context explain                 # human summary with remediation
+hamstik context explain --json          # stable shape for CI
+```
+
+## Editor authoring and stdin conventions
+
+Long-form text (Work Item descriptions, comment bodies, project descriptions)
+can be supplied inline, from a file, from stdin, or through your editor:
+
+- `--description-editor` / `--body-editor` launch `$VISUAL` (then `$EDITOR`,
+  then a platform default) on a secure temporary file (owner-only
+  permissions, removed on every exit path). Saving accepts the content;
+  leaving it empty/unchanged cancels the command without sending anything.
+- `--*-file <PATH>` accepts a path, or `-` for stdin — the same convention on
+  every text input, including `work search --file -` and saved-query input.
+- Supplying more than one text source is a usage error at argument-parse
+  time (exit 2), before any network activity.
+- Under `--no-input`, editor authoring is rejected immediately; scripts
+  should pipe through `--file -` instead.
+- Content is preserved verbatim: Unicode, Markdown (including `#` headings),
+  and final-newline semantics are not normalized.
+- A failed or unchanged editor session is a clean cancellation: nothing is
+  sent.
 
 ## Context and automation contract
 

@@ -137,9 +137,41 @@ pub struct SqueakQlArgs {
 pub enum SqueakQlCommand {
     /// Validate an expression without executing it.
     Validate {
-        /// SqueakQL expression.
+        /// SqueakQL expression (inline).
         #[arg(value_name = "QUERY")]
-        query: String,
+        query: Option<String>,
+        /// Read the expression from a file (`-` for stdin) instead of inline.
+        #[arg(long, value_name = "PATH", conflicts_with = "query")]
+        file: Option<String>,
+        /// Run a saved query by name instead of an inline expression.
+        #[arg(long, value_name = "NAME", conflicts_with_all = ["query", "file"])]
+        saved: Option<String>,
+    },
+    /// List saved SqueakQL queries.
+    List,
+    /// Show a saved SqueakQL query's expression.
+    Show {
+        /// Saved query name.
+        name: String,
+    },
+    /// Save an expression as a named query for reuse.
+    Save {
+        /// Saved query name (letters, digits, `-`, `_`; 1–64 chars).
+        name: String,
+        /// SqueakQL expression (inline), or provide it with --file/stdin.
+        #[arg(value_name = "QUERY")]
+        query: Option<String>,
+        /// Read the expression from a file (`-` for stdin) instead of inline.
+        #[arg(long, value_name = "PATH", conflicts_with = "query")]
+        file: Option<String>,
+        /// Replace an existing saved query of the same name.
+        #[arg(long)]
+        force: bool,
+    },
+    /// Delete a saved SqueakQL query.
+    Delete {
+        /// Saved query name.
+        name: String,
     },
 }
 
@@ -235,6 +267,8 @@ pub enum ContextCommand {
     Clear,
     /// Create a .hamstik.toml in the current directory.
     Init,
+    /// Explain how every resolved setting won precedence, fully offline.
+    Explain,
 }
 
 /// Arguments for the `org` command group.
@@ -371,11 +405,18 @@ pub struct ProjectCreateArgs {
     #[arg(long, value_name = "KEY")]
     pub key: Option<String>,
     /// Description text.
-    #[arg(long, conflicts_with = "description_file")]
+    #[arg(long, conflicts_with_all = ["description_file", "description_editor"])]
     pub description: Option<String>,
     /// Description source (path, or - for stdin).
-    #[arg(long = "description-file", value_name = "PATH")]
+    #[arg(
+        long = "description-file",
+        value_name = "PATH",
+        conflicts_with_all = ["description", "description_editor"]
+    )]
     pub description_file: Option<String>,
+    /// Author the description in $VISUAL/$EDITOR instead of passing text.
+    #[arg(long = "description-editor", conflicts_with_all = ["description", "description_file"])]
+    pub description_editor: bool,
     /// Display color as a hex string (e.g. #3b82f6).
     #[arg(long, value_name = "HEX")]
     pub color: Option<String>,
@@ -393,15 +434,21 @@ pub struct ProjectEditArgs {
     #[arg(long)]
     pub name: Option<String>,
     /// New description text.
-    #[arg(long, conflicts_with = "clear_description")]
+    #[arg(long, conflicts_with_all = ["clear_description", "description_file", "description_editor"])]
     pub description: Option<String>,
     /// New description source (path, or - for stdin).
     #[arg(
         long = "description-file",
         value_name = "PATH",
-        conflicts_with = "clear_description"
+        conflicts_with_all = ["description", "clear_description", "description_editor"]
     )]
     pub description_file: Option<String>,
+    /// Author the description in $VISUAL/$EDITOR instead of passing text.
+    #[arg(
+        long = "description-editor",
+        conflicts_with_all = ["description", "description_file", "clear_description"]
+    )]
+    pub description_editor: bool,
     /// New display color as a hex string.
     #[arg(long, value_name = "HEX")]
     pub color: Option<String>,
@@ -719,9 +766,15 @@ pub enum WorkCommand {
     Mine(MyWorkArgs),
     /// Search Organization Work Items with SqueakQL.
     Search {
-        /// SqueakQL expression.
+        /// SqueakQL expression (inline).
         #[arg(value_name = "QUERY")]
-        query: String,
+        query: Option<String>,
+        /// Read the expression from a file (`-` for stdin) instead of inline.
+        #[arg(long, value_name = "PATH", conflicts_with = "query")]
+        file: Option<String>,
+        /// Run a saved query by name instead of an inline expression.
+        #[arg(long, value_name = "NAME", conflicts_with_all = ["query", "file"])]
+        saved: Option<String>,
         /// Pagination options carried in the JSON request body.
         #[command(flatten)]
         pagination: PaginationArgs,
@@ -969,11 +1022,18 @@ pub struct WorkCreateArgs {
     #[arg(long)]
     pub title: Option<String>,
     /// Description text.
-    #[arg(long, conflicts_with = "description_file")]
+    #[arg(long, conflicts_with_all = ["description_file", "description_editor"])]
     pub description: Option<String>,
     /// Description source (path, or - for stdin).
-    #[arg(long = "description-file", value_name = "PATH")]
+    #[arg(
+        long = "description-file",
+        value_name = "PATH",
+        conflicts_with_all = ["description", "description_editor"]
+    )]
     pub description_file: Option<String>,
+    /// Author the description in $VISUAL/$EDITOR instead of passing text.
+    #[arg(long = "description-editor", conflicts_with_all = ["description", "description_file"])]
+    pub description_editor: bool,
     /// Work item type.
     #[arg(long = "type", value_enum)]
     pub item_type: Option<TypeArg>,
@@ -1012,15 +1072,24 @@ pub struct WorkEditArgs {
     #[arg(long)]
     pub title: Option<String>,
     /// New description text.
-    #[arg(long, conflicts_with = "clear_description")]
+    #[arg(
+        long,
+        conflicts_with_all = ["clear_description", "description_file", "description_editor"]
+    )]
     pub description: Option<String>,
+    /// New description source (path, or - for stdin).
     #[arg(
         long = "description-file",
         value_name = "PATH",
-        conflicts_with = "clear_description"
+        conflicts_with_all = ["description", "clear_description", "description_editor"]
     )]
-    /// New description source (path, or - for stdin).
     pub description_file: Option<String>,
+    /// Author the description in $VISUAL/$EDITOR instead of passing text.
+    #[arg(
+        long = "description-editor",
+        conflicts_with_all = ["description", "description_file", "clear_description"]
+    )]
+    pub description_editor: bool,
     /// New work item type.
     #[arg(long = "type", value_enum)]
     pub item_type: Option<TypeArg>,
@@ -1101,11 +1170,18 @@ pub enum CommentCommand {
         /// Work item key.
         key: String,
         /// Comment body.
-        #[arg(long, conflicts_with = "body_file")]
+        #[arg(long, conflicts_with_all = ["body_file", "body_editor"])]
         body: Option<String>,
         /// Comment body source (path, or - for stdin).
-        #[arg(long = "body-file", value_name = "PATH")]
+        #[arg(
+            long = "body-file",
+            value_name = "PATH",
+            conflicts_with_all = ["body", "body_editor"]
+        )]
         body_file: Option<String>,
+        /// Author the body in $VISUAL/$EDITOR instead of passing text.
+        #[arg(long = "body-editor", conflicts_with_all = ["body", "body_file"])]
+        body_editor: bool,
         /// Parent comment UUID (for replies).
         #[arg(long, value_name = "UUID")]
         parent: Option<String>,
@@ -1120,11 +1196,18 @@ pub enum CommentCommand {
         /// Comment id (UUID).
         comment_id: String,
         /// Replacement body.
-        #[arg(long, conflicts_with = "body_file")]
+        #[arg(long, conflicts_with_all = ["body_file", "body_editor"])]
         body: Option<String>,
         /// Replacement body source (path, or - for stdin).
-        #[arg(long = "body-file", value_name = "PATH")]
+        #[arg(
+            long = "body-file",
+            value_name = "PATH",
+            conflicts_with_all = ["body", "body_editor"]
+        )]
         body_file: Option<String>,
+        /// Author the body in $VISUAL/$EDITOR instead of passing text.
+        #[arg(long = "body-editor", conflicts_with_all = ["body", "body_file"])]
+        body_editor: bool,
         /// Explicit idempotency key.
         #[arg(long = "idempotency-key", value_name = "KEY")]
         idempotency_key: Option<String>,

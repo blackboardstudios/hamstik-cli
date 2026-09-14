@@ -160,12 +160,31 @@ hamstik --json --no-input --org <ORG> --project <KEY> work link add \
 hamstik --json --no-input --org <ORG> --project <KEY> work attachment download \
   <ITEM-KEY> <ATTACHMENT-ID> --output <PATH>
 ```
-
-Watcher state is per-authenticated-user only; the API never discloses other watchers:
+Watcher state is per-authenticated-user only; the API never discloses other
+watchers:
 
 ```bash
 hamstik --json --no-input --org <ORG> --project <KEY> work watcher show <ITEM-KEY>
 hamstik --no-input --org <ORG> --project <KEY> work watcher mute <ITEM-KEY>
+```
+
+Long-form text can come from the editor, a file, or stdin — never from a
+prompt under `--no-input`:
+
+```bash
+hamstik --json --no-input --org <ORG> --project <KEY> work comment add \
+  <ITEM-KEY> --body-file - < COMMENT.md          # stdin via the '-' convention
+hamstik --json --no-input --org <ORG> --project <KEY> squeakql validate \
+  --file QUERY.sqql                              # file source, shell-quoting-free
+hamstik --json --no-input --org <ORG> work search --saved my-query   # saved queries
+```
+
+To see exactly why the CLI picked its host, Organization, Project, profile, and
+credential source (fully offline, redacted), use `context explain`; prefer its
+`--json` shape for support bundles:
+
+```bash
+hamstik --json --no-input context explain
 ```
 
 Bulk operations accept the Public API's JSON operation arrays and have a maximum of 50
