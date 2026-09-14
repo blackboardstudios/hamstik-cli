@@ -766,6 +766,8 @@ pub enum WorkCommand {
     Comment(CommentArgs),
     /// Manage work item links.
     Link(WorkLinkArgs),
+    /// Show or change your watcher state on a work item.
+    Watcher(WorkWatcherArgs),
     /// Show a work item's activity feed.
     Activity {
         /// Work item key.
@@ -1237,6 +1239,56 @@ pub struct WorkLinkArgs {
     /// The link subcommand to run.
     #[command(subcommand)]
     pub command: WorkLinkCommand,
+}
+
+/// Work item watcher subcommands (the authenticated user's own state).
+#[derive(Subcommand, Debug)]
+pub enum WorkWatcherCommand {
+    /// Show your watcher state on a work item.
+    Show {
+        /// Work item key.
+        key: String,
+    },
+    /// Watch a work item (start receiving notifications).
+    Watch {
+        /// Work item key.
+        key: String,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Stop watching a work item.
+    Unwatch {
+        /// Work item key.
+        key: String,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Keep watching but suppress notifications.
+    Mute {
+        /// Work item key.
+        key: String,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Stop suppressing notifications.
+    Unmute {
+        /// Work item key.
+        key: String,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+}
+
+/// Work item watcher arguments.
+#[derive(Args, Debug)]
+pub struct WorkWatcherArgs {
+    /// The watcher subcommand to run.
+    #[command(subcommand)]
+    pub command: WorkWatcherCommand,
 }
 
 /// Work item link subcommands.

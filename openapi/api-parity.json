@@ -1,58 +1,782 @@
 {
   "schemaVersion": 1,
   "operations": [
-    {"operationId":"getMe","method":"GET","path":"/api/v1/me","client":"whoami","cli":["me","auth status"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"getOpenApi","method":"GET","path":"/api/v1/openapi.json","client":"get_open_api","cli":["api openapi"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"getUserProfile","method":"GET","path":"/api/v1/users/{publicId}","client":"get_user_profile","cli":["user view"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listUserProfileWork","method":"GET","path":"/api/v1/users/{publicId}/work","client":"list_user_profile_work","cli":["user work"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listUserProfileActivity","method":"GET","path":"/api/v1/users/{publicId}/activity","client":"list_user_profile_activity","cli":["user activity"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"getUserProfileAvatar","method":"GET","path":"/api/v1/users/{publicId}/avatar","client":"get_user_profile_avatar","cli":["user avatar"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listOrganizations","method":"GET","path":"/api/v1/organizations","client":"list_organizations","cli":["org list"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"getOrganization","method":"GET","path":"/api/v1/organizations/{organizationSlug}","client":"get_organization","cli":["org view"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listOrganizationUsers","method":"GET","path":"/api/v1/organizations/{organizationSlug}/users","client":"list_organization_users","cli":["org members"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listProjects","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects","client":"list_projects","cli":["project list"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"createProject","method":"POST","path":"/api/v1/organizations/{organizationSlug}/projects","client":"create_project","cli":["project create"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"getProject","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}","client":"get_project","cli":["project view"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"updateProject","method":"PATCH","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}","client":"update_project","cli":["project edit"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"archiveProject","method":"POST","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/archive","client":"archive_project","cli":["project archive"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"unarchiveProject","method":"POST","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/unarchive","client":"unarchive_project","cli":["project unarchive"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listProjectSprints","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints","client":"list_sprints","cli":["sprint list"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"createProjectSprint","method":"POST","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints","client":"create_sprint","cli":["sprint create"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"getProjectSprint","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}","client":"get_sprint","cli":["sprint view"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listProjectSprintTransitions","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}/transitions","client":"list_sprint_transitions","cli":["sprint transitions"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"transitionProjectSprint","method":"POST","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}/transitions","client":"transition_sprint","cli":["sprint transition"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listWorkItems","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items","client":"list_work_items","cli":["work list"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"createWorkItem","method":"POST","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items","client":"create_work_item","cli":["work create"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listOrganizationWorkItems","method":"GET","path":"/api/v1/organizations/{organizationSlug}/work-items","client":"list_organization_work_items","cli":["org work"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"searchOrganizationWorkItemsWithSqueakQL","method":"POST","path":"/api/v1/organizations/{organizationSlug}/work-items/search","client":"search_organization_work_items_with_squeakql","cli":["work search"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"validateSqueakQL","method":"POST","path":"/api/v1/organizations/{organizationSlug}/squeakql/validate","client":"validate_squeakql","cli":["squeakql validate"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listMyWork","method":"GET","path":"/api/v1/my/work","client":"list_my_work","cli":["work mine","work my"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"bulkCreateWorkItems","method":"POST","path":"/api/v1/organizations/{organizationSlug}/bulk-work-items","client":"bulk_create_work_items","cli":["work bulk create"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"bulkUpdateWorkItems","method":"PATCH","path":"/api/v1/organizations/{organizationSlug}/bulk-work-items","client":"bulk_update_work_items","cli":["work bulk update"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"bulkTransitionWorkItems","method":"POST","path":"/api/v1/organizations/{organizationSlug}/bulk-work-item-transitions","client":"bulk_transition_work_items","cli":["work bulk transition"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listProjectLabels","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/labels","client":"list_labels","cli":["label list"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"createProjectLabel","method":"POST","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/labels","client":"create_label","cli":["label create"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"getWorkItem","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}","client":"get_work_item","cli":["work view"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"updateWorkItem","method":"PATCH","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}","client":"update_work_item","cli":["work edit"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"deleteWorkItem","method":"DELETE","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}","client":"delete_work_item","cli":["work delete"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"archiveWorkItem","method":"POST","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/archive","client":"archive_work_item","cli":["work archive"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"unarchiveWorkItem","method":"POST","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/unarchive","client":"unarchive_work_item","cli":["work unarchive"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listWorkItemTransitions","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/transitions","client":"list_transitions","cli":["work transitions"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"transitionWorkItem","method":"POST","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/transitions","client":"transition_work_item","cli":["work transition","work start","work close"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"createWorkItemLabelAssignment","method":"POST","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/labels","client":"attach_label","cli":["work label add"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"deleteWorkItemLabelAssignment","method":"DELETE","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/labels/{labelId}","client":"detach_label","cli":["work label remove"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listWorkItemLinks","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/links","client":"list_work_item_links","cli":["work link list"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"createWorkItemLink","method":"POST","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/links","client":"create_work_item_link","cli":["work link add"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"deleteWorkItemLink","method":"DELETE","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/links/{linkId}","client":"delete_work_item_link","cli":["work link delete"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listWorkItemActivity","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/activity","client":"list_work_item_activity","cli":["work activity"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listProjectActivity","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/activity","client":"list_project_activity","cli":["project activity"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listWorkItemComments","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments","client":"list_comments","cli":["work comment list"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"createWorkItemComment","method":"POST","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments","client":"create_comment","cli":["work comment add"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"deleteWorkItemComment","method":"DELETE","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments/{commentId}","client":"delete_comment","cli":["work comment delete"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"updateWorkItemComment","method":"PATCH","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments/{commentId}","client":"update_comment","cli":["work comment edit"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"listWorkItemAttachments","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments","client":"list_attachments","cli":["work attachment list"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"createWorkItemAttachment","method":"POST","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments","client":"upload_attachment","cli":["work attachment upload"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"downloadWorkItemAttachment","method":"GET","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments/{attachmentId}","client":"download_attachment","cli":["work attachment download"],"tests":["client","cli"],"status":"Complete"},
-    {"operationId":"deleteWorkItemAttachment","method":"DELETE","path":"/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments/{attachmentId}","client":"delete_attachment","cli":["work attachment delete"],"tests":["client","cli"],"status":"Complete"}
+    {
+      "operationId": "getMe",
+      "method": "GET",
+      "path": "/api/v1/me",
+      "client": "whoami",
+      "cli": [
+        "me",
+        "auth status"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getOpenApi",
+      "method": "GET",
+      "path": "/api/v1/openapi.json",
+      "client": "get_open_api",
+      "cli": [
+        "api openapi"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getUserProfile",
+      "method": "GET",
+      "path": "/api/v1/users/{publicId}",
+      "client": "get_user_profile",
+      "cli": [
+        "user view"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listUserProfileWork",
+      "method": "GET",
+      "path": "/api/v1/users/{publicId}/work",
+      "client": "list_user_profile_work",
+      "cli": [
+        "user work"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listUserProfileActivity",
+      "method": "GET",
+      "path": "/api/v1/users/{publicId}/activity",
+      "client": "list_user_profile_activity",
+      "cli": [
+        "user activity"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getUserProfileAvatar",
+      "method": "GET",
+      "path": "/api/v1/users/{publicId}/avatar",
+      "client": "get_user_profile_avatar",
+      "cli": [
+        "user avatar"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listOrganizations",
+      "method": "GET",
+      "path": "/api/v1/organizations",
+      "client": "list_organizations",
+      "cli": [
+        "org list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getOrganization",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}",
+      "client": "get_organization",
+      "cli": [
+        "org view"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listOrganizationUsers",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/users",
+      "client": "list_organization_users",
+      "cli": [
+        "org members"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listProjects",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects",
+      "client": "list_projects",
+      "cli": [
+        "project list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createProject",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects",
+      "client": "create_project",
+      "cli": [
+        "project create"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getProject",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}",
+      "client": "get_project",
+      "cli": [
+        "project view"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "updateProject",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}",
+      "client": "update_project",
+      "cli": [
+        "project edit"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "archiveProject",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/archive",
+      "client": "archive_project",
+      "cli": [
+        "project archive"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "unarchiveProject",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/unarchive",
+      "client": "unarchive_project",
+      "cli": [
+        "project unarchive"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listProjectSprints",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints",
+      "client": "list_sprints",
+      "cli": [
+        "sprint list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createProjectSprint",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints",
+      "client": "create_sprint",
+      "cli": [
+        "sprint create"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getProjectSprint",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}",
+      "client": "get_sprint",
+      "cli": [
+        "sprint view"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listProjectSprintTransitions",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}/transitions",
+      "client": "list_sprint_transitions",
+      "cli": [
+        "sprint transitions"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "transitionProjectSprint",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}/transitions",
+      "client": "transition_sprint",
+      "cli": [
+        "sprint transition"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listWorkItems",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items",
+      "client": "list_work_items",
+      "cli": [
+        "work list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createWorkItem",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items",
+      "client": "create_work_item",
+      "cli": [
+        "work create"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listOrganizationWorkItems",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/work-items",
+      "client": "list_organization_work_items",
+      "cli": [
+        "org work"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "searchOrganizationWorkItemsWithSqueakQL",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/work-items/search",
+      "client": "search_organization_work_items_with_squeakql",
+      "cli": [
+        "work search"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "validateSqueakQL",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/squeakql/validate",
+      "client": "validate_squeakql",
+      "cli": [
+        "squeakql validate"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listMyWork",
+      "method": "GET",
+      "path": "/api/v1/my/work",
+      "client": "list_my_work",
+      "cli": [
+        "work mine",
+        "work my"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "bulkCreateWorkItems",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/bulk-work-items",
+      "client": "bulk_create_work_items",
+      "cli": [
+        "work bulk create"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "bulkUpdateWorkItems",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/bulk-work-items",
+      "client": "bulk_update_work_items",
+      "cli": [
+        "work bulk update"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "bulkTransitionWorkItems",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/bulk-work-item-transitions",
+      "client": "bulk_transition_work_items",
+      "cli": [
+        "work bulk transition"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listProjectLabels",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/labels",
+      "client": "list_labels",
+      "cli": [
+        "label list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createProjectLabel",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/labels",
+      "client": "create_label",
+      "cli": [
+        "label create"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getWorkItem",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}",
+      "client": "get_work_item",
+      "cli": [
+        "work view"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getWorkItemWatcher",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/watcher",
+      "client": "get_work_item_watcher",
+      "cli": [
+        "work watcher show"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "updateWorkItem",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}",
+      "client": "update_work_item",
+      "cli": [
+        "work edit"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteWorkItem",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}",
+      "client": "delete_work_item",
+      "cli": [
+        "work delete"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "archiveWorkItem",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/archive",
+      "client": "archive_work_item",
+      "cli": [
+        "work archive"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "unarchiveWorkItem",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/unarchive",
+      "client": "unarchive_work_item",
+      "cli": [
+        "work unarchive"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listWorkItemTransitions",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/transitions",
+      "client": "list_transitions",
+      "cli": [
+        "work transitions"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "transitionWorkItem",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/transitions",
+      "client": "transition_work_item",
+      "cli": [
+        "work transition",
+        "work start",
+        "work close"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createWorkItemLabelAssignment",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/labels",
+      "client": "attach_label",
+      "cli": [
+        "work label add"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteWorkItemLabelAssignment",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/labels/{labelId}",
+      "client": "detach_label",
+      "cli": [
+        "work label remove"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listWorkItemLinks",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/links",
+      "client": "list_work_item_links",
+      "cli": [
+        "work link list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createWorkItemLink",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/links",
+      "client": "create_work_item_link",
+      "cli": [
+        "work link add"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteWorkItemLink",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/links/{linkId}",
+      "client": "delete_work_item_link",
+      "cli": [
+        "work link delete"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listWorkItemActivity",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/activity",
+      "client": "list_work_item_activity",
+      "cli": [
+        "work activity"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listProjectActivity",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/activity",
+      "client": "list_project_activity",
+      "cli": [
+        "project activity"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listWorkItemComments",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments",
+      "client": "list_comments",
+      "cli": [
+        "work comment list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createWorkItemComment",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments",
+      "client": "create_comment",
+      "cli": [
+        "work comment add"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteWorkItemComment",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments/{commentId}",
+      "client": "delete_comment",
+      "cli": [
+        "work comment delete"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "updateWorkItemComment",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments/{commentId}",
+      "client": "update_comment",
+      "cli": [
+        "work comment edit"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "updateWorkItemWatcher",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/watcher",
+      "client": "update_work_item_watcher",
+      "cli": [
+        "work watcher watch",
+        "work watcher unwatch",
+        "work watcher mute",
+        "work watcher unmute"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listWorkItemAttachments",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments",
+      "client": "list_attachments",
+      "cli": [
+        "work attachment list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createWorkItemAttachment",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments",
+      "client": "upload_attachment",
+      "cli": [
+        "work attachment upload"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "downloadWorkItemAttachment",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments/{attachmentId}",
+      "client": "download_attachment",
+      "cli": [
+        "work attachment download"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteWorkItemAttachment",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments/{attachmentId}",
+      "client": "delete_attachment",
+      "cli": [
+        "work attachment delete"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    }
   ]
 }

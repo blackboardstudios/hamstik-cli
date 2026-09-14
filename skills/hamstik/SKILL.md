@@ -161,6 +161,13 @@ hamstik --json --no-input --org <ORG> --project <KEY> work attachment download \
   <ITEM-KEY> <ATTACHMENT-ID> --output <PATH>
 ```
 
+Watcher state is per-authenticated-user only; the API never discloses other watchers:
+
+```bash
+hamstik --json --no-input --org <ORG> --project <KEY> work watcher show <ITEM-KEY>
+hamstik --no-input --org <ORG> --project <KEY> work watcher mute <ITEM-KEY>
+```
+
 Bulk operations accept the Public API's JSON operation arrays and have a maximum of 50
 operations. Files are preflighted locally before any request: JSON syntax, the typed
 envelope, required fields, unknown fields, enum spellings, revision constraints, and the

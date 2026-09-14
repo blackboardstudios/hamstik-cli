@@ -16,7 +16,7 @@ use hamstik_api_client::{
     BulkTransitionWorkItemOperation, BulkUpdateWorkItemOperation, ClientConfig,
     CreateCommentRequest, CreateWorkItemRequest, HamstikApi, HamstikClient, ListOptions,
     ListProjectsOptions, PageItems, RetryPolicy, TransitionRequest, UpdateWorkItemRequest,
-    follow_all,
+    WatcherAction, WorkItemWatcher, follow_all,
 };
 use secrecy::SecretString;
 use serde_json::json;
@@ -2053,4 +2053,80 @@ async fn org_and_project_work_collections_parse() {
     let query = url.query().unwrap_or_default();
     assert!(query.contains("project=HAM"), "{query}");
     assert!(query.contains("sort=dueDate"), "{query}");
+}
+
+#[tokio::test]
+async fn watcher_get_and_action_send_documented_requests() {
+    let watcher = WorkItemWatcher {
+        work_item_id: "33333333-3333-4333-8333-333333333333".to_string(),
+        watched: true,
+        manual_watch: true,
+        assignee_origin: false,
+        muted: false,
+        assigned: true,
+    };
+
+    // GET: read-only, no idempotency header, no If-Match.
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1/watcher",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("X-Request-Id", "watch-req-1")
+                .set_body_json(&watcher),
+        )
+        .mount(&server)
+        .await;
+    let client = client_for(&server.uri());
+    let resp = client
+        .get_work_item_watcher("acme", "HAM", "HAM-1")
+        .await
+        .unwrap();
+    assert_eq!(resp.value, watcher);
+    assert_eq!(resp.request_id.as_deref(), Some("watch-req-1"));
+    let req = &server.received_requests().await.unwrap()[0];
+    assert!(!req.headers.contains_key("idempotency-key"));
+    assert!(!req.headers.contains_key("if-match"));
+
+    // POST: action body serialized as the documented enum spelling, with the
+    // required Idempotency-Key and no revision guard.
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1/watcher",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("X-Request-Id", "watch-req-2")
+                .set_body_json(&watcher),
+        )
+        .mount(&server)
+        .await;
+    let client = client_for(&server.uri());
+    let resp = client
+        .update_work_item_watcher("acme", "HAM", "HAM-1", WatcherAction::Mute, "watcher-key-1")
+        .await
+        .unwrap();
+    assert!(resp.value.watched);
+    assert!(!resp.value.muted);
+    let req = &server.received_requests().await.unwrap()[0];
+    assert_eq!(
+        req.headers
+            .get("idempotency-key")
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "watcher-key-1"
+    );
+    let sent: serde_json::Value = serde_json::from_slice(&req.body).unwrap();
+    assert_eq!(
+        sent["action"], "mute",
+        "the action must serialize as the documented string"
+    );
+    assert!(
+        sent.get("workItemId").is_none(),
+        "the server sets the id; the request carries only the action"
+    );
 }

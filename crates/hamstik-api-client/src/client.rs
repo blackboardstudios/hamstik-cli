@@ -926,6 +926,24 @@ pub trait HamstikApi: Send + Sync {
         project_key: &str,
         key: &str,
     ) -> Result<ApiResponse<WorkItemTransitionList>, ClientError>;
+    /// `GET .../work-items/{key}/watcher`: the authenticated user's watcher
+    /// state (other watchers are never disclosed).
+    async fn get_work_item_watcher(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        key: &str,
+    ) -> Result<ApiResponse<WorkItemWatcher>, ClientError>;
+    /// `POST .../work-items/{key}/watcher`: apply a watcher action to the
+    /// authenticated user's watcher state (idempotent, no revision guard).
+    async fn update_work_item_watcher(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        key: &str,
+        action: WatcherAction,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<WorkItemWatcher>, ClientError>;
     /// `POST .../work-items/{key}/transitions`: move the item to a status.
     async fn transition_work_item(
         &self,
@@ -1457,6 +1475,60 @@ impl HamstikApi for HamstikClient {
             query: Vec::new(),
             headers: Vec::new(),
             body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn get_work_item_watcher(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        key: &str,
+    ) -> Result<ApiResponse<WorkItemWatcher>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "work-items".to_string(),
+                key.to_string(),
+                "watcher".to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn update_work_item_watcher(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        key: &str,
+        action: WatcherAction,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<WorkItemWatcher>, ClientError> {
+        let payload = serde_json::to_value(WorkItemWatcherActionRequest { action })
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "work-items".to_string(),
+                key.to_string(),
+                "watcher".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![(header_idempotency_key(), idempotency_key.to_string())],
+            body: Some(&payload),
             retryable: true,
         })
         .await

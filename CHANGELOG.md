@@ -15,6 +15,13 @@ in-progress first release and will be dated and versioned when it ships.
 
 ### Added
 
+- Work Item watcher commands backed by the newly additive Public API
+  operations (`getWorkItemWatcher`, `updateWorkItemWatcher`): `work watcher
+  show|watch|unwatch|mute|unmute` report and change the authenticated user's
+  own watcher state (never other watchers'). Actions are idempotent
+  (`Idempotency-Key`, replay note) and carry no revision guard; the
+  operations are classified as Complete in `openapi/api-parity.json` with
+  client and CLI wire tests (`work`).
 - Coherent PAT onboarding and troubleshooting journey: `auth status --json` now
   reports credential type/name, expiry, the credential source (environment vs
   credential store), and a structured scope inventory; near-expiry credentials

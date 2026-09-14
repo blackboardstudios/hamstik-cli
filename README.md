@@ -129,7 +129,8 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   (`transitions`, `transition`, `start`, `close`), comments
   (`work comment list|add|edit|delete`), links
   (`work link list|add|delete`), activity (`work activity`), archive/
-  unarchive/delete lifecycle, and bulk operations
+  unarchive/delete lifecycle, watcher state (`work watcher
+  show|watch|unwatch|mute|unmute`), and bulk operations
   (`work bulk create|update|transition`);
 - first-class My Work via `hamstik work mine` (`work my` alias) and
   Organization-wide SqueakQL search via `hamstik work search` /
@@ -198,6 +199,12 @@ hamstik work bulk transition --operations-file transition-operations.json \
 hamstik work create --title "Document API" --dry-run --json
 hamstik work edit HAM-42 --priority high --dry-run --json
 hamstik work bulk create --operations-file create-operations.json --dry-run --json
+
+# Watcher state (the authenticated user's own; never other watchers)
+hamstik work watcher show HAM-42 --json
+hamstik work watcher watch HAM-42
+hamstik work watcher mute HAM-42
+hamstik work watcher unmute HAM-42
 
 # Labels, links, threaded comments, and attachments
 hamstik label create --name api --color '#6366f1'

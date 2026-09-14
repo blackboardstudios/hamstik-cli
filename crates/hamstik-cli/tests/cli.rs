@@ -3845,3 +3845,127 @@ fn bulk_operations_stdin_is_capped() {
         .code(2)
         .stderr(predicate::str::contains("byte limit"));
 }
+
+/// The work-item watcher surface (getWorkItemWatcher/updateWorkItemWatcher):
+/// `show` reads, actions post with the idempotency key, and `--dry-run`
+/// previews without sending.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn work_watcher_show_and_action_follow_contract() {
+    let watcher = json!({
+        "workItemId": "33333333-3333-4333-8333-333333333333",
+        "watched": true, "manualWatch": true, "assigneeOrigin": false,
+        "muted": false, "assigned": true
+    });
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1/watcher",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(watcher.clone()))
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1/watcher",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(watcher.clone()))
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    let output = base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "work",
+            "watcher",
+            "show",
+            "HAM-1",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{:?}", output.stderr);
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(body["watched"], true);
+    assert_eq!(body["assigned"], true);
+
+    let dir = TempDir::new().unwrap();
+    let output = base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "work",
+            "watcher",
+            "mute",
+            "HAM-1",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{:?}", output.stderr);
+    let request = server
+        .received_requests()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|request| request.method.as_str() == "POST")
+        .unwrap();
+    assert!(request.headers.contains_key("idempotency-key"));
+    assert!(!request.headers.contains_key("if-match"));
+    let sent: Value = serde_json::from_slice(&request.body).unwrap();
+    assert_eq!(sent["action"], "mute");
+
+    // Quiet mode emits the single essential line.
+    let dir = TempDir::new().unwrap();
+    let output = base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "--quiet",
+            "work",
+            "watcher",
+            "show",
+            "HAM-1",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(text.lines().count(), 1);
+
+    // Dry-run previews the action without sending a third request.
+    let dir = TempDir::new().unwrap();
+    let output = base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "--no-input",
+            "--json",
+            "--dry-run",
+            "work",
+            "watcher",
+            "unmute",
+            "HAM-1",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(body["dryRun"], true);
+    assert_eq!(body["body"]["action"], "unmute");
+    assert_eq!(
+        server.received_requests().await.unwrap().len(),
+        3,
+        "only the two real invocations (GET + POST) and the quiet GET may hit the wire"
+    );
+}

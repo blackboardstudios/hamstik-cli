@@ -224,6 +224,7 @@ fn subcommand_groups_match_documented_surface() {
                 "transitions",
                 "unarchive",
                 "view",
+                "watcher",
             ],
         ),
         ("user", &["user"], &["activity", "avatar", "view", "work"]),

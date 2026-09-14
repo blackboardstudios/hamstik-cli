@@ -1623,7 +1623,7 @@ mod tests {
             serde_json::from_str(include_str!("../../../../openapi/hamstik-v1.json")).unwrap();
         let compatibility = check_api_compatibility(&document).unwrap();
         assert_eq!(compatibility.additive_operations, 0);
-        assert!(compatibility.detail.contains("53 required operations"));
+        assert!(compatibility.detail.contains("55 required operations"));
     }
 
     #[test]

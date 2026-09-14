@@ -57,6 +57,9 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
             | crate::args::WorkCommand::View { .. }
             | crate::args::WorkCommand::Transitions { .. }
             | crate::args::WorkCommand::Activity { .. } => false,
+            crate::args::WorkCommand::Watcher(args) => {
+                !matches!(args.command, crate::args::WorkWatcherCommand::Show { .. })
+            }
             crate::args::WorkCommand::Label(args) => {
                 matches!(
                     args.command,

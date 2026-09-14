@@ -765,6 +765,64 @@ pub struct WorkItemTransitionList {
     pub transitions: Vec<WorkItemTransition>,
 }
 
+/// The authenticated user's watcher state on a work item.
+///
+/// Other watchers are never disclosed by the Public API.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkItemWatcher {
+    /// The watched work item's id.
+    pub work_item_id: String,
+    /// Whether the item currently shows up in the user's watch feed.
+    pub watched: bool,
+    /// Whether the user watches the item explicitly.
+    pub manual_watch: bool,
+    /// Whether the watch originates from being the assignee.
+    pub assignee_origin: bool,
+    /// Whether notifications for the item are muted.
+    pub muted: bool,
+    /// Whether the user is the item's assignee.
+    pub assigned: bool,
+}
+
+/// A watcher action (`watch`, `unwatch`, `mute`, `unmute`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum WatcherAction {
+    /// Start watching the item.
+    #[serde(rename = "watch")]
+    Watch,
+    /// Stop watching the item.
+    #[serde(rename = "unwatch")]
+    Unwatch,
+    /// Keep watching but suppress notifications.
+    #[serde(rename = "mute")]
+    Mute,
+    /// Stop suppressing notifications.
+    #[serde(rename = "unmute")]
+    Unmute,
+}
+
+impl WatcherAction {
+    /// The wire spelling of the action.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Watch => "watch",
+            Self::Unwatch => "unwatch",
+            Self::Mute => "mute",
+            Self::Unmute => "unmute",
+        }
+    }
+}
+
+/// The body of a watcher action request (`action` only; server sets the rest).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkItemWatcherActionRequest {
+    /// The action to apply to the authenticated user's watcher state.
+    pub action: WatcherAction,
+}
+
 /// A comment resource.
 ///
 /// List/create/delete responses retain the legacy `{id, name}` author
