@@ -216,6 +216,11 @@ async fn environment_token_takes_precedence_without_store_access() {
 
 /// `auth login --with-token` reads stdin (never argv), stores the credential,
 /// and reports scopes in the success envelope without echoing the token.
+///
+/// Hosts without an OS credential service (headless Linux CI runners) fail
+/// closed with exit 10 / `CREDENTIAL_STORE_ERROR` (SPEC §26); hosts with a
+/// real keyring complete the login. Either way the token read from stdin must
+/// reach credential handling and never be echoed.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn login_with_token_reads_stdin_and_never_echoes() {
     let server = MockServer::start().await;
@@ -233,7 +238,26 @@ async fn login_with_token_reads_stdin_and_never_echoes() {
     cmd.args(["--no-input", "--json", "auth", "login", "--with-token"]);
     cmd.write_stdin("stdin-pat-value-4\n");
     let output = cmd.output().unwrap();
-    assert_eq!(output.status.code(), Some(0), "{:?}", output.stderr);
+
+    let stderr_text = String::from_utf8_lossy(&output.stderr);
+    let stdout_text = String::from_utf8_lossy(&output.stdout);
+    match output.status.code() {
+        Some(0) => {
+            let body: Value =
+                serde_json::from_slice(&output.stdout).expect("login success is JSON");
+            assert_eq!(body["authenticated"], true);
+        }
+        Some(10) => {
+            let body: Value = serde_json::from_slice(&output.stderr).unwrap_or_else(|error| {
+                panic!("exit 10 must carry the error envelope: {error}; stderr: {stderr_text}")
+            });
+            assert_eq!(
+                body["error"]["code"], "CREDENTIAL_STORE_ERROR",
+                "keyring-less hosts must fail closed with the documented code: {stderr_text}"
+            );
+        }
+        other => panic!("unexpected exit {other:?}; stdout: {stdout_text}; stderr: {stderr_text}"),
+    }
     for stream in [output.stdout.as_slice(), output.stderr.as_slice()] {
         assert!(
             !String::from_utf8_lossy(stream).contains("stdin-pat-value-4"),
@@ -241,13 +265,13 @@ async fn login_with_token_reads_stdin_and_never_echoes() {
         );
     }
     // The stored profile carries the identity; the config file holds no token.
+    // (On keyring-less hosts no login completed, so no profile state exists
+    // and only the no-token rule applies.)
     let config_text = std::fs::read_to_string(dir.path().join("config.toml")).unwrap_or_default();
     assert!(
         !config_text.contains("stdin-pat-value-4"),
         "tokens must never be written to the config file"
     );
-    let body: Value = serde_json::from_slice(&output.stdout).unwrap_or(json!({}));
-    assert_eq!(body["authenticated"], true);
 
     // HAMSTIK_TOKEN present is never stored: explicit refusal.
     let dir = TempDir::new().unwrap();

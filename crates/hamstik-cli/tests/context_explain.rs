@@ -102,11 +102,11 @@ fn explain_reports_nearest_context_file_discovery() {
         .unwrap();
     assert_eq!(output.status.code(), Some(0));
     let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    // The CLI reports the OS-native path (backslashes on Windows), so compare
+    // path components rather than a forward-slash text suffix.
+    let found = body["contextDiscovery"]["found"].as_str().unwrap();
     assert!(
-        body["contextDiscovery"]["found"]
-            .as_str()
-            .unwrap()
-            .ends_with("b/.hamstik.toml"),
+        std::path::Path::new(found).ends_with(std::path::Path::new("b").join(".hamstik.toml")),
         "the nearest file must win: {body:?}"
     );
     assert_eq!(

@@ -353,10 +353,18 @@ async fn editor_temp_files_are_owner_restricted() {
     // the contract differently: no hamstik-edit file ever appears with broad
     // permissions during a run. Run a real editor that records its own mode.
     let dir = TempDir::new().unwrap();
+    // The recorded mode lands inside the test's temp dir: a shared /tmp file
+    // would race across parallel test runs.
+    let mode_output = dir.path().join("recorded-mode.txt");
     let mode_recorder = dir.path().join("record-mode.sh");
+    // BSD stat (macOS) and GNU stat (Linux) disagree on flags (-f vs -c), so
+    // pick the form for the actual OS.
     std::fs::write(
         &mode_recorder,
-        "#!/bin/sh\nstat -c '%a' \"$1\" > /tmp/kilo-editor-mode.txt\nprintf 'authored\n' >> \"$1\"\n",
+        format!(
+            "#!/bin/sh\ncase \"$(uname -s)\" in\n  Darwin*) stat -f '%Lp' \"$1\" ;;\n  *) stat -c '%a' \"$1\" ;;\nesac > '{}'\nprintf 'authored\\n' >> \"$1\"\n",
+            mode_output.display()
+        ),
     )
     .unwrap();
     #[cfg(unix)]
@@ -364,7 +372,6 @@ async fn editor_temp_files_are_owner_restricted() {
         use std::os::unix::fs::PermissionsExt as _;
         std::fs::set_permissions(&mode_recorder, std::fs::Permissions::from_mode(0o755)).unwrap();
     }
-    let _ = std::fs::remove_file("/tmp/kilo-editor-mode.txt");
 
     let server = MockServer::start().await;
     Mock::given(method("POST"))
@@ -403,11 +410,11 @@ async fn editor_temp_files_are_owner_restricted() {
     assert_eq!(output.status.code(), Some(0), "{:?}", output.stderr);
     #[cfg(unix)]
     {
-        let mode = std::fs::read_to_string("/tmp/kilo-editor-mode.txt").unwrap();
+        let mode = std::fs::read_to_string(&mode_output).unwrap_or_default();
         assert_eq!(
             mode.trim(),
             "600",
-            "editor temp files must be owner-only (0600)"
+            "editor temp files must be owner-only (0600); recorder output: {mode:?}"
         );
     }
 }
