@@ -19,8 +19,15 @@ use crate::environment::Environment;
 pub const SGR_GREEN: &str = "\x1b[32m";
 /// SGR sequence for red foreground (used for `FAIL` markers).
 pub const SGR_RED: &str = "\x1b[31m";
-/// SGR sequence for yellow foreground (used for `info` markers).
-pub const SGR_YELLOW: &str = "\x1b[33m";
+/// SGR sequence for bright-yellow foreground (used for `WARN`/`skip` markers
+/// and the doctor color sample).
+///
+/// Bright yellow (SGR 93) is used instead of normal yellow (SGR 33) because
+/// several common terminal themes — notably GNOME Terminal's default palettes
+/// — render the normal-yellow slot as brown/ochre, which defeats the warning
+/// semantics. SGR 93 still resolves through the user's palette; no RGB or
+/// truecolor sequences are involved.
+pub const SGR_YELLOW: &str = "\x1b[93m";
 const SGR_RESET: &str = "\x1b[0m";
 
 /// The result of a capability probe.
@@ -251,6 +258,16 @@ mod tests {
     fn paint_wraps_only_when_enabled() {
         assert_eq!(paint(true, SGR_GREEN, "ok"), "\x1b[32mok\x1b[0m");
         assert_eq!(paint(false, SGR_RED, "FAIL"), "FAIL");
+    }
+
+    #[test]
+    fn semantic_yellow_is_bright_yellow_not_normal_yellow() {
+        // Several common themes (e.g. GNOME Terminal's defaults) render the
+        // normal-yellow slot (SGR 33) as brown/ochre; semantic warnings must
+        // request the bright-yellow slot instead, still via the user palette.
+        assert_eq!(SGR_YELLOW, "\x1b[93m");
+        assert_eq!(paint(true, SGR_YELLOW, "skip"), "\x1b[93mskip\x1b[0m");
+        assert!(!SGR_YELLOW.contains("\x1b[33m"));
     }
 
     #[test]
