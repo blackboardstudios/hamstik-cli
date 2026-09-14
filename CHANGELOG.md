@@ -15,6 +15,29 @@ in-progress first release and will be dated and versioned when it ships.
 
 ### Added
 
+- Bulk operations preflight: operation files are validated locally (JSON syntax,
+  typed envelope, per-operation required fields, unknown fields, enum spellings,
+  revision constraints, 1–50 count) before any request, with diagnostics naming
+  the failing operation index and field path. Human bulk output states the
+  selected concurrency mode, summarizes succeeded/failed counts, and prints
+  actionable per-failure details with server request ids; JSON preserves all
+  documented per-operation fields. Stdin and file inputs behave identically
+  (`work`).
+- `doctor --local-only` verifies configuration, context resolution, profile
+  selection, credential-store accessibility, terminal behavior, and bundled
+  compatibility metadata with zero network traffic; remote checks are reported
+  as skipped, making the output safe for support bundles. Doctor now classifies
+  network failures by failing stage (DNS, TCP connection, proxy, timeout, TLS)
+  with stage-specific remediation and per-check latency, reports PAT expiration
+  (expired / within 14 days / healthy) and scope readiness, and prints a final
+  pass/warn/fail/skipped summary in human and JSON modes (`doctor`).
+- Deep parsed-OpenAPI schema parity guards: parameters, header parameters
+  (`If-Match`, `Idempotency-Key`), request/response content types (multipart
+  uploads, binary avatar downloads), response status codes, component schema
+  drift (required/optional/nullable, enums, formats, property removals), and
+  bulk envelope bounds are checked structurally against the checked-in
+  snapshot, with additive changes classified separately from breaking drift
+  and failures naming the operation or JSON pointer (`openapi`).
 - Global `--dry-run` flag for mutation commands (`work create/edit/transition/start/close/
   archive/unarchive/delete`, `work label add|remove`, `work attachment upload|delete`,
   `work comment add|edit|delete`, `work link add|delete`, `work bulk create|update|transition`,

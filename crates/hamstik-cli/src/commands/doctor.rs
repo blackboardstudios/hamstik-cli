@@ -109,6 +109,8 @@ struct Check {
     duration_ms: Option<u64>,
     request_id: Option<String>,
     error: Option<CheckError>,
+    /// The failing transport stage for network checks (CLI-13).
+    network_stage: Option<hamstik_api_client::NetworkStage>,
 }
 
 impl Check {
@@ -158,7 +160,14 @@ impl Check {
             duration_ms: None,
             request_id: None,
             error: None,
+            network_stage: None,
         }
+    }
+
+    /// Attaches the failing transport stage to a network check.
+    fn with_network_stage(mut self, stage: hamstik_api_client::NetworkStage) -> Self {
+        self.network_stage = Some(stage);
+        self
     }
 
     fn with_remediation(mut self, remediation: impl Into<String>) -> Self {
@@ -220,6 +229,34 @@ impl Report {
     }
 }
 
+/// Aggregate check-status counts for the final summary.
+struct ReportSummary {
+    pass: usize,
+    warn: usize,
+    fail: usize,
+    skipped: usize,
+}
+
+impl ReportSummary {
+    fn of(report: &Report) -> Self {
+        let mut summary = Self {
+            pass: 0,
+            warn: 0,
+            fail: 0,
+            skipped: 0,
+        };
+        for check in &report.checks {
+            match check.status {
+                CheckStatus::Pass => summary.pass += 1,
+                CheckStatus::Warn => summary.warn += 1,
+                CheckStatus::Fail => summary.fail += 1,
+                CheckStatus::Skipped => summary.skipped += 1,
+            }
+        }
+        summary
+    }
+}
+
 struct LocalState {
     selection: Option<Selection>,
 }
@@ -230,56 +267,101 @@ struct Compatibility {
     additive_operations: usize,
 }
 
+/// PAT expiry thresholds (days): at or below `WARN_DAYS` the credential is
+/// "imminently expiring"; past `expiresAt` it is expired.
+const PAT_WARN_DAYS: i64 = 14;
+
 /// Runs the complete configuration/connectivity diagnostics.
-pub async fn run(session: &mut Session<'_>) -> Result<(), CliError> {
+///
+/// `local_only` checks configuration, context resolution, profile selection,
+/// credential-store accessibility, terminal behavior, and bundled
+/// compatibility metadata without contacting the host: remote checks are
+/// reported as skipped and no DNS or HTTP traffic is generated.
+pub async fn run(session: &mut Session<'_>, local_only: bool) -> Result<(), CliError> {
     let mut report = Report::new();
     let local = diagnose_local_state(session, &mut report);
 
     let Some(selection) = local.selection else {
+        finish_without_host(session, &mut report, local_only);
+        return render(session, report);
+    };
+
+    if local_only {
+        // Local-only mode: explicitly mark every remote stage skipped so the
+        // report shape stays stable, and run only offline checks.
         report.push(Check::skipped(
-            "credential.store",
-            "credential store",
-            "host resolution failed",
+            "credential.expiry",
+            "PAT expiration",
+            "requires an authenticated request in local-only mode; use `me --json` for expiry data",
+        ));
+        report.push(Check::skipped(
+            "scope.readiness",
+            "scope readiness",
+            "requires an authenticated request in local-only mode",
         ));
         report.push(Check::skipped(
             "network.connectivity",
             "network",
-            "host resolution failed",
+            "skipped by local-only mode",
         ));
         report.push(Check::skipped(
             "network.tls",
             "TLS",
-            "host resolution failed",
+            "skipped by local-only mode",
         ));
         report.push(Check::skipped(
             "api.openapi",
             "Public API",
-            "host resolution failed",
+            "skipped by local-only mode",
         ));
-        report.push(Check::skipped(
-            "api.compatibility",
-            "API compatibility",
-            "OpenAPI document unavailable",
-        ));
+        // The bundled snapshot is still a valid offline compatibility check.
+        let bundled = match bundled_openapi() {
+            Ok(document) => document,
+            Err(message) => {
+                report.fail(
+                    "api.compatibility",
+                    "API compatibility",
+                    CliError::protocol(message),
+                    "The checked-in contract snapshot is malformed; this is a bug.",
+                );
+                report.push(color_check(session));
+                report.push(emoji_check(session));
+                return render(session, report);
+            }
+        };
+        match check_api_compatibility(&bundled) {
+            Ok(compatibility) => report.push(Check::pass(
+                "api.compatibility",
+                "API compatibility",
+                true,
+                compatibility.detail,
+            )),
+            Err(message) => report.fail(
+                "api.compatibility",
+                "API compatibility",
+                CliError::protocol(message),
+                "The checked-in contract snapshot is malformed; this is a bug.",
+            ),
+        }
         report.push(Check::skipped(
             "api.authentication",
             "authentication",
-            "host resolution failed",
+            "skipped by local-only mode",
         ));
-        report.push(context_skipped(
+        report.push(Check::skipped(
             "context.organization",
             "organization",
-            "host resolution failed",
+            "skipped by local-only mode",
         ));
-        report.push(context_skipped(
+        report.push(Check::skipped(
             "context.project",
             "project",
-            "host resolution failed",
+            "skipped by local-only mode",
         ));
         report.push(color_check(session));
         report.push(emoji_check(session));
         return render(session, report);
-    };
+    }
 
     // An explicit ephemeral token makes the keyring irrelevant; do not even
     // construct a backend entry that could trigger an unlock prompt.
@@ -396,9 +478,11 @@ pub async fn run(session: &mut Session<'_>) -> Result<(), CliError> {
                                 ),
                             )
                             .with_duration(started)
-                            .with_request_id(me.request_id),
+                            .with_request_id(me.request_id.clone()),
                         );
                         authenticated_api = Some(api);
+                        check_pat_expiry(&mut report, me.value.authentication.expires_at.clone());
+                        check_scope_readiness(&mut report, &me.value.authentication.scopes);
                     }
                     Err(error) => {
                         let cli = CliError::from_client(error);
@@ -789,6 +873,178 @@ fn proxy_check(session: &Session<'_>) -> Check {
     }
 }
 
+/// Parses an RFC 3339 timestamp into Unix seconds, tolerating fractional
+/// seconds and missing zone (treated as UTC).
+fn parse_timestamp(value: &str) -> Option<i64> {
+    // Minimal RFC 3339 parser: YYYY-MM-DDTHH:MM:SS(.fff)?(Z|±HH:MM).
+    let date_time = value.trim();
+    let (date, rest) = date_time
+        .split_once('T')
+        .or_else(|| date_time.split_once(' '))?;
+    let mut date_parts = date.split('-');
+    let year: i64 = date_parts.next()?.parse().ok()?;
+    let month: i64 = date_parts.next()?.parse().ok()?;
+    let day: i64 = date_parts.next()?.parse().ok()?;
+
+    let (time, offset) =
+        if let Some(stripped) = rest.strip_suffix('Z').or_else(|| rest.strip_suffix('z')) {
+            (stripped, 0i64)
+        } else if let Some(position) = rest.rfind(['+', '-']) {
+            let (time, zone) = rest.split_at(position);
+            let sign = if zone.starts_with('+') { 1 } else { -1 };
+            let mut zone_parts = zone[1..].split(':');
+            let hours: i64 = zone_parts.next().unwrap_or("0").parse().ok()?;
+            let minutes: i64 = zone_parts.next().unwrap_or("0").parse().ok()?;
+            (time, sign * (hours * 3600 + minutes * 60))
+        } else {
+            (rest, 0)
+        };
+
+    let mut time_parts = time.split(':');
+    let hours: i64 = time_parts.next()?.parse().ok()?;
+    let minutes: i64 = time_parts.next()?.parse().ok()?;
+    let seconds_fragment = time_parts.next().unwrap_or("0");
+    let seconds: i64 = seconds_fragment
+        .split('.')
+        .next()
+        .unwrap_or(seconds_fragment)
+        .parse()
+        .ok()?;
+
+    // Days-since-epoch conversion (proleptic Gregorian, civil algorithm).
+    let (y, m) = if month <= 2 {
+        (year - 1, month + 12)
+    } else {
+        (year, month)
+    };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let year_of_era = y - era * 400;
+    let day_of_era = (153 * (m - 3) + 2) / 5 + day - 1;
+    let days = era * 146_097 + year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_era
+        - 719_468;
+    Some(days * 86_400 + hours * 3600 + minutes * 60 + seconds - offset)
+}
+
+/// Days from now until `expires_at` (negative when already expired).
+fn days_until(expires_at: &str, now_seconds: i64) -> Option<i64> {
+    let expiry = parse_timestamp(expires_at)?;
+    Some((expiry - now_seconds).div_euclid(86_400))
+}
+
+/// Reports PAT expiry as expired / imminently expiring (≤14 days) / healthy.
+///
+/// Clock skew is the server's; thresholds are documented CLI-side warnings.
+fn check_pat_expiry(report: &mut Report, expires_at: String) {
+    // `now` comes from the process clock; the comparison is advisory only.
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or_default();
+    match days_until(&expires_at, now) {
+        Some(days) if days < 0 => report.fail(
+            "credential.expiry",
+            "PAT expiration",
+            CliError::auth(format!(
+                "credential expired {expires_at}; every request will be rejected as unauthenticated"
+            )),
+            "Create a new PAT and run `hamstik auth login --with-token`.",
+        ),
+        Some(0) => report.push(Check::warn(
+            "credential.expiry",
+            "PAT expiration",
+            format!("credential expires within 24 hours ({expires_at}); create a new PAT soon"),
+        )),
+        Some(days) if days <= PAT_WARN_DAYS => report.push(Check::warn(
+            "credential.expiry",
+            "PAT expiration",
+            format!("credential expires in {days} day(s) ({expires_at}); create a new PAT soon"),
+        )),
+        Some(days) => report.push(Check::pass(
+            "credential.expiry",
+            "PAT expiration",
+            false,
+            format!("credential is valid for {days} more day(s) (expires {expires_at})"),
+        )),
+        None => report.push(Check::warn(
+            "credential.expiry",
+            "PAT expiration",
+            format!("could not parse credential expiry {expires_at:?}"),
+        )),
+    }
+}
+
+/// Scope readiness for the major command families, named from the granted
+/// scope list. The Public API does not publish a scope vocabulary, so this
+/// check reports the raw scope inventory and flags only the empty case; it
+/// never claims authority beyond the server-returned scope data.
+fn check_scope_readiness(report: &mut Report, scopes: &[String]) {
+    if scopes.is_empty() {
+        report.push(Check::warn(
+            "scope.readiness",
+            "scope readiness",
+            "the credential returned no scopes; command families may be unavailable at authorization time",
+        ));
+    } else {
+        report.push(Check::pass(
+            "scope.readiness",
+            "scope readiness",
+            false,
+            format!(
+                "credential carries {} scope(s): {}",
+                scopes.len(),
+                scopes.join(", ")
+            ),
+        ));
+    }
+}
+
+/// The checked-in OpenAPI snapshot used for offline compatibility checks.
+fn bundled_openapi() -> Result<Value, String> {
+    serde_json::from_str(include_str!("../../../../openapi/hamstik-v1.json"))
+        .map_err(|error| format!("checked-in OpenAPI snapshot is invalid: {error}"))
+}
+
+/// Shared skipped-check tail for the no-selection path.
+fn finish_without_host(session: &Session<'_>, report: &mut Report, local_only: bool) {
+    let reason = if local_only {
+        "skipped by local-only mode"
+    } else {
+        "host resolution failed"
+    };
+    report.push(Check::skipped(
+        "credential.store",
+        "credential store",
+        reason,
+    ));
+    report.push(Check::skipped(
+        "credential.expiry",
+        "PAT expiration",
+        reason,
+    ));
+    report.push(Check::skipped("scope.readiness", "scope readiness", reason));
+    report.push(Check::skipped("network.connectivity", "network", reason));
+    report.push(Check::skipped("network.tls", "TLS", reason));
+    report.push(Check::skipped("api.openapi", "Public API", reason));
+    report.push(Check::skipped(
+        "api.compatibility",
+        "API compatibility",
+        reason,
+    ));
+    report.push(Check::skipped(
+        "api.authentication",
+        "authentication",
+        reason,
+    ));
+    report.push(context_skipped(
+        "context.organization",
+        "organization",
+        reason,
+    ));
+    report.push(context_skipped("context.project", "project", reason));
+    report.push(color_check(session));
+    report.push(emoji_check(session));
+}
+
 fn record_transport_success(report: &mut Report, host: &Host, started: Instant) {
     report.push(
         Check::pass(
@@ -826,13 +1082,39 @@ fn record_openapi_failure(
 ) -> bool {
     match error {
         ClientError::Network(message) => {
-            let cli = CliError::network(message);
+            let stage = ClientError::Network(message.clone()).network_stage();
+            let (name, remediation) = match stage {
+                hamstik_api_client::NetworkStage::Dns => (
+                    "DNS resolution",
+                    "Verify the hostname spelling, your DNS resolver, and that you are online.",
+                ),
+                hamstik_api_client::NetworkStage::Connection => (
+                    "TCP connection",
+                    "Check firewall rules, VPN state, and that the host is reachable on the network.",
+                ),
+                hamstik_api_client::NetworkStage::Proxy => (
+                    "proxy",
+                    "Check HTTPS_PROXY/HTTP_PROXY/ALL_PROXY values and proxy authentication; values are hidden because they may contain credentials.",
+                ),
+                hamstik_api_client::NetworkStage::Timeout => (
+                    "request timeout",
+                    "The host did not respond in time; check load, VPN latency, and network stability.",
+                ),
+                hamstik_api_client::NetworkStage::Tls => (
+                    "TLS",
+                    "Verify the CA bundle (--ca-bundle/HAMSTIK_CA_BUNDLE), the certificate chain, and hostname.",
+                ),
+                hamstik_api_client::NetworkStage::Unknown => (
+                    "network",
+                    "Check DNS, connectivity, proxy settings, firewall rules, and the configured host.",
+                ),
+            };
+            let cli = CliError::network(format!("{name}: {message}"));
             report.fail_check(
-                Check::failure("network.connectivity", "network", cli.message.clone(), &cli)
+                Check::failure("network.connectivity", name, cli.message.clone(), &cli)
                     .with_duration(started)
-                    .with_remediation(
-                        "Check DNS, connectivity, proxy settings, firewall rules, and the configured host.",
-                    ),
+                    .with_remediation(remediation)
+                    .with_network_stage(stage),
                 cli.exit_code(),
             );
             report.push(Check::skipped(
@@ -1167,6 +1449,7 @@ fn emoji_check(session: &Session<'_>) -> Check {
 
 fn render(session: &mut Session<'_>, report: Report) -> Result<(), CliError> {
     let overall_ok = report.exit_code == exit::SUCCESS;
+    let summary = ReportSummary::of(&report);
 
     if session.json() {
         let items: Vec<_> = report
@@ -1191,6 +1474,9 @@ fn render(session: &mut Session<'_>, report: Report) -> Result<(), CliError> {
                 if let Some(request_id) = &check.request_id {
                     value["requestId"] = Value::String(request_id.clone());
                 }
+                if let Some(stage) = check.network_stage {
+                    value["networkStage"] = Value::String(stage.as_str().to_string());
+                }
                 if let Some(error) = &check.error {
                     value["error"] = error.to_json();
                 }
@@ -1202,6 +1488,12 @@ fn render(session: &mut Session<'_>, report: Report) -> Result<(), CliError> {
             &json!({
                 "schemaVersion": 1,
                 "checks": items,
+                "summary": {
+                    "pass": summary.pass,
+                    "warn": summary.warn,
+                    "fail": summary.fail,
+                    "skipped": summary.skipped,
+                },
                 "ok": overall_ok,
                 "exitCode": report.exit_code,
             }),
@@ -1251,6 +1543,13 @@ fn render(session: &mut Session<'_>, report: Report) -> Result<(), CliError> {
                     .map_err(CliError::general)?;
             }
         }
+        session
+            .out
+            .line(&format!(
+                "summary: {} passed, {} warned, {} failed, {} skipped",
+                summary.pass, summary.warn, summary.fail, summary.skipped
+            ))
+            .map_err(CliError::general)?;
         session
             .out
             .line(if overall_ok { "ready." } else { "not ready." })

@@ -388,20 +388,62 @@ separately from the global configuration file.
 7. the unauthenticated `/api/v1/openapi.json` route;
 8. Public API v1 compatibility;
 9. PAT authentication through `/api/v1/me`;
-10. selected Organization and Project accessibility;
-11. terminal color and emoji rendering.
+10. PAT expiration (expired / imminently expiring within 14 days / healthy);
+11. scope readiness for the credential's granted scopes;
+12. selected Organization and Project accessibility;
+13. terminal color and emoji rendering.
 
 Human output uses `ok`, `WARN`, `FAIL`, and `skip` markers and includes
-concrete remediation hints. Independent checks continue after a failure;
+concrete remediation hints, a final `summary: N passed, N warned, N failed,
+N skipped` line, and a pass/warn/fail/skipped summary object in JSON mode.
+Network failures are classified by the earliest failing stage — DNS, TCP
+connection, proxy, timeout, TLS — with stage-specific remediation and
+per-check latency (`durationMs`). Independent checks continue after a failure;
 dependent checks are marked `skip`. The first blocking root cause determines
 the stable process exit code. Additive Public API operations produce a warning,
 while a missing or moved operation required by this CLI is an API compatibility
 failure.
 
-`hamstik doctor --json` adds stable check IDs and explicit
-`pass|warn|fail|skipped` statuses. It preserves API error codes, HTTP status,
-and server request IDs when available. Terminal visual samples are printed only
-for interactive human output and never enter JSON or piped output.
+`hamstik doctor --json` adds stable check IDs, explicit
+`pass|warn|fail|skipped` statuses, `networkStage` on transport failures, and
+structured error details. It preserves API error codes, HTTP status, and
+server request IDs when available. Terminal visual samples are printed only
+for interactive human output and never enter JSON or piped output. Proxy
+values, `Authorization` headers, and the PAT itself are always redacted.
+
+### Local-only mode
+
+`hamstik doctor --local-only` verifies configuration, context resolution,
+profile selection, credential-store accessibility, terminal behavior, and the
+bundled OpenAPI compatibility metadata **without any network traffic**: remote
+checks are reported as `skipped`. This makes the command safe for support
+bundles and air-gapped environments.
+
+Support-bundle guidance: prefer `doctor --json --local-only`; the JSON report
+contains no secrets, tokens, or proxy values by construction.
+
+## Bulk operations and preflight
+
+Bulk request files are validated locally before any request is sent: JSON
+syntax, the typed envelope, per-operation required fields, unknown fields,
+enum spellings, revision constraints, and the 1–50 operation bound. Failures
+identify the operation index and field path:
+
+```text
+ops.json failed bulk preflight with 2 problems:
+  - operations[0].bogus: is not part of the Public API bulk schema (unknown fields are rejected)
+  - operations[1].projectKey: must not be empty
+```
+
+Human bulk output states the selected concurrency mode (so
+`last-write-wins` is always a visible, deliberate choice), summarizes
+`bulk results: <succeeded>/<total> succeeded, <failed> failed`, and prints
+actionable per-failure details (operation index, HTTP status, error code,
+server message, request id, and a fix hint for revision conflicts, invalid
+transitions, and missing targets). `--json` preserves every documented
+per-operation field exactly as the server returned it. Preflight performs
+local structure validation only; server-side validation, authorization, and
+transition legality remain authoritative on the server.
 
 ## Build from source
 

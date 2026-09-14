@@ -162,13 +162,24 @@ hamstik --json --no-input --org <ORG> --project <KEY> work attachment download \
 ```
 
 Bulk operations accept the Public API's JSON operation arrays and have a maximum of 50
-operations. Inspect command help and the checked-in OpenAPI schema rather than
+operations. Files are preflighted locally before any request: JSON syntax, the typed
+envelope, required fields, unknown fields, enum spellings, revision constraints, and the
+operation count. Preflight failures name the operation index and field path; fix the
+file instead of retrying. Preflight does not validate authorization or server business
+rules. Inspect command help and the checked-in OpenAPI schema rather than
 inventing another bulk format:
 
 ```bash
 hamstik --json --no-input --org <ORG> work bulk create \
   --project <KEY> --operations-file <OPERATIONS.json>
+hamstik --json --no-input --org <ORG> work bulk create \
+  --operations-file <OPERATIONS.json> --dry-run   # preview, no request
 ```
+
+Bulk results in JSON preserve per-operation `index`, `status`, `workItem`, and
+`error` exactly; human output summarizes succeeded/failed counts with actionable
+failure details. `last-write-wins` concurrency is always stated explicitly and
+must remain a deliberate choice.
 
 ## Work from a referenced Work Item
 
@@ -216,8 +227,21 @@ those rules locally.
 
 ```bash
 hamstik --no-input doctor
+hamstik --no-input doctor --local-only   # offline: no DNS or HTTP traffic
+hamstik --json --no-input doctor         # structured report + summary
 hamstik --json --no-input api openapi
 ```
+
+- `doctor --local-only` checks configuration, context, credential-store access,
+  terminal behavior, and bundled compatibility metadata without contacting the
+  host; remote checks are reported as `skipped`. Prefer it for support bundles —
+  the JSON report never contains tokens, Authorization headers, or proxy values.
+- Doctor classifies network failures by stage (dns, connection, proxy, timeout,
+  tls) with per-check latency and stage-specific remediation hints.
+- PAT expiration is flagged as expired (exit 3), expiring within 14 days (warn),
+  or healthy.
+- The final `summary` line (human) / `summary` object (JSON) totals
+  pass/warn/fail/skipped checks.
 
 On failure, use `--verbose` when additional safe diagnostics are needed. Report the
 stable API error code, HTTP status when present, and request ID; never include a token,

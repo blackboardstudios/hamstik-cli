@@ -38,6 +38,42 @@ pub enum HostError {
     ForbiddenPathSegment(String),
 }
 
+/// The transport stage at which a network-level failure occurred.
+///
+/// Derived from the underlying request error so diagnostics can name the
+/// earliest failing layer (DNS, TCP, proxy, timeout, TLS) without exposing
+/// credentials or raw header dumps.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NetworkStage {
+    /// The hostname could not be resolved.
+    Dns,
+    /// The TCP connection could not be established or was refused.
+    Connection,
+    /// A configured proxy rejected or failed the request.
+    Proxy,
+    /// The request exceeded its time budget.
+    Timeout,
+    /// The TLS handshake or certificate/hostname verification failed.
+    Tls,
+    /// The failure could not be attributed to a specific stage.
+    Unknown,
+}
+
+impl NetworkStage {
+    /// The stable machine-readable stage name.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Dns => "dns",
+            Self::Connection => "connection",
+            Self::Proxy => "proxy",
+            Self::Timeout => "timeout",
+            Self::Tls => "tls",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
 /// A structured error returned by the Public API.
 ///
 /// The server's stable error `code` is always preserved verbatim so callers can
@@ -94,6 +130,41 @@ impl ClientError {
         match self {
             ClientError::Api(api) => Some(api),
             _ => None,
+        }
+    }
+
+    /// Classifies a transport-level failure into the earliest failing stage.
+    ///
+    /// The message is the rendered reqwest error, which names its source
+    /// chain ("error sending request...: dns error: ...", "timed out", etc.);
+    /// matching those markers avoids depending on reqwest's concrete error
+    /// type while remaining precise for the documented stages.
+    #[must_use]
+    pub fn network_stage(&self) -> NetworkStage {
+        let ClientError::Network(message) = self else {
+            return NetworkStage::Unknown;
+        };
+        let lowered = message.to_ascii_lowercase();
+        // Order matters: TLS failures surface as connect errors, so the more
+        // specific TLS/proxy/dns/timeout markers must be checked first.
+        if lowered.contains("certificate") || lowered.contains("tls") {
+            NetworkStage::Tls
+        } else if lowered.contains("proxy") {
+            NetworkStage::Proxy
+        } else if lowered.contains("timed out") || lowered.contains("timeout") {
+            NetworkStage::Timeout
+        } else if lowered.contains("dns")
+            || lowered.contains("name or service not known")
+            || lowered.contains("resolve")
+        {
+            NetworkStage::Dns
+        } else if lowered.contains("connect")
+            || lowered.contains("refused")
+            || lowered.contains("unreachable")
+        {
+            NetworkStage::Connection
+        } else {
+            NetworkStage::Unknown
         }
     }
 }

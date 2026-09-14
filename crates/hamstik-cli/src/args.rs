@@ -111,7 +111,13 @@ pub enum Command {
     Api(ApiArgs),
     /// Verify configuration, credentials, connectivity, API compatibility,
     /// and selected Organization/Project context.
-    Doctor,
+    Doctor {
+        /// Check only local configuration, context, credential-store access,
+        /// terminal behavior, and bundled compatibility metadata; remote
+        /// checks are marked skipped and no network traffic is generated.
+        #[arg(long)]
+        local_only: bool,
+    },
     /// Generate a shell completion script.
     Completion(CompletionArgs),
     /// Print the CLI version.

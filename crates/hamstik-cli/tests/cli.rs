@@ -2755,7 +2755,8 @@ async fn work_bulk_rejects_too_many_operations_locally() {
         ])
         .assert()
         .code(2)
-        .stderr(predicate::str::contains("between 1 and 50"));
+        .stderr(predicate::str::contains("at most 50"))
+        .stderr(predicate::str::contains("51 operations"));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
