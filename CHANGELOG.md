@@ -15,6 +15,21 @@ in-progress first release and will be dated and versioned when it ships.
 
 ### Added
 
+- Coherent PAT onboarding and troubleshooting journey: `auth status --json` now
+  reports credential type/name, expiry, the credential source (environment vs
+  credential store), and a structured scope inventory; near-expiry credentials
+  warn within 14 days on every authenticated run, and client-detected expiry
+  fails `auth status` with the stable authentication exit code. `me` surfaces
+  the same expiry summary and scope inventory. Structured 401/403 failures
+  preserve code/status/request ID with CLI-added remediation
+  (`auth`, `me`, `doctor`).
+- README examples verification harness (`scripts/readme_examples.py` plus the
+  `readme-examples` pytest suite and `make readme-check` target): every
+  executable README shell block is classified (parse-only, mock, prose) and
+  verified against the actual binary; untestable prose blocks are explicitly
+  exempted, so examples cannot drift from real flags, enums, or output
+  conventions.
+
 - Bulk operations preflight: operation files are validated locally (JSON syntax,
   typed envelope, per-operation required fields, unknown fields, enum spellings,
   revision constraints, 1–50 count) before any request, with diagnostics naming

@@ -14,6 +14,7 @@ pub mod auth;
 pub mod bulk_preflight;
 pub mod completion;
 pub mod context_cmd;
+pub mod credential;
 pub mod doctor;
 pub mod dryrun;
 pub mod label;

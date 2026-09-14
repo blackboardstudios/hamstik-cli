@@ -165,6 +165,17 @@ impl CliError {
         }
     }
 
+    /// Returns the same structured error with an enriched human message.
+    ///
+    /// Machine-readable fields (kind, code, request id, status, field
+    /// errors, details) are preserved verbatim so automation sees identical
+    /// contract data; only the displayed message gains CLI-added remediation.
+    #[must_use]
+    pub fn with_reminded_remediation(mut self, suffix: impl Into<String>) -> Self {
+        self.message = format!("{}{}", self.message, suffix.into());
+        self
+    }
+
     /// The stable process exit code for this error.
     #[must_use]
     pub fn exit_code(&self) -> i32 {

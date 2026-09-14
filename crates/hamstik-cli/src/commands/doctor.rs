@@ -20,6 +20,7 @@ use crate::error::CliError;
 use crate::exit;
 use crate::terminal::{SGR_GREEN, SGR_RED, SGR_YELLOW, color_probe, emoji_probe, paint};
 
+use super::credential;
 use super::emit_json;
 
 /// The operation inventory compiled into the binary for compatibility checks.
@@ -266,10 +267,6 @@ struct Compatibility {
     detail: String,
     additive_operations: usize,
 }
-
-/// PAT expiry thresholds (days): at or below `WARN_DAYS` the credential is
-/// "imminently expiring"; past `expiresAt` it is expired.
-const PAT_WARN_DAYS: i64 = 14;
 
 /// Runs the complete configuration/connectivity diagnostics.
 ///
@@ -873,75 +870,19 @@ fn proxy_check(session: &Session<'_>) -> Check {
     }
 }
 
-/// Parses an RFC 3339 timestamp into Unix seconds, tolerating fractional
-/// seconds and missing zone (treated as UTC).
-fn parse_timestamp(value: &str) -> Option<i64> {
-    // Minimal RFC 3339 parser: YYYY-MM-DDTHH:MM:SS(.fff)?(Z|±HH:MM).
-    let date_time = value.trim();
-    let (date, rest) = date_time
-        .split_once('T')
-        .or_else(|| date_time.split_once(' '))?;
-    let mut date_parts = date.split('-');
-    let year: i64 = date_parts.next()?.parse().ok()?;
-    let month: i64 = date_parts.next()?.parse().ok()?;
-    let day: i64 = date_parts.next()?.parse().ok()?;
-
-    let (time, offset) =
-        if let Some(stripped) = rest.strip_suffix('Z').or_else(|| rest.strip_suffix('z')) {
-            (stripped, 0i64)
-        } else if let Some(position) = rest.rfind(['+', '-']) {
-            let (time, zone) = rest.split_at(position);
-            let sign = if zone.starts_with('+') { 1 } else { -1 };
-            let mut zone_parts = zone[1..].split(':');
-            let hours: i64 = zone_parts.next().unwrap_or("0").parse().ok()?;
-            let minutes: i64 = zone_parts.next().unwrap_or("0").parse().ok()?;
-            (time, sign * (hours * 3600 + minutes * 60))
-        } else {
-            (rest, 0)
-        };
-
-    let mut time_parts = time.split(':');
-    let hours: i64 = time_parts.next()?.parse().ok()?;
-    let minutes: i64 = time_parts.next()?.parse().ok()?;
-    let seconds_fragment = time_parts.next().unwrap_or("0");
-    let seconds: i64 = seconds_fragment
-        .split('.')
-        .next()
-        .unwrap_or(seconds_fragment)
-        .parse()
-        .ok()?;
-
-    // Days-since-epoch conversion (proleptic Gregorian, civil algorithm).
-    let (y, m) = if month <= 2 {
-        (year - 1, month + 12)
-    } else {
-        (year, month)
-    };
-    let era = if y >= 0 { y } else { y - 399 } / 400;
-    let year_of_era = y - era * 400;
-    let day_of_era = (153 * (m - 3) + 2) / 5 + day - 1;
-    let days = era * 146_097 + year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_era
-        - 719_468;
-    Some(days * 86_400 + hours * 3600 + minutes * 60 + seconds - offset)
-}
-
-/// Days from now until `expires_at` (negative when already expired).
-fn days_until(expires_at: &str, now_seconds: i64) -> Option<i64> {
-    let expiry = parse_timestamp(expires_at)?;
-    Some((expiry - now_seconds).div_euclid(86_400))
-}
-
 /// Reports PAT expiry as expired / imminently expiring (≤14 days) / healthy.
 ///
 /// Clock skew is the server's; thresholds are documented CLI-side warnings.
+/// The classification lives in `commands::credential` so `auth status`, `me`,
+/// and `doctor` share one threshold definition.
 fn check_pat_expiry(report: &mut Report, expires_at: String) {
     // `now` comes from the process clock; the comparison is advisory only.
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or_default();
-    match days_until(&expires_at, now) {
-        Some(days) if days < 0 => report.fail(
+    match credential::classify_expiry(&expires_at, now) {
+        credential::Expiry::Expired => report.fail(
             "credential.expiry",
             "PAT expiration",
             CliError::auth(format!(
@@ -949,23 +890,23 @@ fn check_pat_expiry(report: &mut Report, expires_at: String) {
             )),
             "Create a new PAT and run `hamstik auth login --with-token`.",
         ),
-        Some(0) => report.push(Check::warn(
+        credential::Expiry::Approaching(0) => report.push(Check::warn(
             "credential.expiry",
             "PAT expiration",
             format!("credential expires within 24 hours ({expires_at}); create a new PAT soon"),
         )),
-        Some(days) if days <= PAT_WARN_DAYS => report.push(Check::warn(
+        credential::Expiry::Approaching(days) => report.push(Check::warn(
             "credential.expiry",
             "PAT expiration",
             format!("credential expires in {days} day(s) ({expires_at}); create a new PAT soon"),
         )),
-        Some(days) => report.push(Check::pass(
+        credential::Expiry::Valid(days) => report.push(Check::pass(
             "credential.expiry",
             "PAT expiration",
             false,
             format!("credential is valid for {days} more day(s) (expires {expires_at})"),
         )),
-        None => report.push(Check::warn(
+        credential::Expiry::Unknown => report.push(Check::warn(
             "credential.expiry",
             "PAT expiration",
             format!("could not parse credential expiry {expires_at:?}"),
@@ -973,16 +914,18 @@ fn check_pat_expiry(report: &mut Report, expires_at: String) {
     }
 }
 
-/// Scope readiness for the major command families, named from the granted
-/// scope list. The Public API does not publish a scope vocabulary, so this
-/// check reports the raw scope inventory and flags only the empty case; it
-/// never claims authority beyond the server-returned scope data.
+/// Scope readiness reuses the shared credential reporting so `auth status`,
+/// `me`, and `doctor` describe scope inventory identically.
 fn check_scope_readiness(report: &mut Report, scopes: &[String]) {
-    if scopes.is_empty() {
+    let report_value = credential::scope_report(scopes);
+    if report_value["readiness"] == "none" {
         report.push(Check::warn(
             "scope.readiness",
             "scope readiness",
-            "the credential returned no scopes; command families may be unavailable at authorization time",
+            report_value["note"]
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
         ));
     } else {
         report.push(Check::pass(
@@ -991,7 +934,7 @@ fn check_scope_readiness(report: &mut Report, scopes: &[String]) {
             false,
             format!(
                 "credential carries {} scope(s): {}",
-                scopes.len(),
+                report_value["count"],
                 scopes.join(", ")
             ),
         ));

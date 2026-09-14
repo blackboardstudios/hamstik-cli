@@ -13,6 +13,7 @@ use crate::credentials;
 use crate::error::CliError;
 use crate::input::read_token;
 
+use super::credential;
 use super::{emit_json, emit_table, emit_view};
 
 /// Runs the `auth` subcommands.
@@ -133,9 +134,44 @@ async fn login(session: &mut Session<'_>, with_token: bool) -> Result<(), CliErr
 async fn status(session: &mut Session<'_>) -> Result<(), CliError> {
     let selection = session.selection()?;
     let secret = resolve_status_token(session, &selection)?;
+    let token_source = if session.env.var("HAMSTIK_TOKEN").is_some() {
+        "environment (HAMSTIK_TOKEN; ephemeral, never stored)"
+    } else {
+        "credential store"
+    };
 
     let api = session.build_client(selection.host.clone(), secret)?;
-    let me = api.whoami().await.map_err(CliError::from_client)?;
+    let me = match api.whoami().await {
+        Ok(me) => me,
+        Err(error) => {
+            // Structured errors keep code/status/request id verbatim; only
+            // the remediation is CLI-added. `CliError` carries its fields in
+            // an Arc-style shared core, so a remediated copy is built from
+            // the captured fields without exposing any secret material.
+            let cli = CliError::from_client(error);
+            let message_suffix = match (cli.status, cli.code.as_str()) {
+                (Some(401), _) => Some(
+                    " (credential rejected by the server; create a new PAT and run `hamstik auth login --with-token`)".to_string(),
+                ),
+                (Some(403), _) => Some(
+                    " (the server rejected authorization for these scopes; request the missing scope from your administrator)".to_string(),
+                ),
+                _ => None,
+            };
+            if let Some(suffix) = message_suffix {
+                return Err(cli.with_reminded_remediation(suffix));
+            }
+            return Err(cli);
+        }
+    };
+
+    let now_seconds = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or_default();
+    let expires_at = me.value.authentication.expires_at.clone();
+    let scopes = me.value.authentication.scopes.clone();
+    let scope_report = credential::scope_report(&scopes);
 
     if session.json() {
         emit_json(
@@ -144,6 +180,7 @@ async fn status(session: &mut Session<'_>) -> Result<(), CliError> {
                 "authenticated": true,
                 "host": selection.host.as_str(),
                 "profile": selection.profile,
+                "credentialSource": token_source,
                 "user": {
                     "id": me.value.id,
                     "publicId": me.value.public_id,
@@ -153,53 +190,88 @@ async fn status(session: &mut Session<'_>) -> Result<(), CliError> {
                 },
                 "credential": {
                     "name": me.value.authentication.credential_name,
-                    "expiresAt": me.value.authentication.expires_at,
+                    "type": me.value.authentication.auth_type,
+                    "expiresAt": expires_at,
                 },
-                "scopes": me.value.authentication.scopes,
+                "scopes": scope_report,
             }),
-        )
-    } else {
+        )?;
+
+        // Near-expiry warnings are nonblocking advisories; a client-detected
+        // expiry fails with the stable authentication exit code because every
+        // subsequent request would be rejected.
+        let expiry = credential::classify_expiry(&expires_at, now_seconds);
+        match expiry {
+            credential::Expiry::Expired => {
+                session.out.warn(&format!(
+                    "credential EXPIRED {expires_at}; every request will be rejected - create a new PAT and run `hamstik auth login --with-token`"
+                ));
+                session.exit_code = crate::exit::AUTHENTICATION;
+            }
+            credential::Expiry::Approaching(_) => {
+                session
+                    .out
+                    .warn(&credential::expiry_summary(&expires_at, now_seconds));
+            }
+            credential::Expiry::Valid(_) | credential::Expiry::Unknown => {}
+        }
+        return Ok(());
+    }
+
+    session
+        .out
+        .line(&format!("Authenticated as {}", me.value.email))
+        .map_err(CliError::general)?;
+    session
+        .out
+        .line(&format!("  host:      {}", selection.host))
+        .map_err(CliError::general)?;
+    session
+        .out
+        .line(&format!("  source:    {token_source}"))
+        .map_err(CliError::general)?;
+    if let Some(profile) = &selection.profile {
         session
             .out
-            .line(&format!("Authenticated as {}", me.value.email))
+            .line(&format!("  profile:   {profile}"))
             .map_err(CliError::general)?;
+    }
+    session
+        .out
+        .line(&credential::scope_summary_line(&scopes))
+        .map_err(CliError::general)?;
+    if !session.out.is_quiet() {
         session
             .out
-            .line(&format!("  host:      {}", selection.host))
+            .line(&format!(
+                "  expiry:    {}",
+                credential::expiry_summary(&expires_at, now_seconds)
+            ))
             .map_err(CliError::general)?;
-        if let Some(profile) = &selection.profile {
+        if scopes.is_empty() {
             session
                 .out
-                .line(&format!("  profile:   {profile}"))
+                .line("  warning:   no scopes granted; ask your administrator for the families you need")
                 .map_err(CliError::general)?;
         }
-        if !me.value.authentication.scopes.is_empty() {
+    }
+    if !me.value.organizations.is_empty() {
+        session
+            .out
+            .line("  memberships:")
+            .map_err(CliError::general)?;
+        for org in &me.value.organizations {
+            let username = org.username.clone().unwrap_or_else(|| "-".to_string());
             session
                 .out
                 .line(&format!(
-                    "  scopes:    {}",
-                    me.value.authentication.scopes.join(", ")
+                    "    {} ({}, username: {username})",
+                    org.slug, org.name
                 ))
                 .map_err(CliError::general)?;
         }
-        if !me.value.organizations.is_empty() {
-            session
-                .out
-                .line("  memberships:")
-                .map_err(CliError::general)?;
-            for org in &me.value.organizations {
-                let username = org.username.clone().unwrap_or_else(|| "-".to_string());
-                session
-                    .out
-                    .line(&format!(
-                        "    {} ({}, username: {username})",
-                        org.slug, org.name
-                    ))
-                    .map_err(CliError::general)?;
-            }
-        }
-        Ok(())
     }
+    Ok(())
 }
 
 /// Resolves the token for status without surfacing a usage error when absent.

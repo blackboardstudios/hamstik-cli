@@ -362,6 +362,37 @@ silently change which host your commands talk to. If the credential store is
 unreachable, the profile entry is still removed and the exact account key is
 printed so the orphaned secret can be deleted by hand.
 
+### Rotation, renewal, and CI usage
+
+Rotation: create a new PAT in the Hamstik web UI, then `hamstik auth login
+--with-token` (reads one line from stdin). The new credential replaces the
+stored one for that identity; the old PAT stays valid server-side until you
+revoke it in the web UI. Credentials that are expired or within 14 days of
+expiry warn on every authenticated run (`auth status`, `me`, `doctor`) with an
+actionable renewal message; `auth status` reports an expired credential with
+the stable authentication exit code (3) while keeping the full JSON report on
+stdout.
+
+CI usage: prefer an ephemeral environment token (`HAMSTIK_TOKEN`) injected by
+your CI secret store. It takes precedence over stored credentials for every
+command, is never read from or written to the credential store, and is never
+accepted as a `auth login` source. For a persistent CI credential, pipe the
+PAT in with `--with-token` (never argv):
+
+```bash
+printf '%s\n' "$HAMSTIK_PAT" | hamstik --no-input auth login --with-token
+hamstik --no-input --json auth status
+```
+
+`hamstik --json --no-input auth status` reports the credential type and name,
+expiry, the credential source (`environment` vs `credential store`), the
+granted-scope inventory, and structured errors (code, HTTP status, request ID)
+for invalid, expired, revoked, malformed, or insufficiently scoped tokens —
+never any secret material. The server decides per-command authorization; an
+`INSUFFICIENT_SCOPE`/`FORBIDDEN` failure (exit 4) names the missing authority
+exactly, and `doctor`'s `scope.readiness` check surfaces the granted scope
+list so missing capabilities can be identified before a mutation runs.
+
 ### When the configuration file is broken
 
 A missing `config.toml` is normal and treated as an empty configuration. A file
@@ -510,6 +541,27 @@ cargo build --workspace --release
 
 Tests use Rust's built-in test framework. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for the full development setup.
+
+### README example verification
+
+The shell examples in this README are verified against the real binary so they
+cannot drift from actual flags, enum values, or conventions:
+
+```bash
+cargo build --release          # the harness parses with the built binary
+python3 scripts/readme_examples.py --verbose
+```
+
+The harness parses fenced code blocks structurally, joins backslash
+continuations, strips inline comments, and runs every `hamstik` line through
+the real argument parser with `--help` (fully offline — no network, no
+credentials). Examples embedding `$HAMSTIK_PAT` substitution are treated as
+prose (never executed), but their static `hamstik` lines are still validated.
+When you add or change an example, run the harness; when an example is
+illustrative rather than executable, keep the placeholder obvious (uppercase
+UUIDs like `COMMENT_UUID`) so the parse-only verification stays meaningful.
+The Rust test `readme_examples` additionally guards the harness itself and the
+required example families listed above.
 
 ## Design documents
 

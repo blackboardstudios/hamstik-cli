@@ -6,6 +6,7 @@
 use crate::app::Session;
 use crate::error::CliError;
 
+use super::credential;
 use super::emit_view;
 
 /// Shows the complete `GET /me` projection.
@@ -14,6 +15,12 @@ pub async fn run(session: &mut Session<'_>) -> Result<(), CliError> {
     let api = session.api(&selection)?;
     let response = api.whoami().await.map_err(CliError::from_client)?;
     let me = response.value.clone();
+    let now_seconds = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or_default();
+    let expires_at = me.authentication.expires_at.clone();
+    let scopes = me.authentication.scopes.clone();
     emit_view(session, &response.raw, &me.public_id, |session| {
         session
             .out
@@ -26,23 +33,28 @@ pub async fn run(session: &mut Session<'_>) -> Result<(), CliError> {
         session
             .out
             .line(&format!(
-                "  credential: {}",
-                me.authentication.credential_name
+                "  credential: {} ({})",
+                me.authentication.credential_name, me.authentication.auth_type
             ))
             .map_err(CliError::general)?;
         session
             .out
-            .line(&format!("  expires:    {}", me.authentication.expires_at))
+            .line(&format!(
+                "  expires:    {}",
+                credential::expiry_summary(&expires_at, now_seconds)
+            ))
             .map_err(CliError::general)?;
-        if !me.authentication.scopes.is_empty() {
-            session
-                .out
-                .line(&format!(
-                    "  scopes:     {}",
-                    me.authentication.scopes.join(", ")
-                ))
-                .map_err(CliError::general)?;
-        }
+        session
+            .out
+            .line(&format!(
+                "  scopes:     {}",
+                if scopes.is_empty() {
+                    "(none granted; mutations and most reads will be rejected)".to_string()
+                } else {
+                    scopes.join(", ")
+                }
+            ))
+            .map_err(CliError::general)?;
         let default_org = me
             .default_organization
             .as_ref()
