@@ -1,9 +1,9 @@
 ---
 name: hamstik
-description: Use the official Hamstik CLI to inspect and manage Hamstik Organizations, Projects, Sprints, Work Items, comments, labels, links, attachments, profiles, and Public API v1 resources. Use for Hamstik work-tracking tasks; do not use it to call private Hamstik routes or reimplement API behavior.
+description: Use the official Hamstik CLI to inspect and manage Hamstik Organizations, Projects, Sprints, Work Items, comments, labels, links, attachments, users, and Public API v1 resources. Use for Hamstik work-tracking tasks; do not use it to call private Hamstik routes or reimplement API behavior.
 metadata:
   short-description: Manage Hamstik through its official CLI
-  skill-version: "0.1.0"
+  skill-version: "0.2.0"
   minimum-cli-version: "0.1.0"
 ---
 
@@ -42,7 +42,8 @@ hamstik <command> --help
 The CLI can use a profile credential from the OS credential store or an ephemeral PAT
 from `HAMSTIK_TOKEN`. `HAMSTIK_HOST` overrides the host; otherwise normal context and
 profile resolution applies. An environment token takes precedence and is never
-persisted by the CLI.
+persisted by the CLI. `HAMSTIK_PROFILE` selects a profile; `hamstik auth list` shows
+configured profiles.
 
 Verify identity and granted scopes without displaying the token:
 
@@ -66,9 +67,9 @@ Host, Organization, and Project resolve in this order:
 4. selected profile defaults;
 5. built-in defaults where defined.
 
-`HAMSTIK_PROFILE` selects a profile. Do not assume an account-specific Organization or
-Project. Discover them, match user-provided names or keys, and then pass the resolved
-values explicitly to commands that act on them:
+Do not assume an account-specific Organization or Project. Discover them, match
+user-provided names or keys, and then pass the resolved values explicitly to commands
+that act on them:
 
 ```bash
 hamstik --json --no-input me
@@ -119,6 +120,15 @@ hamstik --json --no-input --org <ORG> --project <KEY> work view <ITEM-KEY>
 hamstik --json --no-input --org <ORG> --project <KEY> work activity <ITEM-KEY>
 ```
 
+Resolve people before assigning: `org members --all` lists active members, and
+`user view <PUBLIC_ID>` / `user work <PUBLIC_ID>` inspect a profile and its visible
+work (`user avatar <PUBLIC_ID> --output <PATH>` downloads an avatar to a file):
+
+```bash
+hamstik --json --no-input --org <ORG> org members --all
+hamstik --json --no-input --org <ORG> user work <PUBLIC_ID>
+```
+
 Create or update a Work Item with explicit context. Use file/stdin inputs for long
 Markdown rather than fragile shell quoting:
 
@@ -144,22 +154,34 @@ hamstik --json --no-input --org <ORG> --project <KEY> work transition \
 
 hamstik --json --no-input --org <ORG> --project <KEY> sprint transitions <SPRINT-ID>
 hamstik --json --no-input --org <ORG> --project <KEY> sprint transition \
-  <SPRINT-ID> <TRANSITION>
+  <SPRINT-ID> <ACTIVE-OR-DONE>
 ```
 
-Comments, labels, links, and attachments remain scoped to the selected resource:
+Completing a sprint can move unfinished items back to the backlog
+(`sprint transition <SPRINT-ID> done --move-to-backlog`) or into a future sprint
+(`--move-to-sprint <SPRINT-ID>`); both are explicit, previewable choices.
+
+Comments, labels, links, and attachments remain scoped to the selected resource.
+Comment `edit`/`delete` and attachment `delete` apply only to resources the
+authenticated user owns (or, for attachments, Organization administrators); link
+deletion targets the link id, not the other item:
 
 ```bash
 hamstik --json --no-input --org <ORG> --project <KEY> work comment add \
   <ITEM-KEY> --body-file <COMMENT.md>
+hamstik --json --no-input --org <ORG> --project <KEY> work comment edit \
+  <ITEM-KEY> <COMMENT-ID> --body-file <UPDATED.md>
 hamstik --json --no-input --org <ORG> --project <KEY> label list --all
 hamstik --json --no-input --org <ORG> --project <KEY> work label add \
   <ITEM-KEY> --label <LABEL-ID-OR-NAME>
 hamstik --json --no-input --org <ORG> --project <KEY> work link add \
   <ITEM-KEY> --target-key <OTHER-KEY> --relation blocks
+hamstik --json --no-input --org <ORG> --project <KEY> work attachment upload \
+  <ITEM-KEY> <FILE>
 hamstik --json --no-input --org <ORG> --project <KEY> work attachment download \
   <ITEM-KEY> <ATTACHMENT-ID> --output <PATH>
 ```
+
 Watcher state is per-authenticated-user only; the API never discloses other
 watchers:
 
@@ -176,6 +198,7 @@ hamstik --json --no-input --org <ORG> --project <KEY> work comment add \
   <ITEM-KEY> --body-file - < COMMENT.md          # stdin via the '-' convention
 hamstik --json --no-input --org <ORG> --project <KEY> squeakql validate \
   --file QUERY.sqql                              # file source, shell-quoting-free
+hamstik --no-input --org <ORG> squeakql save my-query --file QUERY.sqql
 hamstik --json --no-input --org <ORG> work search --saved my-query   # saved queries
 ```
 
@@ -187,25 +210,33 @@ credential source (fully offline, redacted), use `context explain`; prefer its
 hamstik --json --no-input context explain
 ```
 
-Bulk operations accept the Public API's JSON operation arrays and have a maximum of 50
-operations. Files are preflighted locally before any request: JSON syntax, the typed
-envelope, required fields, unknown fields, enum spellings, revision constraints, and the
-operation count. Preflight failures name the operation index and field path; fix the
-file instead of retrying. Preflight does not validate authorization or server business
-rules. Inspect command help and the checked-in OpenAPI schema rather than
-inventing another bulk format:
+Bulk operations (`work bulk create|update|transition`) accept the Public API's JSON
+operation arrays and have a maximum of 50 operations. Files are preflighted locally
+before any request: JSON syntax, the typed envelope, required fields, unknown fields,
+enum spellings, revision constraints, and the operation count. Preflight failures name
+the operation index and field path; fix the file instead of retrying. Preflight does
+not validate authorization or server business rules. `bulk update`/`bulk transition`
+default to `require-revision` concurrency (every operation carries a positive
+revision); `last-write-wins` is always an explicit flag choice. Inspect command help
+and the checked-in OpenAPI schema rather than inventing another bulk format:
 
 ```bash
 hamstik --json --no-input --org <ORG> work bulk create \
   --project <KEY> --operations-file <OPERATIONS.json>
-hamstik --json --no-input --org <ORG> work bulk create \
+hamstik --json --no-input --org <ORG> work bulk update \
   --operations-file <OPERATIONS.json> --dry-run   # preview, no request
 ```
 
 Bulk results in JSON preserve per-operation `index`, `status`, `workItem`, and
 `error` exactly; human output summarizes succeeded/failed counts with actionable
-failure details. `last-write-wins` concurrency is always stated explicitly and
-must remain a deliberate choice.
+failure details.
+
+Project and Sprint administration (project create/edit/archive/unarchive, sprint
+create, label create, work archive/unarchive/delete) exists where the Public API
+exposes it and is restricted to administrators or owners server-side; the CLI does not
+decide eligibility. `work archive`/`unarchive` is the reversible path; `work delete`
+is owner-only and destructive — use it only when the user explicitly asks to delete
+the resolved item.
 
 ## Work from a referenced Work Item
 
@@ -239,11 +270,9 @@ within the user's requested scope.
   concluding the resource is absent.
 - Preserve and report the server request ID when available.
 
-Archive/unarchive is the reversible Work Item path. `work delete` is owner-only and
-destructive; use it only when the user explicitly asks to delete the resolved item.
 Before creating multiple items, search for existing matches. A retry of a logical
 mutation must preserve its idempotency key; let the CLI own automatic key generation
-and retry reuse.
+and retry reuse (`--idempotency-key` exists for deterministic orchestrators).
 
 The server remains authoritative for authorization, transitions, validation,
 revisions/ETags, idempotency, and Organization isolation. Do not reproduce or bypass
@@ -255,7 +284,7 @@ those rules locally.
 hamstik --no-input doctor
 hamstik --no-input doctor --local-only   # offline: no DNS or HTTP traffic
 hamstik --json --no-input doctor         # structured report + summary
-hamstik --json --no-input api openapi
+hamstik --json --no-input api openapi    # live Public API contract
 ```
 
 - `doctor --local-only` checks configuration, context, credential-store access,

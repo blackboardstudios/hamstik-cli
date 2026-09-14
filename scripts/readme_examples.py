@@ -82,13 +82,16 @@ def extract_blocks(text: str) -> list[Block]:
     return blocks
 
 
-def logical_commands(block: Block) -> list[tuple[int, list[str]]]:
+def logical_commands(block: Block) -> list[tuple[int, list[str] | str]]:
     """The executable `hamstik` commands with their README line numbers.
 
     Backslash continuations are joined; comment lines are skipped; inline
     comments (a ` # ` outside quotes) are stripped with shell-aware tokenizing.
+
+    Malformed logical lines yield a `__unparseable__:<reason>` string sentinel
+    instead of an argument vector.
     """
-    results: list[tuple[int, str]] = []
+    results: list[tuple[int, list[str] | str]] = []
     pending: list[str] = []
     pending_line = 0
     for offset, raw in enumerate(block.content.splitlines()):
@@ -125,6 +128,21 @@ def logical_commands(block: Block) -> list[tuple[int, list[str]]]:
                 break
         if not tokens:
             continue
+        # Drop shell input redirects (`< PATH`): redirection is shell syntax,
+        # not part of the argument vector handed to the real parser. A bare
+        # `<` with no target is a genuine shell syntax error.
+        redirect_broken = False
+        while "<" in tokens:
+            position = tokens.index("<")
+            if position + 1 >= len(tokens):
+                results.append(
+                    (pending_line, "__unparseable__:missing redirect target after '<'")
+                )
+                redirect_broken = True
+                break
+            tokens = tokens[:position] + tokens[position + 2 :]
+        if redirect_broken or not tokens:
+            continue
         # The leading token is the program name (`hamstik`); the remainder is
         # the argument vector handed to the real parser.
         program, arguments = tokens[0], tokens[1:]
@@ -155,7 +173,8 @@ def parse_check(binary: Path, arguments: list[str]) -> str | None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    doc = __doc__ or "Verify README shell examples against the real binary."
+    parser = argparse.ArgumentParser(description=doc.splitlines()[0])
     parser.add_argument("--verbose", action="store_true", help="list every checked line")
     options = parser.parse_args()
 
@@ -181,7 +200,9 @@ def main() -> int:
         # are still verified, so classification only skips execution.
         for line_number, joined in logical_commands(block):
             checked += 1
-            if isinstance(joined, str) and joined.startswith("__unparseable__:"):
+            # Every string result is an `__unparseable__:<reason>` sentinel;
+            # successful logical commands are argument-vector lists.
+            if isinstance(joined, str):
                 reason = joined.split(":", 1)[1]
                 failures.append(
                     f"README block {block.index} (line {line_number}): shell syntax error: {reason}"

@@ -54,12 +54,13 @@ in-progress first release and will be dated and versioned when it ships.
   the same expiry summary and scope inventory. Structured 401/403 failures
   preserve code/status/request ID with CLI-added remediation
   (`auth`, `me`, `doctor`).
-- README examples verification harness (`scripts/readme_examples.py` plus the
-  `readme-examples` pytest suite and `make readme-check` target): every
-  executable README shell block is classified (parse-only, mock, prose) and
-  verified against the actual binary; untestable prose blocks are explicitly
-  exempted, so examples cannot drift from real flags, enums, or output
-  conventions.
+- README examples verification harness (`scripts/readme_examples.py`, guarded by
+  the Rust `readme_examples` contract test in `cargo test`): every executable
+  README shell block is classified (parse-only, mock, prose) and verified
+  against the actual binary; untestable prose blocks are explicitly exempted,
+  so examples cannot drift from real flags, enums, or output conventions.
+  Run the harness with `python3 scripts/readme_examples.py --verbose` after
+  `cargo build --release`.
 
 - Bulk operations preflight: operation files are validated locally (JSON syntax,
   typed envelope, per-operation required fields, unknown fields, enum spellings,
@@ -96,7 +97,8 @@ in-progress first release and will be dated and versioned when it ships.
   (`work`).
 - Canonical portable Hamstik Agent Skill at `skills/hamstik/SKILL.md`, covering
   credential-safe CLI usage, explicit context discovery, deterministic output,
-  concurrency-aware mutations, Work Item workflows, and structured failure handling.
+  concurrency-aware mutations, Work Item workflows, user/Org member resolution,
+  bulk `update`/`transition` concurrency modes, and structured failure handling.
 - Full support for the current 53-operation Hamstik Public API v1 contract,
   including `me`, first-class `work mine` / `work my`, SqueakQL search via
   `work search`, independent `squeakql validate`, and unauthenticated
