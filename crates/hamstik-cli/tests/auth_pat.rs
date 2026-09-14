@@ -74,7 +74,11 @@ async fn auth_status_reports_readiness_without_secrets() {
 
     for (name, expires_at, expect_success) in [
         ("healthy", timestamp(now + 30 * 86_400), true),
-        ("near-expiry", timestamp(now + 3 * 86_400), true),
+        // One hour of slack: `days_until` counts whole 24-hour periods from
+        // the CLI's clock read, which happens after this test captured `now`.
+        // Without slack the count flips to 2 whenever the CLI reads the clock
+        // in the next wall-clock second (the CI flake this guards against).
+        ("near-expiry", timestamp(now + 3 * 86_400 + 3_600), true),
         ("expired", timestamp(now - 3_600), false),
     ] {
         let server = MockServer::start().await;
@@ -351,7 +355,10 @@ async fn doctor_expiry_uses_shared_thresholds() {
         .and(path("/api/v1/me"))
         .respond_with(
             ResponseTemplate::new(200)
-                .set_body_json(me_json(&["read"], &timestamp(now + 3 * 86_400))),
+                // One hour of slack keeps `expires in 3 day(s)` stable across
+                // the CLI's later clock read (see the near-expiry note in
+                // auth_status_reports_readiness_without_secrets).
+                .set_body_json(me_json(&["read"], &timestamp(now + 3 * 86_400 + 3_600))),
         )
         .mount(&server)
         .await;
