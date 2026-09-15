@@ -523,42 +523,11 @@ jobs:
           set -euo pipefail
           find Formula -name "*.rb" -not -path "Formula/*.rb" -exec mv -t Formula/ {} +
           ls Formula/*.rb
-      # Hamstik addition (CLI-29): dist 0.32.0 emits url blocks without the
-      # sha256 lines Homebrew audit requires; inject each archive's sha256
-      # from the release's sha256.sum next to its url line.
-      - name: Inject formula checksums
-        if: ${{ needs.plan.outputs.homebrew_tap_token_present == 'true' }}
-        run: |
-          set -euo pipefail
-          # Fetch the aggregate checksums from the just-published release
-          TAG_NAME="${{ needs.plan.outputs.tag }}"
-          gh release download "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --pattern sha256.sum --output /tmp/sha256.sum
-          for formula in Formula/*.rb; do
-            python3 - "$formula" /tmp/sha256.sum <<'PYEOF'
-          import re, sys
-
-          formula_path, sums_path = sys.argv[1], sys.argv[2]
-          text = open(formula_path).read()
-          sums = {}
-          for line in open(sums_path):
-              digest, _, name = line.partition(" *")
-              name = name.strip() or line.split()[1].strip("*")
-              sums[name] = digest.strip()
-          # After each url "..." line, insert the sha256 line for that archive.
-          def repl(match):
-              url = match.group(1)
-              archive = url.rsplit("/", 1)[-1]
-              digest = sums.get(archive)
-              if digest is None:
-                  sys.exit(f"no sha256 found for {archive}")
-              return f'url "{url}"\n    sha256 "{digest}"'
-          new_text, count = re.subn(r'url "([^"]+)"', repl, text)
-          if count == 0:
-              sys.exit(f"no url lines found in {formula_path}")
-          open(formula_path, "w").write(new_text)
-          print(f"injected {count} sha256 line(s) into {formula_path}")
-          PYEOF
-          done
+      # Hamstik note (CLI-29): dist embeds sha256 lines in the formula
+      # natively when the archives' .sha256 sidecars are present in
+      # target/distrib (they are, via the Fetch step above) — no injection
+      # step is needed. A redundant injection step crashed on sha256.sum's
+      # trailing blank line in the first token-authenticated run; removed.
       # This is extra complex because you can make your Formula name not match your app name
       # so we need to find releases with a *.rb file, and publish with that filename.
       - name: Commit formula files
