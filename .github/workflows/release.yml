@@ -513,6 +513,16 @@ jobs:
           pattern: artifacts-*
           path: Formula/
           merge-multiple: true
+      # Hamstik fix (CLI-29): uploaded artifacts keep their
+      # target/distrib/... layout relative to the artifact root, so the
+      # formula lands nested; hoist every .rb to Formula/ before the
+      # checksum-injection and commit steps run.
+      - name: Hoist formulae to Formula/
+        if: ${{ needs.plan.outputs.homebrew_tap_token_present == 'true' }}
+        run: |
+          set -euo pipefail
+          find Formula -name "*.rb" -not -path "Formula/*.rb" -exec mv -t Formula/ {} +
+          ls Formula/*.rb
       # Hamstik addition (CLI-29): dist 0.32.0 emits url blocks without the
       # sha256 lines Homebrew audit requires; inject each archive's sha256
       # from the release's sha256.sum next to its url line.
@@ -567,6 +577,12 @@ jobs:
             # We avoid reformatting user-provided data such as the app description and homepage.
             brew style --except-cops FormulaAudit/Homepage,FormulaAudit/Desc,FormulaAuditStrict --fix "Formula/${filename}" || true
 
+            # Skip when the tap already has this exact version (e.g. a
+            # re-run): an empty commit would fail the release.
+            if git diff --quiet -- Formula/"${filename}"; then
+              echo "Formula/${filename} unchanged; nothing to commit"
+              continue
+            fi
             git add "Formula/${filename}"
             git commit -m "${name} ${version}"
           done
