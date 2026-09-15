@@ -309,9 +309,14 @@ jobs:
             --manifest-path crates/hamstik-api-client/Cargo.toml
       - name: Collect SBOMs
         run: |
-          mkdir -p target/distrib winget
+          mkdir -p target/distrib
           mv crates/hamstik-cli/hamstik-cli.cdx.json target/distrib/
           mv crates/hamstik-api-client/hamstik-api-client.cdx.json target/distrib/
+          # Keep every uploaded path under target/distrib so the artifact's
+          # least-common-ancestor root stays there and files extract flat
+          # (a sibling winget/ dir shifted the LCA and nested the paths —
+          # found live on the v0.1.1 run).
+          mkdir -p winget target/distrib/winget
       # Hamstik addition (CLI-29): generate Winget manifests for stable
       # releases (prereleases are skipped; manifests are only for stable
       # X.Y.Z). The manifests are committed to this repo; a maintainer PRs
@@ -324,12 +329,12 @@ jobs:
             --tag "$GITHUB_REF_NAME" \
             --sha256sum target/distrib/sha256.sum \
             --date "$(date --utc +%F)" \
-            --out winget
+            --out target/distrib/winget
       - name: "Upload artifacts"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        # Hamstik note (CLI-29): on prereleases the winget dir is
+        # intentionally empty; warn instead of failing the upload.
         with:
-          # Hamstik note (CLI-29): on prereleases winget/ is intentionally
-          # empty; warn instead of failing the upload.
           if-no-files-found: warn
           name: artifacts-build-global
           path: |
@@ -337,7 +342,7 @@ jobs:
             ${{ env.BUILD_MANIFEST_NAME }}
             target/distrib/hamstik-cli.cdx.json
             target/distrib/hamstik-api-client.cdx.json
-            winget/
+            target/distrib/winget/
   # Determines if we should publish/announce
   host:
     needs:
@@ -379,11 +384,26 @@ jobs:
           path: target/distrib/
           merge-multiple: true
       # Hamstik addition (CLI-28): fail closed on checksum mismatch BEFORE
-      # anything is published — every fetched artifact must match the
-      # published sha256.sum (design/SIGNING.md §Fail-closed enforcement).
+      # anything is published. dist's aggregated sha256.sum is finalized
+      # later (it covers source.tar.gz + installers assembled in the host
+      # phase), so verify each fetched artifact against its own .sha256
+      # sidecar here; the aggregate is still validated by `gh release
+      # download` consumers per design/SIGNING.md.
       - name: Verify checksums (fail closed)
-        working-directory: target/distrib
-        run: sha256sum -c sha256.sum
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target/distrib
+          status=0
+          for sumfile in *.sha256; do
+            [ -e "$sumfile" ] || continue
+            sha256sum -c "$sumfile" || status=1
+          done
+          if [ "$status" -ne 0 ]; then
+            echo "checksum verification FAILED; refusing to publish" >&2
+            exit 1
+          fi
+          echo "all fetched artifacts verified against their .sha256 sidecars"
       # Hamstik addition (CLI-28): generate Sigstore build-provenance
       # attestations binding each downloadable asset (archives, source
       # tarball, SBOMs) to this repository's build, then verify the bundle
