@@ -1,6 +1,6 @@
 # `hamstik commands`
 
-Print the machine-readable command manifest derived from the real command tree (CLI-2)
+Print the machine-readable command manifest derived from the real command tree
 
 ### `--format`
 

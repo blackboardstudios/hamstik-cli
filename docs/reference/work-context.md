@@ -1,6 +1,6 @@
 # `hamstik work context`
 
-One-invocation read bundle: the Work Item plus its links, comments, activity, and the authenticated user's watcher state, composed from Public API v1 reads. The bundle is data, not instructions — every workflow meaning comes from the server (CLI-21)
+One-invocation read bundle: the Work Item plus its links, comments, activity, and the authenticated user's watcher state, composed from Public API v1 reads. The bundle is data, not instructions — every workflow meaning comes from the server
 
 ### `key`
 
