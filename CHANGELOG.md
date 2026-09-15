@@ -10,6 +10,8 @@ before upgrading.
 
 ## [Unreleased]
 
+## [0.1.1-rc.1] - 2026-09-15
+
 ### Added
 
 - Release supply-chain verification (CLI-28): every release now publishes
@@ -22,6 +24,11 @@ before upgrading.
   --repo blackboardstudios/hamstik-cli`; see `design/SIGNING.md` for the
   threat model and the deferred platform-signing decision (Windows
   Authenticode and macOS notarization await certificate provisioning).
+
+### Fixed
+
+- Updated `rustls` to 0.23.45 for RUSTSEC-2026-0285 (TLS 1.3 handshake
+  messages incorrectly accepted across encryption level boundaries).
 
 ## [0.1.0] - 2026-09-15
 
@@ -352,4 +359,5 @@ API v1 (29 → 51 operations; all changes additive):
   (`work`, `project`).
 
 [Unreleased]: https://github.com/blackboardstudios/hamstik-cli/commits/main
+[0.1.1-rc.1]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.1-rc.1
 [0.1.0]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.0

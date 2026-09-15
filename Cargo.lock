@@ -859,7 +859,7 @@ dependencies = [
 
 [[package]]
 name = "hamstik-api-client"
-version = "0.1.0"
+version = "0.1.1-rc.1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -879,7 +879,7 @@ dependencies = [
 
 [[package]]
 name = "hamstik-cli"
-version = "0.1.0"
+version = "0.1.1-rc.1"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -1738,7 +1738,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "release-gate"
-version = "0.1.0"
+version = "0.1.1-rc.1"
 
 [[package]]
 name = "reqwest"
