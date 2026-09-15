@@ -10,6 +10,8 @@ before upgrading.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-15
+
 ### Added
 
 - Installable release channels (CLI-29): a curl-able shell installer
@@ -376,5 +378,6 @@ API v1 (29 → 51 operations; all changes additive):
   (`work`, `project`).
 
 [Unreleased]: https://github.com/blackboardstudios/hamstik-cli/commits/main
+[0.1.1]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.1
 [0.1.1-rc.1]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.1-rc.1
 [0.1.0]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.0
