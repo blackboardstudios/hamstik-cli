@@ -455,6 +455,12 @@ jobs:
         run: |
           # Remove the granular manifests
           rm -f artifacts/*-dist-manifest.json
+          # Hamstik note (CLI-29): the winget manifests are fetched with the
+          # other artifacts (they live under target/distrib/winget/ in the
+          # uploaded artifact), but they are NOT release assets — they are
+          # committed to this repo and PR'd to microsoft/winget-pkgs by a
+          # maintainer (design/INSTALL.md §Winget).
+          rm -rf artifacts/winget
       - name: Create GitHub Release
         env:
           PRERELEASE_FLAG: "${{ fromJson(steps.host.outputs.manifest).announcement_is_prerelease && '--prerelease' || '' }}"
