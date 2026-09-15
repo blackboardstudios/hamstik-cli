@@ -1,0 +1,39 @@
+.TH HAMSTIK 1 "HAMSTIK PROJECT EDIT"
+.SH NAME
+hamstik project edit \- Edit a project (Organization administrators only)
+.SH SYNOPSIS
+.B hamstik project edit [OPTIONS]
+.SH DESCRIPTION
+Edit a project (Organization administrators only)
+.SH ARGUMENTS
+.TP
+.I KEY
+Project key
+.SH OPTIONS
+.TP
+.B --name
+New name
+.TP
+.B --description
+New description text
+.TP
+.B --description-file
+New description source (path, or - for stdin)
+.TP
+.B --description-editor
+Author the description in $VISUAL/$EDITOR instead of passing text
+Choices: true, false
+.TP
+.B --color
+New display color as a hex string
+.TP
+.B --clear-description
+Clear the description
+Choices: true, false
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false
+.TP
+.B --idempotency-key
+Explicit idempotency key

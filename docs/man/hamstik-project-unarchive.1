@@ -1,0 +1,19 @@
+.TH HAMSTIK 1 "HAMSTIK PROJECT UNARCHIVE"
+.SH NAME
+hamstik project unarchive \- Unarchive a project (Organization administrators only)
+.SH SYNOPSIS
+.B hamstik project unarchive [OPTIONS]
+.SH DESCRIPTION
+Unarchive a project (Organization administrators only)
+.SH ARGUMENTS
+.TP
+.I KEY
+Project key
+.SH OPTIONS
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false
+.TP
+.B --idempotency-key
+Explicit idempotency key

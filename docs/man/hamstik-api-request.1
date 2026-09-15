@@ -1,0 +1,32 @@
+.TH HAMSTIK 1 "HAMSTIK API REQUEST"
+.SH NAME
+hamstik api request \- Call a documented Public API v1 route through the CLI
+.SH SYNOPSIS
+.B hamstik api request [OPTIONS]
+.SH DESCRIPTION
+Call a documented Public API v1 route through the CLI
+.SH ARGUMENTS
+.TP
+.I PATH
+The Public API v1 path (must start with `/api/v1/`)
+.SH OPTIONS
+.TP
+.B --method
+HTTP method (GET is the default; the route's documented methods apply)
+Choices: GET, POST, PATCH, PUT, DELETE
+Default: GET
+.TP
+.B --body-file
+Read the JSON request body from this file; `-` reads stdin
+.TP
+.B --field
+Structured JSON field as `key=value`; repeatable. Value is parsed as JSON when it parses, else a JSON string
+.TP
+.B --query
+Query parameter as `key=value`; repeatable (allowlisted, ordered)
+.TP
+.B --header
+Header override as `Name: value`; restricted to a safe allowlist (`Accept`, `Content-Type`, `If-Match`). `Authorization` and any credential-bearing header are rejected
+.TP
+.B --idempotency-key
+Idempotency key override; mutations get a fresh strong key otherwise (generated once and reused across internal retries)

@@ -1,0 +1,53 @@
+.TH HAMSTIK 1 "HAMSTIK"
+.SH NAME
+hamstik \- Official command\-line interface for Hamstik
+.SH SYNOPSIS
+.B hamstik <COMMAND>
+.SH DESCRIPTION
+Official command\-line interface for Hamstik
+.SH OPTIONS
+.TP
+.B --host
+Hamstik host origin (overrides profile/context/default)
+.TP
+.B --profile
+Profile name to use for credentials and defaults
+.TP
+.B --org
+Organization slug override
+.TP
+.B --project
+Project key override
+.TP
+.B --json
+Emit machine-readable JSON
+Choices: true, false
+.TP
+.B --quiet
+Emit only essential identifiers
+Choices: true, false
+.TP
+.B --verbose
+Show diagnostic details on stderr
+Choices: true, false
+.TP
+.B --no-color
+Disable colored output
+Choices: true, false
+.TP
+.B --no-input
+Never prompt interactively; fail instead
+Choices: true, false
+.TP
+.B --no-retry
+Disable automatic retries
+Choices: true, false
+.TP
+.B --dry-run
+Preview the mutation instead of sending it: resolves identifiers and validates local input, prints a versioned preview (or `--json` envelope), and sends no request. Supported by mutation commands only
+Choices: true, false
+.TP
+.B --ca-bundle
+Additional PEM root certificate bundle
+.SH SUBCOMMANDS
+See subcommand pages for details.

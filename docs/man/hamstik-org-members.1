@@ -1,0 +1,25 @@
+.TH HAMSTIK 1 "HAMSTIK ORG MEMBERS"
+.SH NAME
+hamstik org members \- List active members of an organization
+.SH SYNOPSIS
+.B hamstik org members [OPTIONS]
+.SH DESCRIPTION
+List active members of an organization
+.SH ARGUMENTS
+.TP
+.I SLUG
+Organization slug
+.SH OPTIONS
+.TP
+.B --search
+Literal substring filter over name or username
+.TP
+.B --limit
+Maximum items per page (endpoint maximum is 100 or 200)
+.TP
+.B --cursor
+Opaque continuation cursor
+.TP
+.B --all
+Follow all pages
+Choices: true, false

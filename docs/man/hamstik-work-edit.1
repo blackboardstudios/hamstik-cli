@@ -1,0 +1,76 @@
+.TH HAMSTIK 1 "HAMSTIK WORK EDIT"
+.SH NAME
+hamstik work edit \- Edit a work item
+.SH SYNOPSIS
+.B hamstik work edit [OPTIONS]
+.SH DESCRIPTION
+Edit a work item
+.SH ARGUMENTS
+.TP
+.I KEY
+Work item key
+.SH OPTIONS
+.TP
+.B --title
+New title
+.TP
+.B --description
+New description text
+.TP
+.B --description-file
+New description source (path, or - for stdin)
+.TP
+.B --description-editor
+Author the description in $VISUAL/$EDITOR instead of passing text
+Choices: true, false
+.TP
+.B --type
+New work item type
+Choices: task, bug, story, feature, epic
+.TP
+.B --priority
+New priority
+Choices: low, medium, high, urgent
+.TP
+.B --assignee
+New assignee (or `me`)
+.TP
+.B --sprint
+Sprint id
+.TP
+.B --parent
+New parent key (or parent UUID)
+.TP
+.B --story-points
+New story point estimate
+.TP
+.B --due-date
+New due date (RFC 3339)
+.TP
+.B --clear-description
+Clear the description
+Choices: true, false
+.TP
+.B --clear-assignee
+Unassign the item
+Choices: true, false
+.TP
+.B --clear-sprint
+Remove the sprint
+Choices: true, false
+.TP
+.B --clear-parent
+Detach the parent
+Choices: true, false
+.TP
+.B --clear-story-points
+Clear the story point estimate
+Choices: true, false
+.TP
+.B --clear-due-date
+Clear the due date
+Choices: true, false
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false

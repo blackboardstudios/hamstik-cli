@@ -236,6 +236,16 @@ jobs:
             exit 1
           fi
           "$PY" scripts/release_smoke.py --manifest dist-manifest.json
+      # Hamstik addition: ship man pages with every archive (design docs +
+      # manifest derive from the same command tree). Pages land in
+      # target/distrib/man/; dist's upload step ships every file there.
+      - name: Generate man pages
+        run: |
+          python3 scripts/generate_docs.py \
+            --binary "$(cargo locate-project --workspace --message-format plain | xargs dirname)/target/release/hamstik" \
+            --out docs/reference
+          mkdir -p target/distrib/man
+          cp docs/man/* target/distrib/man/
       - id: cargo-dist
         name: Post-build
         # We force bash here just because github makes it really hard to get values up

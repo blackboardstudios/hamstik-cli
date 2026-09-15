@@ -1,0 +1,32 @@
+.TH HAMSTIK 1 "HAMSTIK SPRINT TRANSITION"
+.SH NAME
+hamstik sprint transition \- Transition a sprint to a target state
+.SH SYNOPSIS
+.B hamstik sprint transition [OPTIONS]
+.SH DESCRIPTION
+Transition a sprint to a target state
+.SH ARGUMENTS
+.TP
+.I ID
+Sprint id (UUID)
+.TP
+.I TARGET
+Target state
+.SH OPTIONS
+.TP
+.B --move-to-backlog
+Move unfinished work items back to the backlog when completing
+Choices: true, false
+.TP
+.B --move-to-sprint
+Move unfinished work items to this future sprint
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --idempotency-key
+Explicit idempotency key

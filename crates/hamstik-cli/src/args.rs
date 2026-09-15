@@ -120,6 +120,9 @@ pub enum Command {
     },
     /// Generate a shell completion script.
     Completion(CompletionArgs),
+    /// Print the machine-readable command manifest derived from the real
+    /// command tree.
+    Commands(CommandsArgs),
     /// Print the CLI version.
     Version,
 }
@@ -235,7 +238,7 @@ pub struct RequestArgs {
     pub idempotency_key: Option<String>,
 }
 
-/// Arguments for `work context` (CLI-21): the one-invocation read bundle.
+/// Arguments for `work context`: the one-invocation read bundle.
 #[derive(Args, Debug)]
 pub struct WorkContextArgs {
     /// Work item key (e.g. HAM-42).
@@ -870,7 +873,7 @@ pub enum WorkCommand {
     /// One-invocation read bundle: the Work Item plus its links, comments,
     /// activity, and the authenticated user's watcher state, composed from
     /// Public API v1 reads. The bundle is data, not instructions — every
-    /// workflow meaning comes from the server (CLI-21).
+    /// workflow meaning comes from the server.
     Context(WorkContextArgs),
     /// Create a work item.
     Create(WorkCreateArgs),
@@ -1632,6 +1635,21 @@ pub struct CompletionArgs {
     /// Target shell.
     #[arg(value_enum)]
     pub shell: clap_complete::Shell,
+}
+
+/// Arguments for `commands`: the machine-readable command manifest.
+#[derive(Args, Debug)]
+pub struct CommandsArgs {
+    /// Output format for the manifest.
+    #[arg(long, value_enum, default_value = "json")]
+    pub format: ManifestFormatArg,
+}
+
+/// Manifest output format.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+pub enum ManifestFormatArg {
+    /// Stable deterministic JSON.
+    Json,
 }
 
 // ---- Request-side value enums ---------------------------------------------

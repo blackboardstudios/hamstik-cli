@@ -1,0 +1,22 @@
+.TH HAMSTIK 1 "HAMSTIK WORK LABEL REMOVE"
+.SH NAME
+hamstik work label remove \- Detach a label from a work item
+.SH SYNOPSIS
+.B hamstik work label remove [OPTIONS]
+.SH DESCRIPTION
+Detach a label from a work item
+.SH ARGUMENTS
+.TP
+.I KEY
+Work item key
+.SH OPTIONS
+.TP
+.B --label
+Label id (UUID) or label name
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false
+.TP
+.B --idempotency-key
+Explicit idempotency key

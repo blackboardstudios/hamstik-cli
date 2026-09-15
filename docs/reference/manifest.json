@@ -1,0 +1,4088 @@
+{
+ "binary": "hamstik",
+ "commands": [
+  {
+   "about": "Official command-line interface for Hamstik",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Hamstik host origin (overrides profile/context/default)",
+     "kind": "option",
+     "long": "--host"
+    },
+    {
+     "help": "Profile name to use for credentials and defaults",
+     "kind": "option",
+     "long": "--profile"
+    },
+    {
+     "help": "Organization slug override",
+     "kind": "option",
+     "long": "--org"
+    },
+    {
+     "help": "Project key override",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Emit machine-readable JSON",
+     "kind": "option",
+     "long": "--json"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Emit only essential identifiers",
+     "kind": "option",
+     "long": "--quiet"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Show diagnostic details on stderr",
+     "kind": "option",
+     "long": "--verbose"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Disable colored output",
+     "kind": "option",
+     "long": "--no-color"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Never prompt interactively; fail instead",
+     "kind": "option",
+     "long": "--no-input"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Disable automatic retries",
+     "kind": "option",
+     "long": "--no-retry"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Preview the mutation instead of sending it: resolves identifiers and validates local input, prints a versioned preview (or `--json` envelope), and sends no request. Supported by mutation commands only",
+     "kind": "option",
+     "long": "--dry-run"
+    },
+    {
+     "help": "Additional PEM root certificate bundle",
+     "kind": "option",
+     "long": "--ca-bundle"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik",
+   "hasSubcommands": true,
+   "options": [
+    "--host",
+    "--profile",
+    "--org",
+    "--project",
+    "--json",
+    "--quiet",
+    "--verbose",
+    "--no-color",
+    "--no-input",
+    "--no-retry",
+    "--dry-run",
+    "--ca-bundle"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Show the authenticated user and credential context",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik me",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Manage authentication and profiles",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik auth",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Authenticate with a Personal Access Token",
+   "aliases": [],
+   "arguments": [
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Read the token from stdin instead of prompting",
+     "kind": "option",
+     "long": "--with-token"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik auth login",
+   "hasSubcommands": false,
+   "longAbout": "Authenticate with a Personal Access Token.\n\nInteractive login prompts for the token; `--with-token` reads it from stdin. `HAMSTIK_TOKEN` is ephemeral and is never persisted, so it is not accepted as a login source.",
+   "options": [
+    "--with-token"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Show the current authentication state",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik auth status",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List configured profiles",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik auth list",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Select the active profile",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Profile name to activate",
+     "kind": "positional",
+     "name": "profile",
+     "valueName": "PROFILE"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik auth switch",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "profile"
+   ]
+  },
+  {
+   "about": "Remove the local credential (does not revoke the server-side PAT)",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik auth logout",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Log out and forget a profile: remove its stored credential and its config entry (does not revoke the server-side PAT)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Profile to forget (defaults to the selected profile)",
+     "kind": "positional",
+     "name": "profile",
+     "valueName": "PROFILE"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik auth forget",
+   "hasSubcommands": false,
+   "longAbout": "Log out and forget a profile: remove its stored credential and its config entry (does not revoke the server-side PAT).\n\nThe profile is named positionally: `hamstik auth forget NAME`, or run with no argument to forget the selected profile. Unlike `logout`, this runs even while HAMSTIK_TOKEN is set: forget is explicit about the profile being removed, not about the credential currently in use.",
+   "options": [],
+   "positionals": [
+    "profile"
+   ]
+  },
+  {
+   "about": "Inspect and manage the working context",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik context",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Show the resolved context",
+   "aliases": [],
+   "arguments": [
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Show the source of each value",
+     "kind": "option",
+     "long": "--explain"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik context show",
+   "hasSubcommands": false,
+   "options": [
+    "--explain"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Set context values in the nearest .hamstik.toml",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Organization slug",
+     "kind": "option",
+     "long": "--org"
+    },
+    {
+     "help": "Project key",
+     "kind": "option",
+     "long": "--project"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik context set",
+   "hasSubcommands": false,
+   "options": [
+    "--org",
+    "--project"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Remove the current directory's .hamstik.toml values",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik context clear",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Create a .hamstik.toml in the current directory",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik context init",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Explain how every resolved setting won precedence, fully offline",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik context explain",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Work with organizations",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik org",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List organizations you belong to",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik org list",
+   "hasSubcommands": false,
+   "options": [
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "View an organization",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Organization slug",
+     "kind": "positional",
+     "name": "slug",
+     "valueName": "SLUG"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik org view",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "slug"
+   ]
+  },
+  {
+   "about": "List active members of an organization",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Organization slug",
+     "kind": "positional",
+     "name": "slug",
+     "valueName": "SLUG"
+    },
+    {
+     "help": "Literal substring filter over name or username",
+     "kind": "option",
+     "long": "--search"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik org members",
+   "hasSubcommands": false,
+   "options": [
+    "--search",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": [
+    "slug"
+   ]
+  },
+  {
+   "about": "List work items across the organization",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Filter by project key (repeatable)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Free-text search",
+     "kind": "option",
+     "long": "--search"
+    },
+    {
+     "choices": [
+      "backlog",
+      "todo",
+      "in_progress",
+      "in_review",
+      "done"
+     ],
+     "help": "Filter by status (repeatable)",
+     "kind": "option",
+     "long": "--status"
+    },
+    {
+     "choices": [
+      "all",
+      "open",
+      "closed"
+     ],
+     "help": "Status scope",
+     "kind": "option",
+     "long": "--scope"
+    },
+    {
+     "choices": [
+      "task",
+      "bug",
+      "story",
+      "feature",
+      "epic"
+     ],
+     "help": "Filter by type (repeatable)",
+     "kind": "option",
+     "long": "--type"
+    },
+    {
+     "choices": [
+      "low",
+      "medium",
+      "high",
+      "urgent"
+     ],
+     "help": "Filter by priority (repeatable)",
+     "kind": "option",
+     "long": "--priority"
+    },
+    {
+     "help": "Filter by assignee: me, none, a user UUID, or a public ID (usr_...)",
+     "kind": "option",
+     "long": "--assignee"
+    },
+    {
+     "help": "Filter by sprint: none or a sprint UUID",
+     "kind": "option",
+     "long": "--sprint"
+    },
+    {
+     "help": "Filter by label UUID (repeatable)",
+     "kind": "option",
+     "long": "--label"
+    },
+    {
+     "help": "Filter by label name (repeatable)",
+     "kind": "option",
+     "long": "--label-name"
+    },
+    {
+     "help": "Filter by parent work item key",
+     "kind": "option",
+     "long": "--parent"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Filter by top-level state (a bare flag means true)",
+     "kind": "option",
+     "long": "--top-level"
+    },
+    {
+     "help": "Only items updated at/after this RFC 3339 timestamp",
+     "kind": "option",
+     "long": "--updated-after"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Only overdue items (true) or only on-track items (false)",
+     "kind": "option",
+     "long": "--overdue"
+    },
+    {
+     "help": "Only items due strictly before this RFC 3339 timestamp",
+     "kind": "option",
+     "long": "--due-before"
+    },
+    {
+     "help": "Only items due strictly after this RFC 3339 timestamp",
+     "kind": "option",
+     "long": "--due-after"
+    },
+    {
+     "choices": [
+      "updated",
+      "dueDate",
+      "priority",
+      "rank"
+     ],
+     "help": "Result ordering: updated, dueDate, priority, or rank",
+     "kind": "option",
+     "long": "--sort"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Only archived (true) or only unarchived (false) items; when omitted, unarchived items are listed. Listing both states in one result requires separate queries",
+     "kind": "option",
+     "long": "--archived"
+    },
+    {
+     "help": "Comma-separated summary fields; an empty value selects all fields",
+     "kind": "option",
+     "long": "--fields"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Shorthand for --assignee me",
+     "kind": "option",
+     "long": "--mine"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik org work",
+   "hasSubcommands": false,
+   "options": [
+    "--project",
+    "--search",
+    "--status",
+    "--scope",
+    "--type",
+    "--priority",
+    "--assignee",
+    "--sprint",
+    "--label",
+    "--label-name",
+    "--parent",
+    "--top-level",
+    "--updated-after",
+    "--overdue",
+    "--due-before",
+    "--due-after",
+    "--sort",
+    "--archived",
+    "--fields",
+    "--mine",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Set the default organization for the active profile",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Organization slug",
+     "kind": "positional",
+     "name": "slug",
+     "valueName": "SLUG"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik org use",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "slug"
+   ]
+  },
+  {
+   "about": "Work with projects",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik project",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List projects in the organization",
+   "aliases": [],
+   "arguments": [
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "List only archived projects (true) or only unarchived (false); when omitted, unarchived projects are listed. Listing both states in one result requires separate queries",
+     "kind": "option",
+     "long": "--archived"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik project list",
+   "hasSubcommands": false,
+   "options": [
+    "--archived",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "View a project",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Project key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik project view",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Create a project (Organization administrators only)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Project name",
+     "kind": "option",
+     "long": "--name"
+    },
+    {
+     "help": "Project key (defaults to the server's canonical suggestion from the name)",
+     "kind": "option",
+     "long": "--key"
+    },
+    {
+     "help": "Description text",
+     "kind": "option",
+     "long": "--description"
+    },
+    {
+     "help": "Description source (path, or - for stdin)",
+     "kind": "option",
+     "long": "--description-file"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Author the description in $VISUAL/$EDITOR instead of passing text",
+     "kind": "option",
+     "long": "--description-editor"
+    },
+    {
+     "help": "Display color as a hex string (e.g. #3b82f6)",
+     "kind": "option",
+     "long": "--color"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik project create",
+   "hasSubcommands": false,
+   "options": [
+    "--name",
+    "--key",
+    "--description",
+    "--description-file",
+    "--description-editor",
+    "--color",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Edit a project (Organization administrators only)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Project key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "New name",
+     "kind": "option",
+     "long": "--name"
+    },
+    {
+     "help": "New description text",
+     "kind": "option",
+     "long": "--description"
+    },
+    {
+     "help": "New description source (path, or - for stdin)",
+     "kind": "option",
+     "long": "--description-file"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Author the description in $VISUAL/$EDITOR instead of passing text",
+     "kind": "option",
+     "long": "--description-editor"
+    },
+    {
+     "help": "New display color as a hex string",
+     "kind": "option",
+     "long": "--color"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Clear the description",
+     "kind": "option",
+     "long": "--clear-description"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik project edit",
+   "hasSubcommands": false,
+   "options": [
+    "--name",
+    "--description",
+    "--description-file",
+    "--description-editor",
+    "--color",
+    "--clear-description",
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Archive a project (Organization administrators only)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Project key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik project archive",
+   "hasSubcommands": false,
+   "options": [
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Unarchive a project (Organization administrators only)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Project key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik project unarchive",
+   "hasSubcommands": false,
+   "options": [
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Show a project's activity feed (newest first)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Only events strictly after this RFC 3339 timestamp",
+     "kind": "option",
+     "long": "--since"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik project activity",
+   "hasSubcommands": false,
+   "options": [
+    "--project",
+    "--since",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Set the default project for the active profile",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Project key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik project use",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Work with sprints",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik sprint",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List sprints in a project",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik sprint list",
+   "hasSubcommands": false,
+   "options": [
+    "--project",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "View a sprint",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Sprint id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik sprint view",
+   "hasSubcommands": false,
+   "options": [
+    "--project"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Create a sprint",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Sprint name",
+     "kind": "option",
+     "long": "--name"
+    },
+    {
+     "help": "Planned start date (RFC 3339)",
+     "kind": "option",
+     "long": "--start-date"
+    },
+    {
+     "help": "Planned end date (RFC 3339)",
+     "kind": "option",
+     "long": "--end-date"
+    },
+    {
+     "help": "Sprint goal",
+     "kind": "option",
+     "long": "--goal"
+    },
+    {
+     "help": "Target story-point total",
+     "kind": "option",
+     "long": "--target-points"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik sprint create",
+   "hasSubcommands": false,
+   "options": [
+    "--name",
+    "--start-date",
+    "--end-date",
+    "--goal",
+    "--target-points",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "List allowed sprint state transitions",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Sprint id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik sprint transitions",
+   "hasSubcommands": false,
+   "options": [
+    "--project"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Transition a sprint to a target state",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Sprint id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "choices": [
+      "active",
+      "done"
+     ],
+     "help": "Target state",
+     "kind": "positional",
+     "name": "target",
+     "valueName": "TARGET"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Move unfinished work items back to the backlog when completing",
+     "kind": "option",
+     "long": "--move-to-backlog"
+    },
+    {
+     "help": "Move unfinished work items to this future sprint",
+     "kind": "option",
+     "long": "--move-to-sprint"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik sprint transition",
+   "hasSubcommands": false,
+   "options": [
+    "--move-to-backlog",
+    "--move-to-sprint",
+    "--force",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "id",
+    "target"
+   ]
+  },
+  {
+   "about": "Work with labels",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik label",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List labels in a project",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik label list",
+   "hasSubcommands": false,
+   "options": [
+    "--project",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Create a project label (Organization administrators only)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Label name (stored lowercase)",
+     "kind": "option",
+     "long": "--name"
+    },
+    {
+     "help": "Display color as a hex string",
+     "kind": "option",
+     "long": "--color"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik label create",
+   "hasSubcommands": false,
+   "options": [
+    "--name",
+    "--color",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Work with work items",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List work items",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Free-text search",
+     "kind": "option",
+     "long": "--search"
+    },
+    {
+     "choices": [
+      "backlog",
+      "todo",
+      "in_progress",
+      "in_review",
+      "done"
+     ],
+     "help": "Filter by status (repeatable)",
+     "kind": "option",
+     "long": "--status"
+    },
+    {
+     "choices": [
+      "all",
+      "open",
+      "closed"
+     ],
+     "help": "Status scope",
+     "kind": "option",
+     "long": "--scope"
+    },
+    {
+     "choices": [
+      "task",
+      "bug",
+      "story",
+      "feature",
+      "epic"
+     ],
+     "help": "Filter by type (repeatable)",
+     "kind": "option",
+     "long": "--type"
+    },
+    {
+     "choices": [
+      "low",
+      "medium",
+      "high",
+      "urgent"
+     ],
+     "help": "Filter by priority (repeatable)",
+     "kind": "option",
+     "long": "--priority"
+    },
+    {
+     "help": "Filter by assignee: me, none, a user UUID, or a public ID (usr_...)",
+     "kind": "option",
+     "long": "--assignee"
+    },
+    {
+     "help": "Filter by sprint: none or a sprint UUID",
+     "kind": "option",
+     "long": "--sprint"
+    },
+    {
+     "help": "Filter by label UUID (repeatable)",
+     "kind": "option",
+     "long": "--label"
+    },
+    {
+     "help": "Filter by label name (repeatable)",
+     "kind": "option",
+     "long": "--label-name"
+    },
+    {
+     "help": "Filter by parent work item key",
+     "kind": "option",
+     "long": "--parent"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Filter by top-level state (a bare flag means true)",
+     "kind": "option",
+     "long": "--top-level"
+    },
+    {
+     "help": "Only items updated at/after this RFC 3339 timestamp",
+     "kind": "option",
+     "long": "--updated-after"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Only overdue items (true) or only on-track items (false)",
+     "kind": "option",
+     "long": "--overdue"
+    },
+    {
+     "help": "Only items due strictly before this RFC 3339 timestamp",
+     "kind": "option",
+     "long": "--due-before"
+    },
+    {
+     "help": "Only items due strictly after this RFC 3339 timestamp",
+     "kind": "option",
+     "long": "--due-after"
+    },
+    {
+     "choices": [
+      "updated",
+      "dueDate",
+      "priority",
+      "rank"
+     ],
+     "help": "Result ordering: updated, dueDate, priority, or rank",
+     "kind": "option",
+     "long": "--sort"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Only archived (true) or only unarchived (false) items; when omitted, unarchived items are listed. Listing both states in one result requires separate queries",
+     "kind": "option",
+     "long": "--archived"
+    },
+    {
+     "help": "Comma-separated summary fields; an empty value selects all fields",
+     "kind": "option",
+     "long": "--fields"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Shorthand for --assignee me",
+     "kind": "option",
+     "long": "--mine"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work list",
+   "hasSubcommands": false,
+   "options": [
+    "--search",
+    "--status",
+    "--scope",
+    "--type",
+    "--priority",
+    "--assignee",
+    "--sprint",
+    "--label",
+    "--label-name",
+    "--parent",
+    "--top-level",
+    "--updated-after",
+    "--overdue",
+    "--due-before",
+    "--due-after",
+    "--sort",
+    "--archived",
+    "--fields",
+    "--mine",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "List Work assigned to the authenticated user across Projects",
+   "aliases": [
+    "my"
+   ],
+   "arguments": [
+    {
+     "help": "Filter by Project key (repeatable)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "choices": [
+      "backlog",
+      "todo",
+      "in_progress",
+      "in_review",
+      "done"
+     ],
+     "help": "Filter by status (repeatable)",
+     "kind": "option",
+     "long": "--status"
+    },
+    {
+     "choices": [
+      "all",
+      "open",
+      "closed"
+     ],
+     "help": "Status scope",
+     "kind": "option",
+     "long": "--scope"
+    },
+    {
+     "choices": [
+      "task",
+      "bug",
+      "story",
+      "feature",
+      "epic"
+     ],
+     "help": "Filter by type (repeatable)",
+     "kind": "option",
+     "long": "--type"
+    },
+    {
+     "choices": [
+      "low",
+      "medium",
+      "high",
+      "urgent"
+     ],
+     "help": "Filter by priority (repeatable)",
+     "kind": "option",
+     "long": "--priority"
+    },
+    {
+     "help": "Filter by label id (repeatable)",
+     "kind": "option",
+     "long": "--label"
+    },
+    {
+     "help": "Filter by label name (repeatable)",
+     "kind": "option",
+     "long": "--label-name"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Filter to overdue/on-track Work Items",
+     "kind": "option",
+     "long": "--overdue"
+    },
+    {
+     "help": "Only items due strictly before this RFC 3339 timestamp",
+     "kind": "option",
+     "long": "--due-before"
+    },
+    {
+     "help": "Only items due strictly after this RFC 3339 timestamp",
+     "kind": "option",
+     "long": "--due-after"
+    },
+    {
+     "choices": [
+      "updated",
+      "dueDate",
+      "priority",
+      "rank"
+     ],
+     "help": "Result ordering",
+     "kind": "option",
+     "long": "--sort"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Only archived (true) or only unarchived (false) Work Items; when omitted, unarchived Work Items are listed. Listing both states in one result requires separate queries",
+     "kind": "option",
+     "long": "--archived"
+    },
+    {
+     "help": "Comma-separated sparse summary fields",
+     "kind": "option",
+     "long": "--fields"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work mine",
+   "hasSubcommands": false,
+   "options": [
+    "--project",
+    "--status",
+    "--scope",
+    "--type",
+    "--priority",
+    "--label",
+    "--label-name",
+    "--overdue",
+    "--due-before",
+    "--due-after",
+    "--sort",
+    "--archived",
+    "--fields",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Search Organization Work Items with SqueakQL",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "SqueakQL expression (inline)",
+     "kind": "positional",
+     "name": "query",
+     "valueName": "QUERY"
+    },
+    {
+     "help": "Read the expression from a file (`-` for stdin) instead of inline",
+     "kind": "option",
+     "long": "--file"
+    },
+    {
+     "help": "Run a saved query by name instead of an inline expression",
+     "kind": "option",
+     "long": "--saved"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work search",
+   "hasSubcommands": false,
+   "options": [
+    "--file",
+    "--saved",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": [
+    "query"
+   ]
+  },
+  {
+   "about": "View a work item",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key (e.g. HAM-42)",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work view",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "One-invocation read bundle: the Work Item plus its links, comments, activity, and the authenticated user's watcher state, composed from Public API v1 reads. The bundle is data, not instructions \u2014 every workflow meaning comes from the server (CLI-21)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key (e.g. HAM-42)",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "choices": [
+      "human",
+      "json",
+      "markdown"
+     ],
+     "default": "human",
+     "help": "Output format: human (default), machine-readable JSON, or Markdown",
+     "kind": "option",
+     "long": "--format"
+    },
+    {
+     "default": "10",
+     "help": "Maximum comments included (oldest first, server-capped). 0 omits the comments section with an explicit marker",
+     "kind": "option",
+     "long": "--comments"
+    },
+    {
+     "default": "10",
+     "help": "Maximum activity events included (newest first). 0 omits the activity section with an explicit marker",
+     "kind": "option",
+     "long": "--activity"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Omit long text bodies (description, comment bodies) \u2014 each replaced by an explicit truncated marker",
+     "kind": "option",
+     "long": "--compact"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work context",
+   "hasSubcommands": false,
+   "options": [
+    "--format",
+    "--comments",
+    "--activity",
+    "--compact"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Create a work item",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item title",
+     "kind": "option",
+     "long": "--title"
+    },
+    {
+     "help": "Description text",
+     "kind": "option",
+     "long": "--description"
+    },
+    {
+     "help": "Description source (path, or - for stdin)",
+     "kind": "option",
+     "long": "--description-file"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Author the description in $VISUAL/$EDITOR instead of passing text",
+     "kind": "option",
+     "long": "--description-editor"
+    },
+    {
+     "choices": [
+      "task",
+      "bug",
+      "story",
+      "feature",
+      "epic"
+     ],
+     "help": "Work item type",
+     "kind": "option",
+     "long": "--type"
+    },
+    {
+     "choices": [
+      "backlog",
+      "todo",
+      "in_progress",
+      "in_review",
+      "done"
+     ],
+     "help": "Initial status",
+     "kind": "option",
+     "long": "--status"
+    },
+    {
+     "choices": [
+      "low",
+      "medium",
+      "high",
+      "urgent"
+     ],
+     "help": "Priority",
+     "kind": "option",
+     "long": "--priority"
+    },
+    {
+     "help": "Assignee user id (or `me`)",
+     "kind": "option",
+     "long": "--assignee"
+    },
+    {
+     "help": "Sprint id",
+     "kind": "option",
+     "long": "--sprint"
+    },
+    {
+     "help": "Parent work item key (or parent UUID)",
+     "kind": "option",
+     "long": "--parent"
+    },
+    {
+     "help": "Story point estimate",
+     "kind": "option",
+     "long": "--story-points"
+    },
+    {
+     "help": "Due date (RFC 3339)",
+     "kind": "option",
+     "long": "--due-date"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work create",
+   "hasSubcommands": false,
+   "options": [
+    "--title",
+    "--description",
+    "--description-file",
+    "--description-editor",
+    "--type",
+    "--status",
+    "--priority",
+    "--assignee",
+    "--sprint",
+    "--parent",
+    "--story-points",
+    "--due-date",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Edit a work item",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "New title",
+     "kind": "option",
+     "long": "--title"
+    },
+    {
+     "help": "New description text",
+     "kind": "option",
+     "long": "--description"
+    },
+    {
+     "help": "New description source (path, or - for stdin)",
+     "kind": "option",
+     "long": "--description-file"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Author the description in $VISUAL/$EDITOR instead of passing text",
+     "kind": "option",
+     "long": "--description-editor"
+    },
+    {
+     "choices": [
+      "task",
+      "bug",
+      "story",
+      "feature",
+      "epic"
+     ],
+     "help": "New work item type",
+     "kind": "option",
+     "long": "--type"
+    },
+    {
+     "choices": [
+      "low",
+      "medium",
+      "high",
+      "urgent"
+     ],
+     "help": "New priority",
+     "kind": "option",
+     "long": "--priority"
+    },
+    {
+     "help": "New assignee (or `me`)",
+     "kind": "option",
+     "long": "--assignee"
+    },
+    {
+     "help": "Sprint id",
+     "kind": "option",
+     "long": "--sprint"
+    },
+    {
+     "help": "New parent key (or parent UUID)",
+     "kind": "option",
+     "long": "--parent"
+    },
+    {
+     "help": "New story point estimate",
+     "kind": "option",
+     "long": "--story-points"
+    },
+    {
+     "help": "New due date (RFC 3339)",
+     "kind": "option",
+     "long": "--due-date"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Clear the description",
+     "kind": "option",
+     "long": "--clear-description"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Unassign the item",
+     "kind": "option",
+     "long": "--clear-assignee"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Remove the sprint",
+     "kind": "option",
+     "long": "--clear-sprint"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Detach the parent",
+     "kind": "option",
+     "long": "--clear-parent"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Clear the story point estimate",
+     "kind": "option",
+     "long": "--clear-story-points"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Clear the due date",
+     "kind": "option",
+     "long": "--clear-due-date"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work edit",
+   "hasSubcommands": false,
+   "options": [
+    "--title",
+    "--description",
+    "--description-file",
+    "--description-editor",
+    "--type",
+    "--priority",
+    "--assignee",
+    "--sprint",
+    "--parent",
+    "--story-points",
+    "--due-date",
+    "--clear-description",
+    "--clear-assignee",
+    "--clear-sprint",
+    "--clear-parent",
+    "--clear-story-points",
+    "--clear-due-date",
+    "--force"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "List allowed status transitions",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work transitions",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Transition a work item to a target status",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "choices": [
+      "backlog",
+      "todo",
+      "in_progress",
+      "in_review",
+      "done"
+     ],
+     "help": "Target status",
+     "kind": "positional",
+     "name": "target",
+     "valueName": "TARGET"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work transition",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "key",
+    "target"
+   ]
+  },
+  {
+   "about": "Start a work item (transition to in_progress)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work start",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Close a work item (transition to done)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work close",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Manage work item labels",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work label",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Attach a label to a work item",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Label id (UUID) or label name",
+     "kind": "option",
+     "long": "--label"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work label add",
+   "hasSubcommands": false,
+   "options": [
+    "--label",
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Detach a label from a work item",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Label id (UUID) or label name",
+     "kind": "option",
+     "long": "--label"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work label remove",
+   "hasSubcommands": false,
+   "options": [
+    "--label",
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Manage work item attachments",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work attachment",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List attachments on a work item",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work attachment list",
+   "hasSubcommands": false,
+   "options": [
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Upload an attachment",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "File to upload, or - for stdin",
+     "kind": "positional",
+     "name": "file",
+     "valueName": "FILE"
+    },
+    {
+     "help": "File name recorded with the attachment (defaults to the file name)",
+     "kind": "option",
+     "long": "--file-name"
+    },
+    {
+     "help": "Content type (defaults to a guess or application/octet-stream)",
+     "kind": "option",
+     "long": "--content-type"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work attachment upload",
+   "hasSubcommands": false,
+   "options": [
+    "--file-name",
+    "--content-type",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key",
+    "file"
+   ]
+  },
+  {
+   "about": "Download an attachment to a file",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Attachment id (UUID)",
+     "kind": "positional",
+     "name": "attachment_id",
+     "valueName": "ATTACHMENT_ID"
+    },
+    {
+     "help": "Output path (defaults to the attachment's file name in the current directory)",
+     "kind": "option",
+     "long": "--output",
+     "short": "-o"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work attachment download",
+   "hasSubcommands": false,
+   "options": [
+    "--output"
+   ],
+   "positionals": [
+    "key",
+    "attachment_id"
+   ]
+  },
+  {
+   "about": "Delete an attachment (creator or Organization administrator)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Attachment id (UUID)",
+     "kind": "positional",
+     "name": "attachment_id",
+     "valueName": "ATTACHMENT_ID"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work attachment delete",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "key",
+    "attachment_id"
+   ]
+  },
+  {
+   "about": "Manage work item comments",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work comment",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List comments on a work item",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Hide soft-deleted comments instead of rendering `(deleted)` placeholders",
+     "kind": "option",
+     "long": "--exclude-deleted"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work comment list",
+   "hasSubcommands": false,
+   "options": [
+    "--exclude-deleted",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Add a comment to a work item",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Comment body",
+     "kind": "option",
+     "long": "--body"
+    },
+    {
+     "help": "Comment body source (path, or - for stdin)",
+     "kind": "option",
+     "long": "--body-file"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Author the body in $VISUAL/$EDITOR instead of passing text",
+     "kind": "option",
+     "long": "--body-editor"
+    },
+    {
+     "help": "Parent comment UUID (for replies)",
+     "kind": "option",
+     "long": "--parent"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work comment add",
+   "hasSubcommands": false,
+   "options": [
+    "--body",
+    "--body-file",
+    "--body-editor",
+    "--parent",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Edit your own comment",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Comment id (UUID)",
+     "kind": "positional",
+     "name": "comment_id",
+     "valueName": "COMMENT_ID"
+    },
+    {
+     "help": "Replacement body",
+     "kind": "option",
+     "long": "--body"
+    },
+    {
+     "help": "Replacement body source (path, or - for stdin)",
+     "kind": "option",
+     "long": "--body-file"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Author the body in $VISUAL/$EDITOR instead of passing text",
+     "kind": "option",
+     "long": "--body-editor"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work comment edit",
+   "hasSubcommands": false,
+   "options": [
+    "--body",
+    "--body-file",
+    "--body-editor",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key",
+    "comment_id"
+   ]
+  },
+  {
+   "about": "Delete your own comment (only when it has no replies)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Comment id (UUID)",
+     "kind": "positional",
+     "name": "comment_id",
+     "valueName": "COMMENT_ID"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work comment delete",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "key",
+    "comment_id"
+   ]
+  },
+  {
+   "about": "Manage work item links",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work link",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List links from a work item",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work link list",
+   "hasSubcommands": false,
+   "options": [
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Link this work item to another",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Target work item key (e.g. HAM-43)",
+     "kind": "option",
+     "long": "--target-key"
+    },
+    {
+     "help": "Target work item id (UUID)",
+     "kind": "option",
+     "long": "--target-id"
+    },
+    {
+     "choices": [
+      "blocks",
+      "blocked_by",
+      "relates"
+     ],
+     "help": "Relation kind",
+     "kind": "option",
+     "long": "--relation"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work link add",
+   "hasSubcommands": false,
+   "options": [
+    "--target-key",
+    "--target-id",
+    "--relation",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Delete a link by id",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Link id (UUID)",
+     "kind": "positional",
+     "name": "link_id",
+     "valueName": "LINK_ID"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work link delete",
+   "hasSubcommands": false,
+   "options": [
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key",
+    "link_id"
+   ]
+  },
+  {
+   "about": "Show or change your watcher state on a work item",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work watcher",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Show your watcher state on a work item",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work watcher show",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Watch a work item (start receiving notifications)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work watcher watch",
+   "hasSubcommands": false,
+   "options": [
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Stop watching a work item",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work watcher unwatch",
+   "hasSubcommands": false,
+   "options": [
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Keep watching but suppress notifications",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work watcher mute",
+   "hasSubcommands": false,
+   "options": [
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Stop suppressing notifications",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work watcher unmute",
+   "hasSubcommands": false,
+   "options": [
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Show a work item's activity feed",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Only events strictly after this RFC 3339 timestamp",
+     "kind": "option",
+     "long": "--since"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work activity",
+   "hasSubcommands": false,
+   "options": [
+    "--since",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Archive a work item (Organization administrators)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work archive",
+   "hasSubcommands": false,
+   "options": [
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Unarchive a work item (Organization administrators)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work unarchive",
+   "hasSubcommands": false,
+   "options": [
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Soft-delete a work item (Organization owners only)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Also soft-delete the entire descendant tree",
+     "kind": "option",
+     "long": "--cascade"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work delete",
+   "hasSubcommands": false,
+   "options": [
+    "--cascade",
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Create, update, or transition many work items in one request",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work bulk",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Create up to 50 work items in one request",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Operations as a JSON array file (path, or - for stdin)",
+     "kind": "option",
+     "long": "--operations-file"
+    },
+    {
+     "help": "Project key (overrides context; used to validate access)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work bulk create",
+   "hasSubcommands": false,
+   "options": [
+    "--operations-file",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Update up to 50 work items in one request",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Operations as a JSON array file (path, or - for stdin)",
+     "kind": "option",
+     "long": "--operations-file"
+    },
+    {
+     "choices": [
+      "require-revision",
+      "last-write-wins"
+     ],
+     "help": "Concurrency mode: require-revision (default) or last-write-wins",
+     "kind": "option",
+     "long": "--concurrency"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work bulk update",
+   "hasSubcommands": false,
+   "options": [
+    "--operations-file",
+    "--concurrency",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Transition up to 50 work items in one request",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Operations as a JSON array file (path, or - for stdin)",
+     "kind": "option",
+     "long": "--operations-file"
+    },
+    {
+     "choices": [
+      "require-revision",
+      "last-write-wins"
+     ],
+     "help": "Concurrency mode: require-revision (default) or last-write-wins",
+     "kind": "option",
+     "long": "--concurrency"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work bulk transition",
+   "hasSubcommands": false,
+   "options": [
+    "--operations-file",
+    "--concurrency",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "View user profiles, work, activity, and avatars",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik user",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "View a user's profile summary",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "The user's public ID (usr_...)",
+     "kind": "positional",
+     "name": "public_id",
+     "valueName": "PUBLIC_ID"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik user view",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "public_id"
+   ]
+  },
+  {
+   "about": "List work items involving a user",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "The user's public ID (usr_...)",
+     "kind": "positional",
+     "name": "public_id",
+     "valueName": "PUBLIC_ID"
+    },
+    {
+     "choices": [
+      "assigned",
+      "created",
+      "commented"
+     ],
+     "help": "Restrict to involvement kind (repeatable)",
+     "kind": "option",
+     "long": "--involvement"
+    },
+    {
+     "help": "Filter by organization slug (repeatable)",
+     "kind": "option",
+     "long": "--org"
+    },
+    {
+     "help": "Filter by project key (repeatable)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Free-text search",
+     "kind": "option",
+     "long": "--search"
+    },
+    {
+     "choices": [
+      "backlog",
+      "todo",
+      "in_progress",
+      "in_review",
+      "done"
+     ],
+     "help": "Filter by status (repeatable)",
+     "kind": "option",
+     "long": "--status"
+    },
+    {
+     "choices": [
+      "all",
+      "open",
+      "closed"
+     ],
+     "help": "Status scope",
+     "kind": "option",
+     "long": "--scope"
+    },
+    {
+     "choices": [
+      "task",
+      "bug",
+      "story",
+      "feature",
+      "epic"
+     ],
+     "help": "Filter by type (repeatable)",
+     "kind": "option",
+     "long": "--type"
+    },
+    {
+     "choices": [
+      "low",
+      "medium",
+      "high",
+      "urgent"
+     ],
+     "help": "Filter by priority (repeatable)",
+     "kind": "option",
+     "long": "--priority"
+    },
+    {
+     "help": "Filter by sprint id or `none`",
+     "kind": "option",
+     "long": "--sprint"
+    },
+    {
+     "help": "Filter by label id (repeatable)",
+     "kind": "option",
+     "long": "--label"
+    },
+    {
+     "help": "Filter by label name (repeatable)",
+     "kind": "option",
+     "long": "--label-name"
+    },
+    {
+     "help": "Filter by parent Work Item key",
+     "kind": "option",
+     "long": "--parent"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Filter by top-level state (a bare flag means true)",
+     "kind": "option",
+     "long": "--top-level"
+    },
+    {
+     "help": "Only items updated after this RFC 3339 timestamp",
+     "kind": "option",
+     "long": "--updated-after"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Filter to overdue/on-track Work Items",
+     "kind": "option",
+     "long": "--overdue"
+    },
+    {
+     "help": "Only items due strictly before this RFC 3339 timestamp",
+     "kind": "option",
+     "long": "--due-before"
+    },
+    {
+     "help": "Only items due strictly after this RFC 3339 timestamp",
+     "kind": "option",
+     "long": "--due-after"
+    },
+    {
+     "choices": [
+      "updated",
+      "dueDate",
+      "priority",
+      "rank"
+     ],
+     "help": "Result ordering",
+     "kind": "option",
+     "long": "--sort"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Only archived (true) or only unarchived (false) Work Items; when omitted, unarchived Work Items are listed. Listing both states in one result requires separate queries",
+     "kind": "option",
+     "long": "--archived"
+    },
+    {
+     "help": "Comma-separated sparse summary fields",
+     "kind": "option",
+     "long": "--fields"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik user work",
+   "hasSubcommands": false,
+   "options": [
+    "--involvement",
+    "--org",
+    "--project",
+    "--search",
+    "--status",
+    "--scope",
+    "--type",
+    "--priority",
+    "--sprint",
+    "--label",
+    "--label-name",
+    "--parent",
+    "--top-level",
+    "--updated-after",
+    "--overdue",
+    "--due-before",
+    "--due-after",
+    "--sort",
+    "--archived",
+    "--fields",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": [
+    "public_id"
+   ]
+  },
+  {
+   "about": "Show a user's visible activity (newest first)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "The user's public ID (usr_...)",
+     "kind": "positional",
+     "name": "public_id",
+     "valueName": "PUBLIC_ID"
+    },
+    {
+     "help": "Only events strictly after this RFC 3339 timestamp",
+     "kind": "option",
+     "long": "--since"
+    },
+    {
+     "help": "Maximum items per page (endpoint maximum is 100 or 200)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque continuation cursor",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik user activity",
+   "hasSubcommands": false,
+   "options": [
+    "--since",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": [
+    "public_id"
+   ]
+  },
+  {
+   "about": "Download a user's avatar",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "The user's public ID (usr_...)",
+     "kind": "positional",
+     "name": "public_id",
+     "valueName": "PUBLIC_ID"
+    },
+    {
+     "help": "Output path (defaults to the public ID with a content-type derived extension)",
+     "kind": "option",
+     "long": "--output",
+     "short": "-o"
+    },
+    {
+     "help": "Opaque avatar version cache selector",
+     "kind": "option",
+     "long": "--avatar-version"
+    },
+    {
+     "help": "Opaque avatar format selector",
+     "kind": "option",
+     "long": "--format"
+    },
+    {
+     "help": "Opaque avatar revision cache selector",
+     "kind": "option",
+     "long": "--revision"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik user avatar",
+   "hasSubcommands": false,
+   "options": [
+    "--output",
+    "--avatar-version",
+    "--format",
+    "--revision"
+   ],
+   "positionals": [
+    "public_id"
+   ]
+  },
+  {
+   "about": "Validate SqueakQL expressions",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik squeakql",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Validate an expression without executing it",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "SqueakQL expression (inline)",
+     "kind": "positional",
+     "name": "query",
+     "valueName": "QUERY"
+    },
+    {
+     "help": "Read the expression from a file (`-` for stdin) instead of inline",
+     "kind": "option",
+     "long": "--file"
+    },
+    {
+     "help": "Run a saved query by name instead of an inline expression",
+     "kind": "option",
+     "long": "--saved"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik squeakql validate",
+   "hasSubcommands": false,
+   "options": [
+    "--file",
+    "--saved"
+   ],
+   "positionals": [
+    "query"
+   ]
+  },
+  {
+   "about": "List saved SqueakQL queries",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik squeakql list",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Show a saved SqueakQL query's expression",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Saved query name",
+     "kind": "positional",
+     "name": "name",
+     "valueName": "NAME"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik squeakql show",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "name"
+   ]
+  },
+  {
+   "about": "Save an expression as a named query for reuse",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Saved query name (letters, digits, `-`, `_`; 1\u201364 chars)",
+     "kind": "positional",
+     "name": "name",
+     "valueName": "NAME"
+    },
+    {
+     "help": "SqueakQL expression (inline), or provide it with --file/stdin",
+     "kind": "positional",
+     "name": "query",
+     "valueName": "QUERY"
+    },
+    {
+     "help": "Read the expression from a file (`-` for stdin) instead of inline",
+     "kind": "option",
+     "long": "--file"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Replace an existing saved query of the same name",
+     "kind": "option",
+     "long": "--force"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik squeakql save",
+   "hasSubcommands": false,
+   "options": [
+    "--file",
+    "--force"
+   ],
+   "positionals": [
+    "name",
+    "query"
+   ]
+  },
+  {
+   "about": "Delete a saved SqueakQL query",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Saved query name",
+     "kind": "positional",
+     "name": "name",
+     "valueName": "NAME"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik squeakql delete",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "name"
+   ]
+  },
+  {
+   "about": "Inspect the Public API contract",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik api",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Print the live Public API OpenAPI document",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik api openapi",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Call a documented Public API v1 route through the CLI",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "The Public API v1 path (must start with `/api/v1/`)",
+     "kind": "positional",
+     "name": "path",
+     "valueName": "PATH"
+    },
+    {
+     "choices": [
+      "GET",
+      "POST",
+      "PATCH",
+      "PUT",
+      "DELETE"
+     ],
+     "default": "GET",
+     "help": "HTTP method (GET is the default; the route's documented methods apply)",
+     "kind": "option",
+     "long": "--method"
+    },
+    {
+     "help": "Read the JSON request body from this file; `-` reads stdin",
+     "kind": "option",
+     "long": "--body-file"
+    },
+    {
+     "help": "Structured JSON field as `key=value`; repeatable. Value is parsed as JSON when it parses, else a JSON string",
+     "kind": "option",
+     "long": "--field"
+    },
+    {
+     "help": "Query parameter as `key=value`; repeatable (allowlisted, ordered)",
+     "kind": "option",
+     "long": "--query"
+    },
+    {
+     "help": "Header override as `Name: value`; restricted to a safe allowlist (`Accept`, `Content-Type`, `If-Match`). `Authorization` and any credential-bearing header are rejected",
+     "kind": "option",
+     "long": "--header"
+    },
+    {
+     "help": "Idempotency key override; mutations get a fresh strong key otherwise (generated once and reused across internal retries)",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik api request",
+   "hasSubcommands": false,
+   "options": [
+    "--method",
+    "--body-file",
+    "--field",
+    "--query",
+    "--header",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "path"
+   ]
+  },
+  {
+   "about": "Verify configuration, credentials, connectivity, API compatibility, and selected Organization/Project context",
+   "aliases": [],
+   "arguments": [
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Check only local configuration, context, credential-store access, terminal behavior, and bundled compatibility metadata; remote checks are marked skipped and no network traffic is generated",
+     "kind": "option",
+     "long": "--local-only"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik doctor",
+   "hasSubcommands": false,
+   "options": [
+    "--local-only"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Generate a shell completion script",
+   "aliases": [],
+   "arguments": [
+    {
+     "choices": [
+      "bash",
+      "elvish",
+      "fish",
+      "powershell",
+      "zsh"
+     ],
+     "help": "Target shell",
+     "kind": "positional",
+     "name": "shell",
+     "valueName": "SHELL"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik completion",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "shell"
+   ]
+  },
+  {
+   "about": "Print the machine-readable command manifest derived from the real command tree (CLI-2)",
+   "aliases": [],
+   "arguments": [
+    {
+     "choices": [
+      "json"
+     ],
+     "default": "json",
+     "help": "Output format for the manifest",
+     "kind": "option",
+     "long": "--format"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik commands",
+   "hasSubcommands": false,
+   "options": [
+    "--format"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Print the CLI version",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik version",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  }
+ ],
+ "manifestVersion": 1
+}

@@ -1,0 +1,17 @@
+.TH HAMSTIK 1 "HAMSTIK WORK BULK CREATE"
+.SH NAME
+hamstik work bulk create \- Create up to 50 work items in one request
+.SH SYNOPSIS
+.B hamstik work bulk create [OPTIONS]
+.SH DESCRIPTION
+Create up to 50 work items in one request
+.SH OPTIONS
+.TP
+.B --operations-file
+Operations as a JSON array file (path, or - for stdin)
+.TP
+.B --project
+Project key (overrides context; used to validate access)
+.TP
+.B --idempotency-key
+Explicit idempotency key

@@ -12,12 +12,14 @@ use crate::error::CliError;
 pub mod api;
 pub mod auth;
 pub mod bulk_preflight;
+pub mod commands_manifest;
 pub mod completion;
 pub mod context_cmd;
 pub mod credential;
 pub mod doctor;
 pub mod dryrun;
 pub mod label;
+pub mod manifest;
 pub mod me;
 pub mod org;
 pub mod project;
@@ -43,6 +45,7 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
         Command::Api(args) => api::run(session, args).await,
         Command::Doctor { local_only } => doctor::run(session, *local_only).await,
         Command::Completion(args) => completion::run(session, args),
+        Command::Commands(_) => commands_manifest::run(session),
         Command::Version => version(session),
     }
 }

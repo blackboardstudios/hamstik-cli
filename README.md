@@ -192,6 +192,10 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   diagnostics (`hamstik doctor`) covering local configuration, credential
   sources, network/TLS, Public API compatibility, authentication, selected
   Organization/Project validity, and terminal rendering;
+- a machine-readable command manifest (`hamstik commands --json`) and
+  generated command reference + man pages under [`docs/`](docs/reference) —
+  regenerated deterministically with `scripts/generate_docs.py` and
+  drift-checked in CI;
 - cross-platform CI on Linux, Windows, and macOS.
 
 OAuth, the MCP server, and automatic Agent Skill installation remain future work. The
@@ -203,6 +207,32 @@ canonical portable Agent Skill is available at
 
 Global `--org`, `--project`, and `--json` options may be placed before or after
 subcommands. Cursors are opaque: pass the returned `nextCursor` unchanged.
+
+### Shell completions
+
+`hamstik completion <shell>` prints the completion script for `bash`, `zsh`,
+`fish`, or `powershell` (no network access; candidates cover command names and
+statically known values):
+
+```bash
+# Bash (current session)
+source <(hamstik completion bash)
+# Bash (persistent)
+hamstik completion bash > ~/.local/share/bash-completion/completions/hamstik
+
+# Zsh
+hamstik completion zsh > "${fpath[1]}/_hamstik"
+
+# Fish
+hamstik completion fish > ~/.config/fish/completions/hamstik.fish
+
+# PowerShell
+hamstik completion powershell | Out-String | Invoke-Expression
+```
+
+The generated command reference lives in
+[`docs/reference/`](docs/reference/) (one page per command) with
+[man pages](docs/man/hamstik.1) shipped in every release archive.
 
 ```bash
 # Authentication, identity, and context

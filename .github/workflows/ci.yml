@@ -37,6 +37,21 @@ jobs:
       - name: Release build
         run: cargo build --workspace --release
 
+      # CLI-2: checked-in generated documentation must match the current
+      # command tree. Regenerates from the just-built release binary and
+      # fails when anything differs (the diff is printed for the PR author).
+      - name: Generated docs are up to date
+        run: |
+          python3 scripts/generate_docs.py \
+            --binary target/release/hamstik \
+            --out docs/reference
+          if ! git diff --quiet -- docs/; then
+            git diff -- docs/ | head -200
+            echo "::error::generated documentation is stale; run scripts/generate_docs.py and commit" >&2
+            exit 1
+          fi
+          echo "generated documentation is up to date"
+
   # Advisory + license gate for the committed lockfile. Dependabot bumps
   # versions; this gate catches known RUSTSEC advisories and license/source
   # policy violations between bumps.

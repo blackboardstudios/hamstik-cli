@@ -1,0 +1,51 @@
+.TH HAMSTIK 1 "HAMSTIK WORK CREATE"
+.SH NAME
+hamstik work create \- Create a work item
+.SH SYNOPSIS
+.B hamstik work create [OPTIONS]
+.SH DESCRIPTION
+Create a work item
+.SH OPTIONS
+.TP
+.B --title
+Work item title
+.TP
+.B --description
+Description text
+.TP
+.B --description-file
+Description source (path, or - for stdin)
+.TP
+.B --description-editor
+Author the description in $VISUAL/$EDITOR instead of passing text
+Choices: true, false
+.TP
+.B --type
+Work item type
+Choices: task, bug, story, feature, epic
+.TP
+.B --status
+Initial status
+Choices: backlog, todo, in_progress, in_review, done
+.TP
+.B --priority
+Priority
+Choices: low, medium, high, urgent
+.TP
+.B --assignee
+Assignee user id (or `me`)
+.TP
+.B --sprint
+Sprint id
+.TP
+.B --parent
+Parent work item key (or parent UUID)
+.TP
+.B --story-points
+Story point estimate
+.TP
+.B --due-date
+Due date (RFC 3339)
+.TP
+.B --idempotency-key
+Explicit idempotency key

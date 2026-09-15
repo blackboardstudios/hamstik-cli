@@ -106,6 +106,21 @@ def logical_commands(block: Block) -> list[tuple[int, list[str] | str]]:
             continue
         joined = " ".join(part[:-1].rstrip() if part.endswith("\\") else part for part in pending)
         pending = []
+        # Pipeline segments other than the leading `hamstik …` (for example
+        # `… | Invoke-Expression`) are shell plumbing around the invocation:
+        # the harness verifies the hamstik argument vector in each segment.
+        segments = [segment.strip() for segment in joined.split("|")]
+        if any(not segment for segment in segments):
+            results.append(
+                (pending_line, "__unparseable__:empty pipeline stage")
+            )
+            continue
+        if len(segments) > 1 and not any(
+            segment.startswith("hamstik") for segment in segments[1:]
+        ):
+            # Only the hamstik segment is verified; the rest is shell syntax
+            # belonging to the example's plumbing.
+            joined = segments[0]
         try:
             tokens = shlex.split(joined)
         except ValueError as error:
@@ -141,6 +156,26 @@ def logical_commands(block: Block) -> list[tuple[int, list[str] | str]]:
                 redirect_broken = True
                 break
             tokens = tokens[:position] + tokens[position + 2 :]
+        if redirect_broken or not tokens:
+            continue
+        # Drop shell output redirects the same way (`> PATH`, `>> PATH`):
+        # installing a completion script writes to a file, which is shell
+        # syntax around the invocation, not part of the argument vector.
+        for operator in (">>", ">"):
+            while operator in tokens:
+                position = tokens.index(operator)
+                if position + 1 >= len(tokens):
+                    results.append(
+                        (
+                            pending_line,
+                            f"__unparseable__:missing redirect target after '{operator}'",
+                        )
+                    )
+                    redirect_broken = True
+                    break
+                tokens = tokens[:position] + tokens[position + 2 :]
+            if redirect_broken:
+                break
         if redirect_broken or not tokens:
             continue
         # The leading token is the program name (`hamstik`); the remainder is

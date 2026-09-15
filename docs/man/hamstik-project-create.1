@@ -1,0 +1,30 @@
+.TH HAMSTIK 1 "HAMSTIK PROJECT CREATE"
+.SH NAME
+hamstik project create \- Create a project (Organization administrators only)
+.SH SYNOPSIS
+.B hamstik project create [OPTIONS]
+.SH DESCRIPTION
+Create a project (Organization administrators only)
+.SH OPTIONS
+.TP
+.B --name
+Project name
+.TP
+.B --key
+Project key (defaults to the server's canonical suggestion from the name)
+.TP
+.B --description
+Description text
+.TP
+.B --description-file
+Description source (path, or - for stdin)
+.TP
+.B --description-editor
+Author the description in $VISUAL/$EDITOR instead of passing text
+Choices: true, false
+.TP
+.B --color
+Display color as a hex string (e.g. #3b82f6)
+.TP
+.B --idempotency-key
+Explicit idempotency key

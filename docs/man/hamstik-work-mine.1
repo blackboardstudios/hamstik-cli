@@ -1,0 +1,66 @@
+.TH HAMSTIK 1 "HAMSTIK WORK MINE"
+.SH NAME
+hamstik work mine \- List Work assigned to the authenticated user across Projects
+.SH SYNOPSIS
+.B hamstik work mine [OPTIONS]
+.SH DESCRIPTION
+List Work assigned to the authenticated user across Projects
+.SH ALIASES
+my
+.SH OPTIONS
+.TP
+.B --project
+Filter by Project key (repeatable)
+.TP
+.B --status
+Filter by status (repeatable)
+Choices: backlog, todo, in_progress, in_review, done
+.TP
+.B --scope
+Status scope
+Choices: all, open, closed
+.TP
+.B --type
+Filter by type (repeatable)
+Choices: task, bug, story, feature, epic
+.TP
+.B --priority
+Filter by priority (repeatable)
+Choices: low, medium, high, urgent
+.TP
+.B --label
+Filter by label id (repeatable)
+.TP
+.B --label-name
+Filter by label name (repeatable)
+.TP
+.B --overdue
+Filter to overdue/on-track Work Items
+Choices: true, false
+.TP
+.B --due-before
+Only items due strictly before this RFC 3339 timestamp
+.TP
+.B --due-after
+Only items due strictly after this RFC 3339 timestamp
+.TP
+.B --sort
+Result ordering
+Choices: updated, dueDate, priority, rank
+.TP
+.B --archived
+Only archived (true) or only unarchived (false) Work Items; when omitted, unarchived Work Items are listed. Listing both states in one result requires separate queries
+Choices: true, false
+.TP
+.B --fields
+Comma-separated sparse summary fields
+.TP
+.B --limit
+Maximum items per page (endpoint maximum is 100 or 200)
+.TP
+.B --cursor
+Opaque continuation cursor
+.TP
+.B --all
+Follow all pages
+Choices: true, false

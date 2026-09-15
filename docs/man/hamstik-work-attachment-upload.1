@@ -1,0 +1,24 @@
+.TH HAMSTIK 1 "HAMSTIK WORK ATTACHMENT UPLOAD"
+.SH NAME
+hamstik work attachment upload \- Upload an attachment
+.SH SYNOPSIS
+.B hamstik work attachment upload [OPTIONS]
+.SH DESCRIPTION
+Upload an attachment
+.SH ARGUMENTS
+.TP
+.I KEY
+Work item key
+.TP
+.I FILE
+File to upload, or - for stdin
+.SH OPTIONS
+.TP
+.B --file-name
+File name recorded with the attachment (defaults to the file name)
+.TP
+.B --content-type
+Content type (defaults to a guess or application/octet-stream)
+.TP
+.B --idempotency-key
+Explicit idempotency key

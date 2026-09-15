@@ -1,0 +1,25 @@
+.TH HAMSTIK 1 "HAMSTIK WORK LINK ADD"
+.SH NAME
+hamstik work link add \- Link this work item to another
+.SH SYNOPSIS
+.B hamstik work link add [OPTIONS]
+.SH DESCRIPTION
+Link this work item to another
+.SH ARGUMENTS
+.TP
+.I KEY
+Work item key
+.SH OPTIONS
+.TP
+.B --target-key
+Target work item key (e.g. HAM-43)
+.TP
+.B --target-id
+Target work item id (UUID)
+.TP
+.B --relation
+Relation kind
+Choices: blocks, blocked_by, relates
+.TP
+.B --idempotency-key
+Explicit idempotency key

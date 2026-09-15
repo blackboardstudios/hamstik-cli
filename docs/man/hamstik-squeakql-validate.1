@@ -1,0 +1,18 @@
+.TH HAMSTIK 1 "HAMSTIK SQUEAKQL VALIDATE"
+.SH NAME
+hamstik squeakql validate \- Validate an expression without executing it
+.SH SYNOPSIS
+.B hamstik squeakql validate [OPTIONS]
+.SH DESCRIPTION
+Validate an expression without executing it
+.SH ARGUMENTS
+.TP
+.I QUERY
+SqueakQL expression (inline)
+.SH OPTIONS
+.TP
+.B --file
+Read the expression from a file (`-` for stdin) instead of inline
+.TP
+.B --saved
+Run a saved query by name instead of an inline expression

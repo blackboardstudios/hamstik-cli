@@ -1,0 +1,22 @@
+.TH HAMSTIK 1 "HAMSTIK PROJECT LIST"
+.SH NAME
+hamstik project list \- List projects in the organization
+.SH SYNOPSIS
+.B hamstik project list [OPTIONS]
+.SH DESCRIPTION
+List projects in the organization
+.SH OPTIONS
+.TP
+.B --archived
+List only archived projects (true) or only unarchived (false); when omitted, unarchived projects are listed. Listing both states in one result requires separate queries
+Choices: true, false
+.TP
+.B --limit
+Maximum items per page (endpoint maximum is 100 or 200)
+.TP
+.B --cursor
+Opaque continuation cursor
+.TP
+.B --all
+Follow all pages
+Choices: true, false

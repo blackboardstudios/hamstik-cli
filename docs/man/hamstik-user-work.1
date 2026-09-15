@@ -1,0 +1,91 @@
+.TH HAMSTIK 1 "HAMSTIK USER WORK"
+.SH NAME
+hamstik user work \- List work items involving a user
+.SH SYNOPSIS
+.B hamstik user work [OPTIONS]
+.SH DESCRIPTION
+List work items involving a user
+.SH ARGUMENTS
+.TP
+.I PUBLIC_ID
+The user's public ID (usr_...)
+.SH OPTIONS
+.TP
+.B --involvement
+Restrict to involvement kind (repeatable)
+Choices: assigned, created, commented
+.TP
+.B --org
+Filter by organization slug (repeatable)
+.TP
+.B --project
+Filter by project key (repeatable)
+.TP
+.B --search
+Free-text search
+.TP
+.B --status
+Filter by status (repeatable)
+Choices: backlog, todo, in_progress, in_review, done
+.TP
+.B --scope
+Status scope
+Choices: all, open, closed
+.TP
+.B --type
+Filter by type (repeatable)
+Choices: task, bug, story, feature, epic
+.TP
+.B --priority
+Filter by priority (repeatable)
+Choices: low, medium, high, urgent
+.TP
+.B --sprint
+Filter by sprint id or `none`
+.TP
+.B --label
+Filter by label id (repeatable)
+.TP
+.B --label-name
+Filter by label name (repeatable)
+.TP
+.B --parent
+Filter by parent Work Item key
+.TP
+.B --top-level
+Filter by top-level state (a bare flag means true)
+Choices: true, false
+.TP
+.B --updated-after
+Only items updated after this RFC 3339 timestamp
+.TP
+.B --overdue
+Filter to overdue/on-track Work Items
+Choices: true, false
+.TP
+.B --due-before
+Only items due strictly before this RFC 3339 timestamp
+.TP
+.B --due-after
+Only items due strictly after this RFC 3339 timestamp
+.TP
+.B --sort
+Result ordering
+Choices: updated, dueDate, priority, rank
+.TP
+.B --archived
+Only archived (true) or only unarchived (false) Work Items; when omitted, unarchived Work Items are listed. Listing both states in one result requires separate queries
+Choices: true, false
+.TP
+.B --fields
+Comma-separated sparse summary fields
+.TP
+.B --limit
+Maximum items per page (endpoint maximum is 100 or 200)
+.TP
+.B --cursor
+Opaque continuation cursor
+.TP
+.B --all
+Follow all pages
+Choices: true, false

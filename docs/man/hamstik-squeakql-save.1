@@ -1,0 +1,22 @@
+.TH HAMSTIK 1 "HAMSTIK SQUEAKQL SAVE"
+.SH NAME
+hamstik squeakql save \- Save an expression as a named query for reuse
+.SH SYNOPSIS
+.B hamstik squeakql save [OPTIONS]
+.SH DESCRIPTION
+Save an expression as a named query for reuse
+.SH ARGUMENTS
+.TP
+.I NAME
+Saved query name (letters, digits, `-`, `_`; 1–64 chars)
+.TP
+.I QUERY
+SqueakQL expression (inline), or provide it with --file/stdin
+.SH OPTIONS
+.TP
+.B --file
+Read the expression from a file (`-` for stdin) instead of inline
+.TP
+.B --force
+Replace an existing saved query of the same name
+Choices: true, false

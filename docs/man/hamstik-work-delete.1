@@ -1,0 +1,23 @@
+.TH HAMSTIK 1 "HAMSTIK WORK DELETE"
+.SH NAME
+hamstik work delete \- Soft\-delete a work item (Organization owners only)
+.SH SYNOPSIS
+.B hamstik work delete [OPTIONS]
+.SH DESCRIPTION
+Soft\-delete a work item (Organization owners only)
+.SH ARGUMENTS
+.TP
+.I KEY
+Work item key
+.SH OPTIONS
+.TP
+.B --cascade
+Also soft-delete the entire descendant tree
+Choices: true, false
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false
+.TP
+.B --idempotency-key
+Explicit idempotency key

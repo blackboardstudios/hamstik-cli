@@ -1,7 +1,7 @@
 // Copyright 2026 Blackboard Studios
 // SPDX-License-Identifier: Apache-2.0
 
-//! `work context` — the one-invocation read bundle (CLI-21).
+//! `work context` — the one-invocation read bundle.
 //!
 //! Composes existing Public API v1 reads for one Work Item into a single
 //! consolidated response: metadata, description, server-reported links,

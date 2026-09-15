@@ -128,6 +128,7 @@ fn root_command_hierarchy_matches_documented_surface() {
             "api",
             "doctor",
             "completion",
+            "commands",
             "version",
         ],
         "root subcommand set changed; update README + CHANGELOG (Breaking) + this fixture"

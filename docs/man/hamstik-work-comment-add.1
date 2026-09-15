@@ -1,0 +1,28 @@
+.TH HAMSTIK 1 "HAMSTIK WORK COMMENT ADD"
+.SH NAME
+hamstik work comment add \- Add a comment to a work item
+.SH SYNOPSIS
+.B hamstik work comment add [OPTIONS]
+.SH DESCRIPTION
+Add a comment to a work item
+.SH ARGUMENTS
+.TP
+.I KEY
+Work item key
+.SH OPTIONS
+.TP
+.B --body
+Comment body
+.TP
+.B --body-file
+Comment body source (path, or - for stdin)
+.TP
+.B --body-editor
+Author the body in $VISUAL/$EDITOR instead of passing text
+Choices: true, false
+.TP
+.B --parent
+Parent comment UUID (for replies)
+.TP
+.B --idempotency-key
+Explicit idempotency key
