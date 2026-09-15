@@ -327,10 +327,10 @@ jobs:
             --out winget
       - name: "Upload artifacts"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        # Hamstik note (CLI-29): on prereleases winget/ is intentionally
-        # empty; warn instead of failing the upload.
-        if-no-files-found: warn
         with:
+          # Hamstik note (CLI-29): on prereleases winget/ is intentionally
+          # empty; warn instead of failing the upload.
+          if-no-files-found: warn
           name: artifacts-build-global
           path: |
             ${{ steps.cargo-dist.outputs.paths }}
