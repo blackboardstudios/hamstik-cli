@@ -409,11 +409,9 @@ jobs:
           # Write and read notes from a file to avoid quoting breaking things
           echo "$ANNOUNCEMENT_BODY" > $RUNNER_TEMP/notes.txt
 
+          # dist's upload step ships every file in target/distrib/ — including
+          # the CLI-28 SBOMs collected there — with the release assets.
           gh release create "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
-          # Hamstik addition (CLI-28): ship the CycloneDX SBOMs alongside the
-          # other release assets (attested above; design/SIGNING.md §SBOM).
-          gh release upload "${{ needs.plan.outputs.tag }}" \
-            target/distrib/hamstik-cli.cdx.json target/distrib/hamstik-api-client.cdx.json
 
   announce:
     needs:
