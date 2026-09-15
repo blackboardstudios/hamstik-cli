@@ -10,6 +10,23 @@ before upgrading.
 
 ## [Unreleased]
 
+### Added
+
+- Installable release channels (CLI-29): a curl-able shell installer
+  (`hamstik-cli-installer.sh`) for Linux/macOS, a PowerShell installer for
+  Windows, and a Homebrew formula published per stable release to the
+  `blackboardstudios/homebrew-hamstik` tap (`brew tap
+  blackboardstudios/hamstik https://github.com/blackboardstudios/homebrew-hamstik`
+  then `brew install blackboardstudios/hamstik/hamstik`). Winget manifests
+  are generated per stable release into `winget/` and submitted to
+  `microsoft/winget-pkgs` by a maintainer (deliberate manual step). Linux
+  ships tarball + installer; `.deb`/`.rpm` and hosted APT/RPM repositories
+  are deliberately deferred (design/INSTALL.md decision record). The
+  Homebrew formula's sha256 lines are injected from the release's
+  aggregate checksums at publish time, and the tap push requires a
+  dedicated fine-grained PAT (`HOMEBREW_TAP_TOKEN`) scoped to the tap
+  repository only.
+
 ## [0.1.1-rc.1] - 2026-09-15
 
 ### Added

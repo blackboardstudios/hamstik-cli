@@ -13,8 +13,8 @@
 # Note that the GitHub Release will be created with a generated
 # title/body based on your changelogs.
 #
-# HAMSTIK CLI-27 MAINTENANCE NOTE — this file is `dist generate` output plus
-# the deliberate, locally maintained modifications below (see
+# HAMSTIK CLI-27/28/29 MAINTENANCE NOTE — this file is `dist generate`
+# output plus the deliberate, locally maintained modifications below (see
 # design/RELEASE.md, §"Regenerating the release workflow"). Because
 # `allow-dirty = ["ci"]` is set in dist-workspace.toml, dist will not
 # regenerate or freshness-check this file; after a cargo-dist upgrade run
@@ -26,7 +26,8 @@
 # 3. Least-privilege token permissions: top-level `contents: read`, with
 #    `contents: write` granted only to the jobs that create/publish the
 #    release (plan, host) and `actions: write` to jobs that upload/download
-#    workflow artifacts.
+#    workflow artifacts; the Homebrew publish job uses
+#    `secrets.HOMEBREW_TAP_TOKEN` for its cross-repo checkout.
 # 4. Release gate steps in the `plan` job: `cargo run -p release-gate`
 #    fails the workflow before the release announcement is created or any
 #    artifact is built when the tag, the workspace version, and
@@ -36,8 +37,8 @@
 # 6. CLI-28 supply-chain steps: CycloneDX SBOM generation in
 #    `build-global-artifacts`; in `host`, fail-closed `sha256sum -c` +
 #    Sigstore build-provenance attestations + local bundle verification
-#    BEFORE publication, and SBOM upload alongside release assets. The
-#    host job also carries `id-token: write` / `attestations: write`.
+#    BEFORE publication. The host job also carries `id-token: write` /
+#    `attestations: write`.
 
 name: Release
 # Hamstik modification (CLI-27): least-privilege baseline; jobs that need to
@@ -80,8 +81,7 @@ jobs:
     # Hamstik modification (CLI-27): this job needs `contents: write` only
     # because on a tag push it creates the release announcement via
     # `dist host --steps=create`; `actions: write` covers the manifest/cache
-    # artifact uploads below. Every other job stays read-only toward the
-    # repository.
+    # artifact uploads below.
     permissions:
       contents: write
       actions: write
@@ -90,6 +90,9 @@ jobs:
       tag: ${{ !github.event.pull_request && github.ref_name || '' }}
       tag-flag: ${{ !github.event.pull_request && format('--tag={0}', github.ref_name) || '' }}
       publishing: ${{ !github.event.pull_request }}
+      # Hamstik addition (CLI-29): whether the Homebrew tap token is
+      # provisioned; the publish job skips (with a loud note) when absent.
+      homebrew_tap_token_present: ${{ steps.tap_token.outputs.present }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -109,13 +112,26 @@ jobs:
       - name: Release gate (tag/version/changelog consistency)
         if: ${{ !github.event.pull_request }}
         run: cargo run --locked -p release-gate -- --tag "$GITHUB_REF_NAME"
+      # Hamstik addition (CLI-29): surface only the PRESENCE of the tap
+      # token for the publish job's skip logic. GitHub masks the secret
+      # value; this step never prints it.
+      - id: tap_token
+        name: Check Homebrew tap token presence
+        run: |
+          if [ -n "${HOMEBREW_TAP_TOKEN:-}" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
       - name: Install dist
         # we specify bash to get pipefail; it guards against the `curl` command
         # failing. otherwise `sh` won't catch that `curl` returned non-0
         shell: bash
         run: "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.32.0/cargo-dist-installer.sh | sh"
       - name: Cache dist
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: cargo-dist-cache
           path: ~/.cargo/bin/dist
@@ -131,7 +147,7 @@ jobs:
           cat plan-dist-manifest.json
           echo "manifest=$(jq -c "." plan-dist-manifest.json)" >> "$GITHUB_OUTPUT"
       - name: "Upload dist-manifest.json"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: artifacts-plan-dist-manifest
           path: plan-dist-manifest.json
@@ -169,7 +185,7 @@ jobs:
       - name: enable windows longpaths
         run: |
           git config --global core.longpaths true
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           submodules: recursive
@@ -184,7 +200,7 @@ jobs:
         run: ${{ matrix.install_dist.run }}
       # Get the dist-manifest
       - name: Fetch local artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: artifacts-*
           path: target/distrib/
@@ -228,7 +244,7 @@ jobs:
 
           cp dist-manifest.json "$BUILD_MANIFEST_NAME"
       - name: "Upload artifacts"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: artifacts-build-local-${{ join(matrix.targets, '_') }}
           path: |
@@ -293,11 +309,27 @@ jobs:
             --manifest-path crates/hamstik-api-client/Cargo.toml
       - name: Collect SBOMs
         run: |
-          mkdir -p target/distrib
+          mkdir -p target/distrib winget
           mv crates/hamstik-cli/hamstik-cli.cdx.json target/distrib/
           mv crates/hamstik-api-client/hamstik-api-client.cdx.json target/distrib/
+      # Hamstik addition (CLI-29): generate Winget manifests for stable
+      # releases (prereleases are skipped; manifests are only for stable
+      # X.Y.Z). The manifests are committed to this repo; a maintainer PRs
+      # them to microsoft/winget-pkgs per design/INSTALL.md.
+      - name: Generate Winget manifests
+        if: ${{ !fromJson(needs.plan.outputs.val).announcement_is_prerelease }}
+        run: |
+          python3 scripts/generate_winget_manifests.py \
+            --version "$(jq --raw-output '.releases[0].app_version' dist-manifest.json)" \
+            --tag "$GITHUB_REF_NAME" \
+            --sha256sum target/distrib/sha256.sum \
+            --date "$(date --utc +%F)" \
+            --out winget
       - name: "Upload artifacts"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        # Hamstik note (CLI-29): on prereleases winget/ is intentionally
+        # empty; warn instead of failing the upload.
+        if-no-files-found: warn
         with:
           name: artifacts-build-global
           path: |
@@ -305,6 +337,7 @@ jobs:
             ${{ env.BUILD_MANIFEST_NAME }}
             target/distrib/hamstik-cli.cdx.json
             target/distrib/hamstik-api-client.cdx.json
+            winget/
   # Determines if we should publish/announce
   host:
     needs:
@@ -328,19 +361,19 @@ jobs:
     outputs:
       val: ${{ steps.host.outputs.manifest }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           submodules: recursive
       - name: Install cached dist
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: cargo-dist-cache
           path: ~/.cargo/bin/
       - run: chmod +x ~/.cargo/bin/dist
       # Fetch artifacts from scratch-storage
       - name: Fetch artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: artifacts-*
           path: target/distrib/
@@ -364,6 +397,9 @@ jobs:
           subject-path: |
             target/distrib/hamstik-cli-*.tar.gz
             target/distrib/hamstik-cli-*.zip
+            target/distrib/*installer*.sh
+            target/distrib/*installer*.ps1
+            target/distrib/*.rb
             target/distrib/source.tar.gz
             target/distrib/*.cdx.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -371,7 +407,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for file in target/distrib/hamstik-cli-*.tar.gz target/distrib/hamstik-cli-*.zip target/distrib/source.tar.gz target/distrib/*.cdx.json; do
+          for file in target/distrib/hamstik-cli-*.tar.gz target/distrib/hamstik-cli-*.zip target/distrib/*installer*.sh target/distrib/*installer*.ps1 target/distrib/*.rb target/distrib/source.tar.gz target/distrib/*.cdx.json; do
             gh attestation verify "$file" --bundle "${{ steps.attest.outputs.bundle-path }}" --repo "$GITHUB_REPOSITORY"
           done
           echo "all attestations verified"
@@ -383,14 +419,14 @@ jobs:
           cat dist-manifest.json
           echo "manifest=$(jq -c "." dist-manifest.json)" >> "$GITHUB_OUTPUT"
       - name: "Upload dist-manifest.json"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           # Overwrite the previous copy
           name: artifacts-dist-manifest
           path: dist-manifest.json
       # Create a GitHub Release while uploading all files to it
       - name: "Download GitHub Artifacts"
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: artifacts-*
           path: artifacts
@@ -409,23 +445,121 @@ jobs:
           # Write and read notes from a file to avoid quoting breaking things
           echo "$ANNOUNCEMENT_BODY" > $RUNNER_TEMP/notes.txt
 
-          # dist's upload step ships every file in target/distrib/ — including
-          # the CLI-28 SBOMs collected there — with the release assets.
           gh release create "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
+
+  # Hamstik modification (CLI-29): publishes the dist-generated Homebrew
+  # formula to blackboardstudios/homebrew-hamstik per release. Cross-repo
+  # push needs a fine-grained PAT with Contents:write on the tap repo only,
+  # stored as the HOMEBREW_TAP_TOKEN secret (design/INSTALL.md §Homebrew).
+  # The job is skipped for prereleases (formula churn without a stable
+  # release) unless publish-prereleases is set.
+  publish-homebrew-formula:
+    needs:
+      - plan
+      - host
+    runs-on: "ubuntu-22.04"
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PLAN: ${{ needs.plan.outputs.val }}
+      GITHUB_USER: "hamstik-release-bot"
+      GITHUB_EMAIL: "noreply@blackboardstudios.com"
+    if: ${{ (!fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases) && needs.plan.outputs.homebrew_tap_token_present == 'true' }}
+    steps:
+      # Hamstik note (CLI-29): the tap push needs a dedicated fine-grained PAT
+      # (Contents:write on the tap repo only) stored as HOMEBREW_TAP_TOKEN;
+      # until it is provisioned the job skips with a loud warning instead of
+      # failing the whole release (design/INSTALL.md §tap token).
+      - name: Require tap token
+        if: ${{ needs.plan.outputs.homebrew_tap_token_present != 'true' }}
+        run: |
+          echo "HOMEBREW_TAP_TOKEN is not configured; skipping Homebrew tap publish." | tee "$GITHUB_STEP_SUMMARY"
+          echo "Provision it per design/INSTALL.md §tap token to publish the formula automatically." | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: ${{ needs.plan.outputs.homebrew_tap_token_present == 'true' }}
+        with:
+          persist-credentials: true
+          repository: "blackboardstudios/homebrew-hamstik"
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      - name: Fetch homebrew formulae
+        if: ${{ needs.plan.outputs.homebrew_tap_token_present == 'true' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: artifacts-*
+          path: Formula/
+          merge-multiple: true
+      # Hamstik addition (CLI-29): dist 0.32.0 emits url blocks without the
+      # sha256 lines Homebrew audit requires; inject each archive's sha256
+      # from the release's sha256.sum next to its url line.
+      - name: Inject formula checksums
+        if: ${{ needs.plan.outputs.homebrew_tap_token_present == 'true' }}
+        run: |
+          set -euo pipefail
+          # Fetch the aggregate checksums from the just-published release
+          TAG_NAME="${{ needs.plan.outputs.tag }}"
+          gh release download "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --pattern sha256.sum --output /tmp/sha256.sum
+          for formula in Formula/*.rb; do
+            python3 - "$formula" /tmp/sha256.sum <<'PYEOF'
+          import re, sys
+
+          formula_path, sums_path = sys.argv[1], sys.argv[2]
+          text = open(formula_path).read()
+          sums = {}
+          for line in open(sums_path):
+              digest, _, name = line.partition(" *")
+              name = name.strip() or line.split()[1].strip("*")
+              sums[name] = digest.strip()
+          # After each url "..." line, insert the sha256 line for that archive.
+          def repl(match):
+              url = match.group(1)
+              archive = url.rsplit("/", 1)[-1]
+              digest = sums.get(archive)
+              if digest is None:
+                  sys.exit(f"no sha256 found for {archive}")
+              return f'url "{url}"\n    sha256 "{digest}"'
+          new_text, count = re.subn(r'url "([^"]+)"', repl, text)
+          if count == 0:
+              sys.exit(f"no url lines found in {formula_path}")
+          open(formula_path, "w").write(new_text)
+          print(f"injected {count} sha256 line(s) into {formula_path}")
+          PYEOF
+          done
+      # This is extra complex because you can make your Formula name not match your app name
+      # so we need to find releases with a *.rb file, and publish with that filename.
+      - name: Commit formula files
+        if: ${{ needs.plan.outputs.homebrew_tap_token_present == 'true' }}
+        run: |
+          git config --global user.name "${GITHUB_USER}"
+          git config --global user.email "${GITHUB_EMAIL}"
+
+          for release in $(echo "$PLAN" | jq --compact-output '.releases[] | select([.artifacts[] | endswith(".rb")] | any)'); do
+            filename=$(echo "$release" | jq '.artifacts[] | select(endswith(".rb"))' --raw-output)
+            name=$(echo "$filename" | sed "s/\.rb$//")
+            version=$(echo "$release" | jq .app_version --raw-output)
+
+            export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+            brew update
+            # We avoid reformatting user-provided data such as the app description and homepage.
+            brew style --except-cops FormulaAudit/Homepage,FormulaAudit/Desc,FormulaAuditStrict --fix "Formula/${filename}" || true
+
+            git add "Formula/${filename}"
+            git commit -m "${name} ${version}"
+          done
+          git push
 
   announce:
     needs:
       - plan
       - host
+      - publish-homebrew-formula
     # use "always() && ..." to allow us to wait for all publish jobs while
     # still allowing individual publish jobs to skip themselves (for prereleases).
     # "host" however must run to completion, no skipping allowed!
-    if: ${{ always() && needs.host.result == 'success' }}
+    if: ${{ always() && needs.host.result == 'success' && (needs.publish-homebrew-formula.result == 'skipped' || needs.publish-homebrew-formula.result == 'success') }}
     runs-on: "ubuntu-22.04"
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           submodules: recursive

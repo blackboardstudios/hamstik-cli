@@ -22,8 +22,42 @@ scripts, and agent workflows.
 
 ## Quick start
 
-The CLI is not yet distributed as an installable package. Build it from source
-and install the resulting development binary into Cargo's binary directory:
+### Install a release (recommended)
+
+Stable releases publish installers and archives for macOS (Homebrew +
+installer script), Windows (PowerShell installer + archives), and Linux
+(shell installer + archives) — see [design/INSTALL.md](design/INSTALL.md)
+for every channel and its upgrade/uninstall steps:
+
+```bash
+# macOS — Homebrew
+brew tap blackboardstudios/hamstik https://github.com/blackboardstudios/homebrew-hamstik
+brew install blackboardstudios/hamstik/hamstik
+
+# Linux — shell installer
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/blackboardstudios/hamstik-cli/releases/latest/download/hamstik-cli-installer.sh \
+  | sh
+
+# Windows — PowerShell installer
+irm https://github.com/blackboardstudios/hamstik-cli/releases/latest/download/hamstik-cli-installer.ps1 | iex
+```
+
+Verify any downloaded release per [design/SIGNING.md](design/SIGNING.md)
+(checksums + `gh attestation verify`). Then sign in and start working; the
+Personal Access Token is stored in the OS credential store:
+
+```bash
+hamstik auth login --with-token      # reads the PAT from stdin
+hamstik context init --org acme --project HAM
+hamstik work list --mine
+hamstik work start HAM-1
+```
+
+### Build from source
+
+The CLI is not yet on crates.io. Build it from source and install the
+resulting binary into Cargo's binary directory:
 
 ```bash
 git clone https://github.com/blackboardstudios/hamstik-cli.git
@@ -36,15 +70,6 @@ hamstik --version
 
 If Cargo's binary directory is not on `PATH`, invoke the workspace build as
 `./target/debug/hamstik` (or `target\debug\hamstik.exe` on Windows).
-Then sign in and start working; the Personal Access Token is stored in the OS
-credential store:
-
-```bash
-hamstik auth login --with-token      # reads the PAT from stdin
-hamstik context init --org acme --project HAM
-hamstik work list --mine
-hamstik work start HAM-1
-```
 
 ## Terminal banner
 

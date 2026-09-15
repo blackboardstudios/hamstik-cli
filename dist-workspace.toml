@@ -8,10 +8,22 @@ members = ["cargo:."]
 cargo-dist-version = "0.32.0"
 # CI backends to support
 ci = "github"
-# The installers to generate for each app. Installer work (shell/PowerShell,
-# Homebrew, Winget, package managers) belongs to CLI-29 and is added there;
-# CLI-27 ships standalone archives only.
-installers = []
+# The installers to generate for each app (CLI-29): a curl-able POSIX shell
+# installer, a Windows PowerShell installer, and a Homebrew formula (SPEC
+# §68–§70 decisions in design/INSTALL.md). Winget manifests are maintained
+# separately (generated per release, manually PR'd to microsoft/winget-pkgs).
+installers = ["shell", "powershell", "homebrew"]
+# The GitHub repository to publish the Homebrew formula to per release
+# (conventional `homebrew-` prefix). Users install with:
+#   brew tap blackboardstudios/hamstik https://github.com/blackboardstudios/homebrew-hamstik
+#   brew install blackboardstudios/hamstik/hamstik
+tap = "blackboardstudios/homebrew-hamstik"
+# Publish the Homebrew formula to the tap during the release pipeline's
+# publish phase. The builtin publish job checks out the tap with
+# `secrets.HOMEBREW_TAP_TOKEN` — a fine-grained PAT with Contents:write on
+# the tap repo only (cross-repo pushes are outside the default GITHUB_TOKEN's
+# scope; see design/INSTALL.md §Homebrew).
+publish-jobs = ["homebrew"]
 # Target platforms to build apps for (Rust target-triple syntax). This is the
 # documented supported release matrix (design/RELEASE.md); aarch64-pc-windows-msvc
 # and the musl targets are deliberately excluded (rationale in design/RELEASE.md).
@@ -26,17 +38,13 @@ windows-archive = ".zip"
 pr-run-mode = "plan"
 # release.yml carries deliberate, locally maintained modifications on top of
 # dist's generated output (release gate, artifact smoke tests, least-privilege
-# permissions, narrowed tag trigger — each marked in the workflow file). This
-# tells dist to stop freshness-checking that file. To regenerate after a
-# cargo-dist upgrade: temporarily remove this line, run `dist generate`,
-# re-apply the marked modifications, then restore the line (see the
-# maintenance note in .github/workflows/release.yml and design/RELEASE.md).
+# permissions, narrowed tag trigger, SBOM/attestations, Homebrew publish —
+# each marked in the workflow file). This tells dist to stop freshness-checking
+# that file. To regenerate after a cargo-dist upgrade: temporarily remove this
+# line, run `dist generate`, re-apply the marked modifications, then restore
+# the line (see the maintenance note in .github/workflows/release.yml and
+# design/RELEASE.md).
 allow-dirty = ["ci"]
-# release.yml carries deliberate, locally maintained modifications on top of
-# dist's generated output (release gate, artifact smoke tests, least-privilege
-# permissions, narrowed tag trigger). This tells dist to stop checking the
-# file for freshness; `dist generate` must be re-run manually on tooling
-# upgrades and the marked modifications re-applied (design/RELEASE.md).
 
 # Third-party GitHub Actions pinned to immutable commits (repository policy;
 # SHA of the exact version dist 0.32.0 would otherwise reference by tag).
