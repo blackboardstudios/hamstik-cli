@@ -654,12 +654,38 @@ The detailed product and technical direction lives in:
 - [design/RELEASE.md](design/RELEASE.md) — release build system: supported
   target matrix, tag-triggered versioned archives, the version/tag
   consistency gate, and artifact smoke tests
+- [design/SIGNING.md](design/SIGNING.md) — release integrity, provenance
+  attestations, SBOM, the signing threat model, and verification steps
 
 Notable changes are tracked in [CHANGELOG.md](CHANGELOG.md) following the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
 These documents are authoritative for the CLI's architecture and command
 surface. This README intentionally stays higher level.
+
+## Verifying release downloads
+
+Every release ships per-file sha256 checksums, an aggregate `sha256.sum`,
+CycloneDX SBOMs, and Sigstore build-provenance attestations. Before running a
+downloaded binary, verify it:
+
+```bash
+# Integrity: checksums (run inside the folder of downloaded files)
+sha256sum -c sha256.sum
+
+# Authenticity: provenance (requires the GitHub CLI, gh >= 2.57)
+gh attestation verify hamstik-cli-x86_64-unknown-linux-gnu.tar.gz \
+  --repo blackboardstudios/hamstik-cli
+
+# Identity: the binary reports its exact build
+./hamstik-cli-x86_64-unknown-linux-gnu/hamstik version
+```
+
+A download is trustworthy when all three hold. `gh attestation verify` fails
+on missing, tampered, or foreign attestations; the release pipeline itself
+runs the same checks before publishing. Full details, including the threat
+model and the deferred platform-signing decision:
+[design/SIGNING.md](design/SIGNING.md).
 
 ## Contributing
 

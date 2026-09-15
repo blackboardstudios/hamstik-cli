@@ -33,6 +33,11 @@
 #    CHANGELOG.md disagree (CLI-27).
 # 5. Artifact smoke-test step in `build-local-artifacts` running
 #    scripts/release_smoke.py against every archive the job produced.
+# 6. CLI-28 supply-chain steps: CycloneDX SBOM generation in
+#    `build-global-artifacts`; in `host`, fail-closed `sha256sum -c` +
+#    Sigstore build-provenance attestations + local bundle verification
+#    BEFORE publication, and SBOM upload alongside release assets. The
+#    host job also carries `id-token: write` / `attestations: write`.
 
 name: Release
 # Hamstik modification (CLI-27): least-privilege baseline; jobs that need to
@@ -243,19 +248,19 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUILD_MANIFEST_NAME: target/distrib/global-dist-manifest.json
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           submodules: recursive
       - name: Install cached dist
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: cargo-dist-cache
           path: ~/.cargo/bin/
       - run: chmod +x ~/.cargo/bin/dist
       # Get all the local artifacts for the global tasks to use (for e.g. checksums)
       - name: Fetch local artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: artifacts-*
           path: target/distrib/
@@ -272,13 +277,34 @@ jobs:
           echo "EOF" >> "$GITHUB_OUTPUT"
 
           cp dist-manifest.json "$BUILD_MANIFEST_NAME"
+      # Hamstik addition (CLI-28): CycloneDX SBOMs generated from the
+      # committed Cargo.lock for the two released-in-lockstep crates, shipped
+      # with each release so downstream consumers can audit the exact
+      # dependency set (design/SIGNING.md §SBOM).
+      - name: Install Rust toolchain for the SBOM
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - name: Install cargo-cyclonedx
+        run: cargo install cargo-cyclonedx --version 0.5.9 --locked
+      - name: Generate SBOMs
+        run: |
+          cargo cyclonedx --spec-version 1.5 --format json --describe crate \
+            --manifest-path crates/hamstik-cli/Cargo.toml
+          cargo cyclonedx --spec-version 1.5 --format json --describe crate \
+            --manifest-path crates/hamstik-api-client/Cargo.toml
+      - name: Collect SBOMs
+        run: |
+          mkdir -p target/distrib
+          mv crates/hamstik-cli/hamstik-cli.cdx.json target/distrib/
+          mv crates/hamstik-api-client/hamstik-api-client.cdx.json target/distrib/
       - name: "Upload artifacts"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: artifacts-build-global
           path: |
             ${{ steps.cargo-dist.outputs.paths }}
             ${{ env.BUILD_MANIFEST_NAME }}
+            target/distrib/hamstik-cli.cdx.json
+            target/distrib/hamstik-api-client.cdx.json
   # Determines if we should publish/announce
   host:
     needs:
@@ -289,10 +315,13 @@ jobs:
     if: ${{ always() && needs.plan.result == 'success' && needs.plan.outputs.publishing == 'true' && (needs.build-global-artifacts.result == 'skipped' || needs.build-global-artifacts.result == 'success') && (needs.build-local-artifacts.result == 'skipped' || needs.build-local-artifacts.result == 'success') }}
     # Hamstik modification (CLI-27): `contents: write` is required to create
     # the GitHub Release and upload assets; `actions: write` covers the
-    # manifest artifact upload below.
+    # manifest artifact upload below. CLI-28 adds `id-token: write` (Sigstore
+    # OIDC for attestations) and `attestations: write` (attestations API).
     permissions:
       contents: write
       actions: write
+      id-token: write
+      attestations: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: "ubuntu-22.04"
@@ -316,6 +345,36 @@ jobs:
           pattern: artifacts-*
           path: target/distrib/
           merge-multiple: true
+      # Hamstik addition (CLI-28): fail closed on checksum mismatch BEFORE
+      # anything is published — every fetched artifact must match the
+      # published sha256.sum (design/SIGNING.md §Fail-closed enforcement).
+      - name: Verify checksums (fail closed)
+        working-directory: target/distrib
+        run: sha256sum -c sha256.sum
+      # Hamstik addition (CLI-28): generate Sigstore build-provenance
+      # attestations binding each downloadable asset (archives, source
+      # tarball, SBOMs) to this repository's build, then verify the bundle
+      # locally — all BEFORE the release is published. Uses a short-lived
+      # Sigstore certificate via the workflow OIDC identity; no keys to
+      # custody (design/SIGNING.md §Decision 2).
+      - id: attest
+        name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: |
+            target/distrib/hamstik-cli-*.tar.gz
+            target/distrib/hamstik-cli-*.zip
+            target/distrib/source.tar.gz
+            target/distrib/*.cdx.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify attestations (fail closed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in target/distrib/hamstik-cli-*.tar.gz target/distrib/hamstik-cli-*.zip target/distrib/source.tar.gz target/distrib/*.cdx.json; do
+            gh attestation verify "$file" --bundle "${{ steps.attest.outputs.bundle-path }}" --repo "$GITHUB_REPOSITORY"
+          done
+          echo "all attestations verified"
       - id: host
         shell: bash
         run: |
@@ -351,6 +410,10 @@ jobs:
           echo "$ANNOUNCEMENT_BODY" > $RUNNER_TEMP/notes.txt
 
           gh release create "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
+          # Hamstik addition (CLI-28): ship the CycloneDX SBOMs alongside the
+          # other release assets (attested above; design/SIGNING.md §SBOM).
+          gh release upload "${{ needs.plan.outputs.tag }}" \
+            target/distrib/hamstik-cli.cdx.json target/distrib/hamstik-api-client.cdx.json
 
   announce:
     needs:

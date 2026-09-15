@@ -10,6 +10,19 @@ before upgrading.
 
 ## [Unreleased]
 
+### Added
+
+- Release supply-chain verification (CLI-28): every release now publishes
+  CycloneDX 1.5 SBOMs (`hamstik-cli.cdx.json`,
+  `hamstik-api-client.cdx.json`) generated from the committed `Cargo.lock`,
+  and Sigstore build-provenance attestations for every downloadable asset.
+  The release pipeline verifies all checksums and attestations before
+  anything is published and fails closed on a mismatch. Verify downloads
+  with `sha256sum -c sha256.sum` and `gh attestation verify <artifact>
+  --repo blackboardstudios/hamstik-cli`; see `design/SIGNING.md` for the
+  threat model and the deferred platform-signing decision (Windows
+  Authenticode and macOS notarization await certificate provisioning).
+
 ## [0.1.0] - 2026-09-15
 
 ### Added

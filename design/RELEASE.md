@@ -169,6 +169,12 @@ metadata):
   checksums/signatures as the final integrity mechanism)
 - `source.tar.gz` and `sha256.sum`
 
+CLI-28 adds two SBOM assets per release — `hamstik-cli.cdx.json` and
+`hamstik-api-client.cdx.json` (CycloneDX 1.5 JSON, generated from the
+committed `Cargo.lock` by a version-pinned `cargo-cyclonedx`) — plus
+Sigstore build-provenance attestations for every downloadable asset,
+verified before publication (see [design/SIGNING.md](SIGNING.md)).
+
 Each archive contains:
 
 ```text
@@ -283,6 +289,13 @@ CLI-1 treats as "where practical"):
 - No signing keys, no signing services, no attestations: intentionally
   absent (CLI-28). cargo-dist's incidental per-archive `.sha256` files
   are kept as useful defaults, not as the final integrity mechanism.
+
+CLI-28 adds the supply-chain layer on top of this pipeline: CycloneDX
+SBOMs from the committed `Cargo.lock` and Sigstore build-provenance
+attestations, both verified fail-closed before the release is published.
+The integrity/authenticity design, threat model, verification procedure,
+and the deferred platform-signing decision are documented in
+[design/SIGNING.md](SIGNING.md).
 
 ## Local maintenance workflow
 
