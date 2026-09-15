@@ -125,6 +125,105 @@ GitHub Actions publisher. The chosen sustainable path:
 The manifests embed no credentials, only public release URLs and
 checksums.
 
+## Upgrading, uninstalling, and rollback (all channels)
+
+### Upgrading
+
+- **Homebrew**: `brew update && brew upgrade blackboardstudios/hamstik/hamstik`
+  (the tap is updated automatically per stable release).
+- **Shell / PowerShell installers**: re-run the installer for the new
+  release (they always install the version they were generated for, and
+  replace the previously installed binary in place).
+- **Direct download**: download the new archive, verify it
+  (design/SIGNING.md), replace the old binary.
+- **Winget** (once the manifest path is live): `winget upgrade
+  BlackboardStudios.HamstikCLI`.
+- There is no silent self-update and no telemetry (SPEC §73); updates
+  happen only through the channel you installed from, on your command.
+
+### Uninstalling
+
+- **Homebrew**: `brew uninstall blackboardstudios/hamstik/hamstik`
+  (and optionally `brew untap blackboardstudios/hamstik`).
+- **Installers / direct download**: delete the installed binary directory
+  (`~/.cargo/bin/hamstik` for the default installer path; the directory
+  printed at install time otherwise) and remove any PATH line the
+  installer added (`~/.cargo/env` or `~/.profile`).
+- **Winget**: `winget uninstall BlackboardStudios.HamstikCLI`.
+
+Credentials are never touched by uninstalling: the OS keyring entry
+stays until `hamstik auth logout` (run before uninstalling if you want a
+clean machine) or keychain/credential-manager removal.
+
+### Rolling back to a known-good version
+
+All channels keep prior versions downloadable — rollback is a manual
+re-install of the previous release:
+
+1. Open the release list: https://github.com/blackboardstudios/hamstik-cli/releases
+2. Download the prior release's installer (or archive), verify it
+   (design/SIGNING.md), and install it over the current one — every
+   installer is version-pinned to the release it was generated for, so
+   old installer scripts remain valid and install the old version.
+3. Homebrew users can pin: `brew install
+   blackboardstudios/hamstik/hamstik` from the tapped formula's history
+   (`brew extract` to a local tap), or simply keep the previous archive
+   binary alongside the new one until the regression is resolved.
+4. `hamstik version` must report the rolled-back version — that check
+   is the rollback's acceptance test.
+
+### Broken or yanked releases
+
+The project does not delete published releases (links must stay
+resolvable); a broken release is handled as follows:
+
+1. **Mark it**: a maintainer edits the GitHub Release, prepends
+   `⚠️ BROKEN — do not use; see <issue link> — fixed in vX.Y.Z` to the
+   notes, and checks *Set as pre-release* (removes it from the
+   "Latest" tag resolution that `latest/download` installers use).
+2. **Re-point `latest`**: publish the fixed release immediately after;
+   the installer scripts (which fetch `latest/download`) then serve the
+   fixed version. If the fix requires more time, additionally disable
+   the release's assets (`gh release untag`/asset deletion) so downloads
+   fail closed rather than serving a broken binary — announcement with
+   the recovery version is mandatory either way.
+3. **Recover**: users roll back per the rollback section above, then
+   upgrade to the fixed version through their normal channel.
+4. **Post-mortem**: the maintainer records the root cause in the
+   next release's changelog `Fixed` section, and adds a release-gate
+   regression test when the escape was automatable (the pipeline's
+   fail-closed checks — release gate, smoke tests, checksums,
+   attestations — are the first line of defense; this procedure covers
+   what ships despite them).
+
+Maintainer yank procedure: mark → fix-forward → document. Deleting a
+release or its assets is reserved for legal/security takedowns only.
+
+## Troubleshooting installation problems (credential-safe)
+
+Never include PATs, `Authorization` headers, keyring contents, or
+signing credentials in bug reports. Diagnose with the offline, redacted
+surfaces only:
+
+```bash
+hamstik --help                 # binary starts at all
+hamstik version                # which build you are actually running
+hamstik doctor --local-only    # offline diagnostic, redacted report
+hamstik context explain        # precedence/diagnosis, secrets shown only as present/absent
+```
+
+- "cannot determine the configuration directory" → set `HAMSTIK_CONFIG`
+  to an explicit path (SPEC §23); do not hand-edit config state.
+- Installer fetch failures → check the release URL and your proxy; the
+  installers only talk to github.com.
+- Version mismatch after install → `hamstik version` shows the
+  embedded build identity (`commit`/`target`); compare `commit` against
+  the release tag — a mismatch means PATH is resolving a different
+  install (e.g. a stale earlier `cargo install`), not a broken release.
+- When filing an issue, include: the `hamstik version` JSON, the
+  `doctor --local-only` JSON report, `context explain` output, and the
+  installer/architecture you used — all four are redacted by design.
+
 ## Post-install smoke test (all channels)
 
 After installing, verify:

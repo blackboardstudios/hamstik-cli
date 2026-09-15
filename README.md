@@ -681,6 +681,9 @@ The detailed product and technical direction lives in:
   consistency gate, and artifact smoke tests
 - [design/SIGNING.md](design/SIGNING.md) — release integrity, provenance
   attestations, SBOM, the signing threat model, and verification steps
+- [design/INSTALL.md](design/INSTALL.md) — installation channels,
+  upgrade/uninstall/rollback procedures, broken-release handling, and
+  credential-safe troubleshooting
 
 Notable changes are tracked in [CHANGELOG.md](CHANGELOG.md) following the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.

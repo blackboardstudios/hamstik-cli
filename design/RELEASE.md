@@ -311,3 +311,70 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"
 
 `dist build` writes `dist-manifest.json` to the working directory and
 archives to `target/distrib/`.
+
+## Maintainer release procedure (end-to-end)
+
+The full path from "decide to release" to "verified published release".
+Everything except step 1's content decisions is automated by the
+pipeline; each step's failure mode fails closed.
+
+1. **Version preparation** (VERSIONING.md §8–§9):
+   - decide the SemVer bump per VERSIONING.md §4–§7;
+   - bump `[workspace.package] version` in the root `Cargo.toml` (the
+     single version source — the gate and `hamstik version` both read
+     it);
+   - rename `## [Unreleased]` in `CHANGELOG.md` to
+     `## [<version>] - <date>` and start a fresh `## [Unreleased]`;
+   - link the new release in the changelog's reference list;
+   - `cargo build -p hamstik-cli` refreshes `Cargo.lock` versions;
+   - run the local checks above with `--tag v<version>` — the gate
+     must PASS before tagging.
+2. **CI on main**: commit, push, wait for the CI workflow to be green
+   (fmt, clippy, tests, release build, advisories).
+3. **Tag**: `git tag -a v<version> -m "<summary>" && git push origin
+   v<version>`. This is the only action that triggers a release.
+4. **Pipeline (automatic)**: plan job → release gate (tag/version/
+   changelog) → `dist host --steps=create` → five native build jobs
+   (build, package, **artifact smoke tests**) → global job (checksums,
+   source tarball, SBOMs, winget manifests) → host job (fail-closed
+   checksum + attestation verification, then upload + publish) →
+   Homebrew tap publish (stable releases; needs `HOMEBREW_TAP_TOKEN`)
+   → announce.
+5. **Post-release checks** (maintainer):
+   - release assets complete: 5 archives + sidecars, `sha256.sum`,
+     `source.tar.gz`, installers, formula, SBOMs
+     (`gh release view vX.Y.Z --json assets`);
+   - verification from a clean download: `sha256sum -c sha256.sum`,
+     `gh attestation verify <artifact> --repo blackboardstudios/hamstik-cli`,
+     run the installed binary's `hamstik version` and compare with the tag;
+   - release notes are the changelog section verbatim plus dist's
+     install/download tables (dist derives them — no hand-editing);
+   - Homebrew tap shows the new formula commit (or the skip note if
+     `HOMEBREW_TAP_TOKEN` is unprovisioned);
+   - winget manifests generated in the run artifacts → maintainer opens
+     the `microsoft/winget-pkgs` PR (design/INSTALL.md §Winget);
+   - user-facing verification link is present in the release notes'
+     changelog section (see below).
+6. **Broken release?** follow design/INSTALL.md §"Broken or yanked
+   releases" (mark → fix-forward → document).
+
+Failure modes anywhere in steps 3–4 leave nothing published (fail
+closed): the gate blocks pre-release, smoke/checksum/attestation
+failures block the host job, and the Homebrew job is isolated from
+release publication.
+
+## Verification link in release notes
+
+Release notes are derived verbatim from the changelog section (CLI-30
+AC: notes are not hand-written per release). To satisfy the "artifact
+verification instructions linked from release notes" criterion, every
+release's changelog section ends with the verification pointer:
+
+```markdown
+Verify downloads per [design/SIGNING.md](SIGNING.md): `sha256sum -c
+sha256.sum` and `gh attestation verify <artifact> --repo
+blackboardstudios/hamstik-cli`.
+```
+
+This renders in the GitHub Release notes automatically because dist
+copies the changelog section into the announcement body.

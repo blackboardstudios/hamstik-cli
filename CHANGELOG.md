@@ -10,6 +10,20 @@ before upgrading.
 
 ## [Unreleased]
 
+### Added
+
+- Release lifecycle documentation (CLI-30): the maintainer release
+  procedure is documented end-to-end in `design/RELEASE.md`
+  (version prep → tag → automated build/publish → post-release checks),
+  broken/yanked-release handling and per-channel rollback in
+  `design/INSTALL.md`, and credential-safe troubleshooting guidance
+  aligned with `doctor --local-only` / `context explain`. Release notes
+  remain derived verbatim from `CHANGELOG.md` (the release pipeline
+  generates the announcement from the renamed section); every release
+  section now carries the artifact-verification pointer so it renders in
+  the release notes. Updates stay channel-based per SPEC §73: no silent
+  self-update, no telemetry, no background version checks.
+
 ## [0.1.1] - 2026-09-15
 
 ### Added
@@ -28,6 +42,11 @@ before upgrading.
   aggregate checksums at publish time, and the tap push requires a
   dedicated fine-grained PAT (`HOMEBREW_TAP_TOKEN`) scoped to the tap
   repository only.
+- Verify downloads per [design/SIGNING.md](SIGNING.md): run
+  `sha256sum -c sha256.sum` against the release's `sha256.sum` and
+  `gh attestation verify <artifact> --repo blackboardstudios/hamstik-cli`
+  (Sigstore build provenance). See also upgrade/uninstall/rollback notes
+  in [design/INSTALL.md](INSTALL.md).
 
 ## [0.1.1-rc.1] - 2026-09-15
 
