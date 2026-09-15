@@ -147,6 +147,11 @@ def clean_environment(home: Path) -> dict[str, str]:
     }
     env["HOME"] = str(home)
     env["USERPROFILE"] = str(home)
+    # The CLI resolves its config directory eagerly for every command (via
+    # platform home-directory APIs that differ per OS — HOME on Linux,
+    # Known Folders on Windows). Pointing HAMSTIK_CONFIG at the scratch home
+    # makes resolution deterministic everywhere (SPEC §23 override).
+    env["HAMSTIK_CONFIG"] = str(home / "config.toml")
     return env
 
 
