@@ -866,7 +866,7 @@ pub trait HamstikApi: Send + Sync {
     async fn whoami(&self) -> Result<ApiResponse<Me>, ClientError>;
     /// `GET /openapi.json`: the unauthenticated Public API contract.
     async fn get_open_api(&self) -> Result<ApiResponse<Value>, ClientError>;
-    /// Generic Public API v1 passthrough (CLI-20): sends one request to
+    /// Generic Public API v1 passthrough: sends one request to
     /// `GET|POST|PATCH|PUT|DELETE /api/v1/<segments...>` with an optional
     /// JSON body, query pairs, allowlisted header overrides, and an optional
     /// idempotency key. Transport-level behavior (auth, TLS, retries,

@@ -1,7 +1,7 @@
 // Copyright 2026 Blackboard Studios
 // SPDX-License-Identifier: Apache-2.0
 
-//! CLI-20: Public API v1 passthrough contract tests.
+//! Public API v1 passthrough contract tests.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 

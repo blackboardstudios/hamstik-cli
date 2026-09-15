@@ -1621,7 +1621,7 @@ async fn link(session: &mut Session<'_>, args: &WorkLinkArgs) -> Result<(), CliE
     }
 }
 
-/// Runs `hamstik work watcher` subcommands (CLI-10 dry-run included).
+/// Runs `hamstik work watcher` subcommands (dry-run included).
 ///
 /// The watcher surface carries no revision guard (no `If-Match`): the server
 /// resolves the authenticated user's own state, and actions are idempotent.

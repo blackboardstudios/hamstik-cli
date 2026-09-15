@@ -4,7 +4,7 @@
 // Contract tests assert with unwrap/expect by design.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-//! CLI-12: `context explain` precedence traces, offline behavior, and
+//! `context explain` precedence traces, offline behavior, and
 //! credential redaction.
 
 use assert_cmd::Command;

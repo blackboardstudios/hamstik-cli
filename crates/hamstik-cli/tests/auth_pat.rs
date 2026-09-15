@@ -5,7 +5,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 //! PAT onboarding, expiry, scope-readiness, and credential-precedence tests
-//! (CLI-4).
+//!.
 
 use assert_cmd::Command;
 use serde_json::{Value, json};

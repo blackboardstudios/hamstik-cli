@@ -1,7 +1,7 @@
 // Copyright 2026 Blackboard Studios
 // SPDX-License-Identifier: Apache-2.0
 
-//! `hamstik api` — Public API metadata and the v1 passthrough (CLI-20).
+//! `hamstik api` — Public API metadata and the v1 passthrough.
 
 use serde_json::{Value, json};
 use std::io::Read as _;

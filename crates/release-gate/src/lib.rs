@@ -1,7 +1,7 @@
 // Copyright 2026 Blackboard Studios
 // SPDX-License-Identifier: Apache-2.0
 
-//! Fail-closed release gate for the Hamstik CLI (CLI-27).
+//! Fail-closed release gate for the Hamstik CLI.
 //!
 //! Enforces the version/tag contract of [`design/VERSIONING.md`] in the
 //! release workflow *before* anything is built or published:

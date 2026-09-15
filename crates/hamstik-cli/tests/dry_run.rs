@@ -4,7 +4,7 @@
 // Contract tests assert with unwrap/expect by design.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-//! Dry-run preview tests (CLI-10): `--dry-run` resolves inputs exactly as a
+//! Dry-run preview tests: `--dry-run` resolves inputs exactly as a
 //! real invocation would but never sends a mutation request, and emits a
 //! versioned preview envelope (JSON mode) or a labeled human summary.
 

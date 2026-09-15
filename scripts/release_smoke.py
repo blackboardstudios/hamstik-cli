@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright 2026 Blackboard Studios
 # SPDX-License-Identifier: Apache-2.0
-"""Smoke-test release archives produced by cargo-dist (CLI-27).
+"""Smoke-test release archives produced by cargo-dist.
 
 Runs the *released artifact itself* — the binary unpacked from the archive a
 user would download — and checks that it starts, reports the release version,

@@ -1,7 +1,7 @@
 // Copyright 2026 Blackboard Studios
 // SPDX-License-Identifier: Apache-2.0
 
-//! Build identity for release/version surfaces (CLI-27).
+//! Build identity for release/version surfaces.
 //!
 //! Emits two compile-time constants consumed by `hamstik version` via
 //! `crates/hamstik-cli/src/build_info.rs`:

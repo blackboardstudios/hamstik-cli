@@ -1,7 +1,7 @@
 // Copyright 2026 Blackboard Studios
 // SPDX-License-Identifier: Apache-2.0
 
-//! Editor-based authoring for long-form text (CLI-7).
+//! Editor-based authoring for long-form text.
 //!
 //! `--editor` launches `$VISUAL` (then `$EDITOR`, then platform defaults)
 //! on a secure temporary file, and uses the resulting content as the

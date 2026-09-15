@@ -1,7 +1,7 @@
 // Copyright 2026 Blackboard Studios
 // SPDX-License-Identifier: Apache-2.0
 
-//! PAT credential readiness reporting (CLI-4).
+//! PAT credential readiness reporting.
 //!
 //! Shared by `auth status`, `me`, and `doctor`: expiry classification and the
 //! granted-scope inventory. The Public API does not publish a scope

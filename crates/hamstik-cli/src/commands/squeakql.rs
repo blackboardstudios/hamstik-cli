@@ -3,7 +3,7 @@
 
 //! `hamstik squeakql` — validate, save, and reuse SqueakQL expressions.
 //!
-//! Query sources (CLI-8), in strict precedence with conflicts rejected at
+//! Query sources, in strict precedence with conflicts rejected at
 //! argument-parse time: inline positional value, `--file <PATH>` (`-` =
 //! stdin), or `--saved <NAME>` from the local `queries.toml`. All three
 //! produce byte-equivalent query values after the documented newline policy:

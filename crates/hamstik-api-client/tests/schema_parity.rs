@@ -4,7 +4,7 @@
 // Contract tests assert with unwrap/expect by design.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-//! Deep parsed-OpenAPI parity guards (CLI-14).
+//! Deep parsed-OpenAPI parity guards.
 //!
 //! These tests fail whenever the checked-in Public API contract changes
 //! request/response semantics that the API client or CLI must deliberately

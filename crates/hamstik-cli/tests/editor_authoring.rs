@@ -4,7 +4,7 @@
 // Contract tests assert with unwrap/expect by design.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-//! CLI-7: editor authoring, consistent stdin (`-`) conventions, and
+//! editor authoring, consistent stdin (`-`) conventions, and
 //! HTTP-boundary proofs that the sent body matches the selected source.
 //!
 //! Unix-only today: every fixture launches a `$VISUAL` shell script, which

@@ -1,7 +1,7 @@
 // Copyright 2026 Blackboard Studios
 // SPDX-License-Identifier: Apache-2.0
 
-//! `--dry-run` previews for mutation commands (CLI-10).
+//! `--dry-run` previews for mutation commands.
 //!
 //! A preview is emitted instead of sending the mutation: the envelope carries
 //! the operation name, the method plus path template, the resolved request

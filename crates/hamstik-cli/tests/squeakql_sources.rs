@@ -4,7 +4,7 @@
 // Contract tests assert with unwrap/expect by design.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-//! CLI-8: SqueakQL query files, stdin, saved queries, and HTTP-boundary
+//! SqueakQL query files, stdin, saved queries, and HTTP-boundary
 //! proofs.
 
 use assert_cmd::Command;

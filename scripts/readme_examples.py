@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Classify and verify the shell examples in README.md (CLI-16).
+"""Classify and verify the shell examples in README.md.
 
 The harness parses the README structurally (fenced code blocks with their
 info string), classifies every shell block, and verifies that each executable

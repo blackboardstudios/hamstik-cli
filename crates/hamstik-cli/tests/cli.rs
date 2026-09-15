@@ -891,7 +891,7 @@ fn version_json_is_machine_readable_and_banner_free() {
     assert!(!stdout.contains(BANNER_ART), "banner leaked into --json");
     let body: Value = serde_json::from_str(&stdout).unwrap();
     assert_eq!(body["version"], env!("CARGO_PKG_VERSION"));
-    // Build identity (CLI-27): additive fields, always present. `commit` is a
+    // Build identity: additive fields, always present. `commit` is a
     // full sha1 or the literal "unknown" (source-tarball builds); `target` is
     // the compile-time Rust target triple.
     assert_eq!(body["target"], hamstik_cli::build_info::TARGET);
@@ -904,7 +904,7 @@ fn version_json_is_machine_readable_and_banner_free() {
 }
 
 /// Human `hamstik version` extends the banner with build-identity lines
-/// (CLI-27); the banner art/footer stay byte-identical to the help surfaces.
+///; the banner art/footer stay byte-identical to the help surfaces.
 #[test]
 fn version_human_output_reports_build_identity() {
     let dir = TempDir::new().unwrap();
@@ -2380,7 +2380,7 @@ async fn work_list_supports_sort_and_archived_filters() {
     assert!(query.contains("topLevel=false"), "{query}");
 }
 
-/// Regression test for CLI-18: `--archived true` selects archived items only.
+/// Regression test for `--archived true` selects archived items only.
 /// It must never be described as "including" archived items alongside active
 /// ones, and omitting the flag must not send the parameter at all (the server
 /// then lists unarchived items).
@@ -2441,7 +2441,7 @@ async fn work_list_archived_flag_is_a_state_filter_not_a_union() {
     assert!(archived_only.contains("archived=true"), "{archived_only}");
 }
 
-/// CLI-18: help text must state the archived-state-filter semantics without
+/// help text must state the archived-state-filter semantics without
 /// implying that active and archived resources are returned together.
 #[test]
 fn archived_help_texts_describe_state_filter_semantics() {

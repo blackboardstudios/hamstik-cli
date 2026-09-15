@@ -4,7 +4,7 @@
 // Contract tests assert with unwrap/expect by design.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-//! Doctor typed-network-failure and local-only mode tests (CLI-13).
+//! Doctor typed-network-failure and local-only mode tests.
 
 use assert_cmd::Command;
 use serde_json::{Value, json};

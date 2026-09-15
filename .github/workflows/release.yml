@@ -13,7 +13,7 @@
 # Note that the GitHub Release will be created with a generated
 # title/body based on your changelogs.
 #
-# HAMSTIK CLI-27/28/29 MAINTENANCE NOTE — this file is `dist generate`
+# HAMSTIK/28/29 MAINTENANCE NOTE — this file is `dist generate`
 # output plus the deliberate, locally maintained modifications below (see
 # design/RELEASE.md, §"Regenerating the release workflow"). Because
 # `allow-dirty = ["ci"]` is set in dist-workspace.toml, dist will not
@@ -31,17 +31,17 @@
 # 4. Release gate steps in the `plan` job: `cargo run -p release-gate`
 #    fails the workflow before the release announcement is created or any
 #    artifact is built when the tag, the workspace version, and
-#    CHANGELOG.md disagree (CLI-27).
+#    CHANGELOG.md disagree.
 # 5. Artifact smoke-test step in `build-local-artifacts` running
 #    scripts/release_smoke.py against every archive the job produced.
-# 6. CLI-28 supply-chain steps: CycloneDX SBOM generation in
+# 6.supply-chain steps: CycloneDX SBOM generation in
 #    `build-global-artifacts`; in `host`, fail-closed `sha256sum -c` +
 #    Sigstore build-provenance attestations + local bundle verification
 #    BEFORE publication. The host job also carries `id-token: write` /
 #    `attestations: write`.
 
 name: Release
-# Hamstik modification (CLI-27): least-privilege baseline; jobs that need to
+# Hamstik modification: least-privilege baseline; jobs that need to
 # create the release or move artifacts opt in to the required scopes below.
 permissions:
   contents: read
@@ -70,7 +70,7 @@ permissions:
 on:
   pull_request:
   push:
-    # Hamstik modification (CLI-27): only version tags per VERSIONING.md §9.
+    # Hamstik modification: only version tags per VERSIONING.md §9.
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
 
@@ -78,7 +78,7 @@ jobs:
   # Run 'dist plan' (or host) to determine what tasks we need to do
   plan:
     runs-on: "ubuntu-22.04"
-    # Hamstik modification (CLI-27): this job needs `contents: write` only
+    # Hamstik modification: this job needs `contents: write` only
     # because on a tag push it creates the release announcement via
     # `dist host --steps=create`; `actions: write` covers the manifest/cache
     # artifact uploads below.
@@ -90,7 +90,7 @@ jobs:
       tag: ${{ !github.event.pull_request && github.ref_name || '' }}
       tag-flag: ${{ !github.event.pull_request && format('--tag={0}', github.ref_name) || '' }}
       publishing: ${{ !github.event.pull_request }}
-      # Hamstik addition (CLI-29): whether the Homebrew tap token is
+      # Hamstik addition: whether the Homebrew tap token is
       # provisioned; the publish job skips (with a loud note) when absent.
       homebrew_tap_token_present: ${{ steps.tap_token.outputs.present }}
     env:
@@ -100,7 +100,7 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      # Hamstik addition (CLI-27): fail closed on version/tag inconsistency
+      # Hamstik addition: fail closed on version/tag inconsistency
       # before the release announcement is created or anything is built. The
       # gate enforces design/VERSIONING.md §1/§8/§9: a `vX.Y.Z` tag must
       # equal the workspace Cargo.toml version and the matching CHANGELOG.md
@@ -112,7 +112,7 @@ jobs:
       - name: Release gate (tag/version/changelog consistency)
         if: ${{ !github.event.pull_request }}
         run: cargo run --locked -p release-gate -- --tag "$GITHUB_REF_NAME"
-      # Hamstik addition (CLI-29): surface only the PRESENCE of the tap
+      # Hamstik addition: surface only the PRESENCE of the tap
       # token for the publish job's skip logic. GitHub masks the secret
       # value; this step never prints it.
       - id: tap_token
@@ -159,7 +159,7 @@ jobs:
     needs:
       - plan
     if: ${{ fromJson(needs.plan.outputs.val).ci.github.artifacts_matrix.include != null && (needs.plan.outputs.publishing == 'true' || fromJson(needs.plan.outputs.val).ci.github.pr_run_mode == 'upload') }}
-    # Hamstik modification (CLI-27): artifact upload/download only needs the
+    # Hamstik modification: artifact upload/download only needs the
     # `actions` scope; no repository write access is granted here.
     permissions:
       actions: write
@@ -213,7 +213,7 @@ jobs:
           # Actually do builds and make zips and whatnot
           dist build ${{ needs.plan.outputs.tag-flag }} --print=linkage --output-format=json ${{ matrix.dist_args }} > dist-manifest.json
           echo "dist ran successfully"
-      # Hamstik addition (CLI-27): artifact-level smoke tests. Runs the
+      # Hamstik addition: artifact-level smoke tests. Runs the
       # binary unpacked from each archive this job just produced (not a
       # cargo build), asserting it starts, reports the release version, and
       # passes an offline diagnostic (see scripts/release_smoke.py). A
@@ -257,7 +257,7 @@ jobs:
       - plan
       - build-local-artifacts
     runs-on: "ubuntu-22.04"
-    # Hamstik modification (CLI-27): artifact upload/download scope only.
+    # Hamstik modification: artifact upload/download scope only.
     permissions:
       actions: write
     env:
@@ -293,7 +293,7 @@ jobs:
           echo "EOF" >> "$GITHUB_OUTPUT"
 
           cp dist-manifest.json "$BUILD_MANIFEST_NAME"
-      # Hamstik addition (CLI-28): CycloneDX SBOMs generated from the
+      # Hamstik addition: CycloneDX SBOMs generated from the
       # committed Cargo.lock for the two released-in-lockstep crates, shipped
       # with each release so downstream consumers can audit the exact
       # dependency set (design/SIGNING.md §SBOM).
@@ -317,7 +317,7 @@ jobs:
           # (a sibling winget/ dir shifted the LCA and nested the paths —
           # found live on the v0.1.1 run).
           mkdir -p winget target/distrib/winget
-      # Hamstik addition (CLI-29): generate Winget manifests for stable
+      # Hamstik addition: generate Winget manifests for stable
       # releases (prereleases are skipped; manifests are only for stable
       # X.Y.Z). The manifests are committed to this repo; a maintainer PRs
       # them to microsoft/winget-pkgs per design/INSTALL.md.
@@ -332,7 +332,7 @@ jobs:
             --out target/distrib/winget
       - name: "Upload artifacts"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        # Hamstik note (CLI-29): on prereleases the winget dir is
+        # Hamstik note: on prereleases the winget dir is
         # intentionally empty; warn instead of failing the upload.
         with:
           if-no-files-found: warn
@@ -351,9 +351,9 @@ jobs:
       - build-global-artifacts
     # Only run if we're "publishing", and only if plan, local and global didn't fail (skipped is fine)
     if: ${{ always() && needs.plan.result == 'success' && needs.plan.outputs.publishing == 'true' && (needs.build-global-artifacts.result == 'skipped' || needs.build-global-artifacts.result == 'success') && (needs.build-local-artifacts.result == 'skipped' || needs.build-local-artifacts.result == 'success') }}
-    # Hamstik modification (CLI-27): `contents: write` is required to create
+    # Hamstik modification: `contents: write` is required to create
     # the GitHub Release and upload assets; `actions: write` covers the
-    # manifest artifact upload below. CLI-28 adds `id-token: write` (Sigstore
+    # manifest artifact upload below.adds `id-token: write` (Sigstore
     # OIDC for attestations) and `attestations: write` (attestations API).
     permissions:
       contents: write
@@ -383,7 +383,7 @@ jobs:
           pattern: artifacts-*
           path: target/distrib/
           merge-multiple: true
-      # Hamstik addition (CLI-28): fail closed on checksum mismatch BEFORE
+      # Hamstik addition: fail closed on checksum mismatch BEFORE
       # anything is published. dist's aggregated sha256.sum is finalized
       # later (it covers source.tar.gz + installers assembled in the host
       # phase), so verify each fetched artifact against its own .sha256
@@ -404,7 +404,7 @@ jobs:
             exit 1
           fi
           echo "all fetched artifacts verified against their .sha256 sidecars"
-      # Hamstik addition (CLI-28): generate Sigstore build-provenance
+      # Hamstik addition: generate Sigstore build-provenance
       # attestations binding each downloadable asset (archives, source
       # tarball, SBOMs) to this repository's build, then verify the bundle
       # locally — all BEFORE the release is published. Uses a short-lived
@@ -455,7 +455,7 @@ jobs:
         run: |
           # Remove the granular manifests
           rm -f artifacts/*-dist-manifest.json
-          # Hamstik note (CLI-29): the winget manifests are fetched with the
+          # Hamstik note: the winget manifests are fetched with the
           # other artifacts (they live under target/distrib/winget/ in the
           # uploaded artifact), but they are NOT release assets — they are
           # committed to this repo and PR'd to microsoft/winget-pkgs by a
@@ -473,7 +473,7 @@ jobs:
 
           gh release create "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
 
-  # Hamstik modification (CLI-29): publishes the dist-generated Homebrew
+  # Hamstik modification: publishes the dist-generated Homebrew
   # formula to blackboardstudios/homebrew-hamstik per release. Cross-repo
   # push needs a fine-grained PAT with Contents:write on the tap repo only,
   # stored as the HOMEBREW_TAP_TOKEN secret (design/INSTALL.md §Homebrew).
@@ -491,7 +491,7 @@ jobs:
       GITHUB_EMAIL: "noreply@blackboardstudios.com"
     if: ${{ (!fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases) && needs.plan.outputs.homebrew_tap_token_present == 'true' }}
     steps:
-      # Hamstik note (CLI-29): the tap push needs a dedicated fine-grained PAT
+      # Hamstik note: the tap push needs a dedicated fine-grained PAT
       # (Contents:write on the tap repo only) stored as HOMEBREW_TAP_TOKEN;
       # until it is provisioned the job skips with a loud warning instead of
       # failing the whole release (design/INSTALL.md §tap token).
@@ -513,7 +513,7 @@ jobs:
           pattern: artifacts-*
           path: Formula/
           merge-multiple: true
-      # Hamstik fix (CLI-29): uploaded artifacts keep their
+      # Hamstik fix: uploaded artifacts keep their
       # target/distrib/... layout relative to the artifact root, so the
       # formula lands nested; hoist every .rb to Formula/ before the
       # checksum-injection and commit steps run.
@@ -523,7 +523,7 @@ jobs:
           set -euo pipefail
           find Formula -name "*.rb" -not -path "Formula/*.rb" -exec mv -t Formula/ {} +
           ls Formula/*.rb
-      # Hamstik note (CLI-29): dist embeds sha256 lines in the formula
+      # Hamstik note: dist embeds sha256 lines in the formula
       # natively when the archives' .sha256 sidecars are present in
       # target/distrib (they are, via the Fetch step above) — no injection
       # step is needed. A redundant injection step crashed on sha256.sum's

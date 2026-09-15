@@ -46,7 +46,7 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
     }
 }
 
-/// True when the command supports `--dry-run` (CLI-10): only mutation
+/// True when the command supports `--dry-run`: only mutation
 /// commands preview; reads have nothing to preview.
 pub(crate) fn supports_dry_run(command: &Command) -> bool {
     match command {
@@ -119,7 +119,7 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
         Command::Label(args) => {
             matches!(args.command, crate::args::LabelCommand::Create { .. })
         }
-        // CLI-20: the passthrough previews mutations; the api handler
+        // the passthrough previews mutations; the api handler
         // rejects --dry-run on GET (reads have nothing to preview).
         Command::Api(args) => {
             matches!(
@@ -131,7 +131,7 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
     }
 }
 
-/// `hamstik version`: release identity for the running binary (CLI-27).
+/// `hamstik version`: release identity for the running binary.
 ///
 /// JSON output keeps the stable `version` field and adds `commit`/`target`
 /// build metadata (additive per design/VERSIONING.md §3). Human output keeps

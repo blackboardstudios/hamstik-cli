@@ -450,7 +450,7 @@ pub async fn run(cli: Cli, services: Services<'_>) -> i32 {
         exit_code: SUCCESS,
     };
 
-    // `--dry-run` is meaningful only for mutation commands (CLI-10); reads
+    // `--dry-run` is meaningful only for mutation commands; reads
     // have nothing to preview, so reject it with a precise explanation.
     if session.global.dry_run && !crate::commands::supports_dry_run(&cli.command) {
         let err = CliError::usage(

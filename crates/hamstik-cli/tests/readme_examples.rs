@@ -4,7 +4,7 @@
 // Contract tests assert with unwrap/expect by design.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-//! README example verification harness tests (CLI-16).
+//! README example verification harness tests.
 //!
 //! The Python harness (`scripts/readme_examples.py`) is what CI runs; these
 //! tests keep it honest: the README must contain the required executable

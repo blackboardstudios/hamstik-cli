@@ -188,15 +188,15 @@ pub struct ApiArgs {
 pub enum ApiCommand {
     /// Print the live Public API OpenAPI document.
     Openapi,
-    /// Call a documented Public API v1 route through the CLI (CLI-20).
+    /// Call a documented Public API v1 route through the CLI.
     Request(RequestArgs),
     /// A bare Public API v1 path (`hamstik api /api/v1/...`) — forwarded to
-    /// `api request` (CLI-20).
+    /// `api request`.
     #[command(external_subcommand)]
     Passthrough(Vec<String>),
 }
 
-/// Arguments for `api request` (CLI-20): a generic Public API v1 passthrough
+/// Arguments for `api request`: a generic Public API v1 passthrough
 /// that reuses the typed commands' transport (auth, TLS, retries,
 /// idempotency, redaction) without ALM-semantics knowledge.
 #[derive(Args, Debug)]

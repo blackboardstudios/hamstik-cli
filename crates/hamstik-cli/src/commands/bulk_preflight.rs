@@ -1,7 +1,7 @@
 // Copyright 2026 Blackboard Studios
 // SPDX-License-Identifier: Apache-2.0
 
-//! Bulk operation preflight (CLI-11).
+//! Bulk operation preflight.
 //!
 //! Validates a bulk operations file against the checked-in Public API
 //! contract — JSON syntax, envelope shape, per-operation required fields,

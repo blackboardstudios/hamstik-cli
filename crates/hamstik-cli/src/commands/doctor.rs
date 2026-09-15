@@ -110,7 +110,7 @@ struct Check {
     duration_ms: Option<u64>,
     request_id: Option<String>,
     error: Option<CheckError>,
-    /// The failing transport stage for network checks (CLI-13).
+    /// The failing transport stage for network checks.
     network_stage: Option<hamstik_api_client::NetworkStage>,
 }
 

@@ -1,7 +1,7 @@
 // Copyright 2026 Blackboard Studios
 // SPDX-License-Identifier: Apache-2.0
 
-//! Compile-time build identity for the release/version surfaces (CLI-27).
+//! Compile-time build identity for the release/version surfaces.
 //!
 //! Every value is a deterministic function of the source tree and the build
 //! target: no timestamps, no environment-dependent release names. `COMMIT`
