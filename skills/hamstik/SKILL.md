@@ -257,6 +257,30 @@ Authorization to change source code does not by itself authorize changing Hamsti
 state. Inspecting referenced work is read-only; every external mutation must remain
 within the user's requested scope.
 
+## Public API passthrough (CLI-20)
+
+When a route exists on the server but no typed command covers it (the checked-in
+OpenAPI snapshot is never an allowlist), call it through the passthrough instead
+of hand-building HTTP requests:
+
+```bash
+hamstik api /api/v1/organizations
+hamstik api request --method POST --field name=Acme /api/v1/organizations
+hamstik api request --method PATCH --body-file body.json /api/v1/organizations/acme
+```
+
+- Only `/api/v1/...` paths are accepted; private/non-v1/traversal/credential paths
+  fail locally (exit 2) before any network access.
+- GET is the default. POST/DELETE get an automatic idempotency key (reused across
+  retries); PATCH/PUT are revision-guarded via `--header "If-Match: <etag>"`.
+- Header overrides are allowlisted (`Accept`, `Content-Type`, `If-Match` only);
+  `Authorization` and credential-bearing headers are rejected.
+- `--json` emits `{ method, path, data, meta? }` — `data` is the server body
+  verbatim, `meta` carries `requestId`/`etag`/`idempotencyReplayed`/`location`/
+  rate-limit snapshot. Report the request ID on failures.
+- `--dry-run` previews the exact request (versioned envelope, nothing sent) and
+  is rejected for GET.
+
 ## Failure handling and safety
 
 - `REVISION_CONFLICT`: re-read, reconcile, and retry only the intended logical change;

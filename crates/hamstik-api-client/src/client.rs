@@ -866,6 +866,21 @@ pub trait HamstikApi: Send + Sync {
     async fn whoami(&self) -> Result<ApiResponse<Me>, ClientError>;
     /// `GET /openapi.json`: the unauthenticated Public API contract.
     async fn get_open_api(&self) -> Result<ApiResponse<Value>, ClientError>;
+    /// Generic Public API v1 passthrough (CLI-20): sends one request to
+    /// `GET|POST|PATCH|PUT|DELETE /api/v1/<segments...>` with an optional
+    /// JSON body, query pairs, allowlisted header overrides, and an optional
+    /// idempotency key. Transport-level behavior (auth, TLS, retries,
+    /// error mapping, redaction, body cap) is identical to typed operations;
+    /// the caller has already validated the path segments.
+    async fn raw_request(
+        &self,
+        method: &str,
+        segments: &[String],
+        query: Vec<(String, String)>,
+        headers: Vec<(String, String)>,
+        body: Option<&Value>,
+        idempotency_key: Option<&str>,
+    ) -> Result<ApiResponse<Value>, ClientError>;
     /// `GET /organizations`: the organizations the user belongs to.
     async fn list_organizations(
         &self,
@@ -1322,6 +1337,42 @@ impl HamstikApi for HamstikClient {
             },
             false,
         )
+        .await
+    }
+
+    async fn raw_request(
+        &self,
+        method: &str,
+        segments: &[String],
+        query: Vec<(String, String)>,
+        headers: Vec<(String, String)>,
+        body: Option<&Value>,
+        idempotency_key: Option<&str>,
+    ) -> Result<ApiResponse<Value>, ClientError> {
+        let http_method = Method::from_bytes(method.as_bytes()).map_err(|err| {
+            ClientError::Protocol(format!("unsupported method {method:?}: {err}"))
+        })?;
+        let mut spec_headers: Vec<(HeaderName, String)> = Vec::new();
+        for (name, value) in headers {
+            let parsed = HeaderName::from_lowercase(name.to_ascii_lowercase().as_bytes()).map_err(
+                |err| ClientError::Protocol(format!("invalid header name {name:?}: {err}")),
+            )?;
+            spec_headers.push((parsed, value));
+        }
+        if let Some(key) = idempotency_key {
+            spec_headers.push((header_idempotency_key(), key.to_string()));
+        }
+        self.send_json(RequestSpec {
+            method: http_method,
+            segments: segments.to_vec(),
+            query,
+            headers: spec_headers,
+            body,
+            // POST/DELETE carry the idempotency key, making retries safe;
+            // GET/PATCH/PUT are either read-only or revision-guarded. The
+            // transport's retry policy applies to all of them.
+            retryable: true,
+        })
         .await
     }
 

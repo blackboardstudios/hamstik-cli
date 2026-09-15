@@ -188,6 +188,51 @@ pub struct ApiArgs {
 pub enum ApiCommand {
     /// Print the live Public API OpenAPI document.
     Openapi,
+    /// Call a documented Public API v1 route through the CLI (CLI-20).
+    Request(RequestArgs),
+    /// A bare Public API v1 path (`hamstik api /api/v1/...`) — forwarded to
+    /// `api request` (CLI-20).
+    #[command(external_subcommand)]
+    Passthrough(Vec<String>),
+}
+
+/// Arguments for `api request` (CLI-20): a generic Public API v1 passthrough
+/// that reuses the typed commands' transport (auth, TLS, retries,
+/// idempotency, redaction) without ALM-semantics knowledge.
+#[derive(Args, Debug)]
+pub struct RequestArgs {
+    /// The Public API v1 path (must start with `/api/v1/`).
+    #[arg(value_name = "PATH")]
+    pub path: String,
+
+    /// HTTP method (GET is the default; the route's documented methods apply).
+    #[arg(long, value_name = "METHOD", default_value = "GET",
+        value_parser = ["GET", "POST", "PATCH", "PUT", "DELETE"])]
+    pub method: String,
+
+    /// Read the JSON request body from this file; `-` reads stdin.
+    #[arg(long, value_name = "FILE", conflicts_with = "field")]
+    pub body_file: Option<String>,
+
+    /// Structured JSON field as `key=value`; repeatable. Value is parsed as
+    /// JSON when it parses, else a JSON string.
+    #[arg(long, value_name = "KEY=VALUE")]
+    pub field: Vec<String>,
+
+    /// Query parameter as `key=value`; repeatable (allowlisted, ordered).
+    #[arg(long, value_name = "KEY=VALUE")]
+    pub query: Vec<String>,
+
+    /// Header override as `Name: value`; restricted to a safe allowlist
+    /// (`Accept`, `Content-Type`, `If-Match`). `Authorization` and any
+    /// credential-bearing header are rejected.
+    #[arg(long, value_name = "NAME:VALUE")]
+    pub header: Vec<String>,
+
+    /// Idempotency key override; mutations get a fresh strong key otherwise
+    /// (generated once and reused across internal retries).
+    #[arg(long, value_name = "KEY")]
+    pub idempotency_key: Option<String>,
 }
 
 /// Arguments for the `auth` command group.

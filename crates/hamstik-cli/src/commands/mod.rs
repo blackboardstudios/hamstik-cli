@@ -119,6 +119,14 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
         Command::Label(args) => {
             matches!(args.command, crate::args::LabelCommand::Create { .. })
         }
+        // CLI-20: the passthrough previews mutations; the api handler
+        // rejects --dry-run on GET (reads have nothing to preview).
+        Command::Api(args) => {
+            matches!(
+                args.command,
+                crate::args::ApiCommand::Request(_) | crate::args::ApiCommand::Passthrough(_)
+            )
+        }
         _ => false,
     }
 }

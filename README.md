@@ -177,6 +177,11 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   `hamstik squeakql validate`;
 - attachments — `work attachment list|upload|download|delete`;
 - the unauthenticated live contract via `hamstik api openapi`;
+- a `gh api`-style Public API v1 passthrough (`hamstik api /api/v1/...` /
+  `hamstik api request /api/v1/... --method POST`) so any documented v1
+  route is callable — including server routes newer than the installed CLI
+  — with the same auth, TLS, retries, idempotency, and redaction as typed
+  commands;
 - automation-friendly output via `--json` / `--quiet` and stable exit codes;
 - shell completions (`hamstik completion <shell>`) and dependency-aware
   diagnostics (`hamstik doctor`) covering local configuration, credential
@@ -580,6 +585,43 @@ transitions, and missing targets). `--json` preserves every documented
 per-operation field exactly as the server returned it. Preflight performs
 local structure validation only; server-side validation, authorization, and
 transition legality remain authoritative on the server.
+
+## Public API passthrough
+
+`hamstik api request` (and the shorthand `hamstik api /api/v1/...`) calls any
+Public API v1 route through the official CLI — in the spirit of `gh api` —
+so scripts and agents can reach documented routes even when the installed
+CLI has no typed command for them (new server routes stay callable):
+
+```bash
+# GET is the default
+hamstik api request /api/v1/organizations
+hamstik api /api/v1/organizations/acme
+
+# Mutations with a structured body and an automatic idempotency key
+# (POST/DELETE; reused across internal retries; --idempotency-key overrides)
+hamstik api request --method POST \
+  --field name=Acme --field slug=acme /api/v1/organizations
+
+# Body from a file or stdin; If-Match for revision-guarded updates
+hamstik api request --method PATCH \
+  --body-file patch.json /api/v1/organizations/acme
+
+# Preview the exact request without sending it
+hamstik --json --dry-run api request --method POST \
+  --field name=Acme /api/v1/organizations
+```
+
+Only `/api/v1/...` paths are accepted — private browser routes, non-v1
+paths, traversal, embedded credentials, and query strings in the path are
+rejected locally before any network access. Header overrides are restricted
+to a safe allowlist (`Accept`, `Content-Type`, `If-Match`); `Authorization`
+and credential-bearing headers are always rejected. `--json` output is an
+envelope: `{ method, path, data, meta? }` where `data` is the server body
+verbatim and `meta` carries `requestId`, `etag`, `idempotencyReplayed`,
+`location`, and the `RateLimit-*` snapshot when present. The OpenAPI
+snapshot (`hamstik api openapi`) is never an allowlist: newer server routes
+remain callable.
 
 ## Build from source
 

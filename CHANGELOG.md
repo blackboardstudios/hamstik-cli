@@ -10,6 +10,25 @@ before upgrading.
 
 ## [Unreleased]
 
+### Added
+
+- Public API v1 passthrough (CLI-20): `hamstik api request /api/v1/...`
+  and the shorthand `hamstik api /api/v1/...` call any documented Public
+  API v1 route through the official CLI, in the spirit of `gh api` —
+  including server routes newer than the installed CLI (the OpenAPI
+  snapshot is never an allowlist). GET is the default; `--method`
+  POST/PATCH/PUT/DELETE, `--body-file -|<file>`, `--field key=value`,
+  `--query key=value`, and allowlisted `--header` overrides
+  (`Accept`, `Content-Type`, `If-Match` — `Authorization` and any
+  credential-bearing header are rejected) reuse the typed commands'
+  transport: profile auth, TLS/CA bundle, retries with `Retry-After`
+  handling, automatic idempotency keys for POST/DELETE reused across
+  internal retries, request-ID preservation, redacted diagnostics, and
+  stable exit codes. `--dry-run` previews the exact request with the
+  versioned preview envelope; `--json` emits
+  `{ method, path, data, meta? }` with `meta` carrying `requestId`,
+  `etag`, `idempotencyReplayed`, `location`, and the rate-limit snapshot.
+
 ## [0.1.2] - 2026-09-15
 
 ### Added
