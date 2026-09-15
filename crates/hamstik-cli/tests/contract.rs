@@ -215,6 +215,7 @@ fn subcommand_groups_match_documented_surface() {
                 "bulk",
                 "close",
                 "comment",
+                "context",
                 "create",
                 "delete",
                 "edit",

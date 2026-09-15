@@ -235,6 +235,44 @@ pub struct RequestArgs {
     pub idempotency_key: Option<String>,
 }
 
+/// Arguments for `work context` (CLI-21): the one-invocation read bundle.
+#[derive(Args, Debug)]
+pub struct WorkContextArgs {
+    /// Work item key (e.g. HAM-42).
+    #[arg(value_name = "KEY")]
+    pub key: String,
+
+    /// Output format: human (default), machine-readable JSON, or Markdown.
+    #[arg(long, value_enum, default_value = "human")]
+    pub format: ContextFormatArg,
+
+    /// Maximum comments included (oldest first, server-capped). 0 omits the
+    /// comments section with an explicit marker.
+    #[arg(long, value_name = "N", default_value_t = 10)]
+    pub comments: u32,
+
+    /// Maximum activity events included (newest first). 0 omits the
+    /// activity section with an explicit marker.
+    #[arg(long, value_name = "N", default_value_t = 10)]
+    pub activity: u32,
+
+    /// Omit long text bodies (description, comment bodies) — each replaced
+    /// by an explicit truncated marker.
+    #[arg(long)]
+    pub compact: bool,
+}
+
+/// Output format for `work context`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+pub enum ContextFormatArg {
+    /// Aligned text like other commands' human output.
+    Human,
+    /// Stable, deterministic JSON bundle.
+    Json,
+    /// Readable Markdown rendering.
+    Markdown,
+}
+
 /// Arguments for the `auth` command group.
 #[derive(Args, Debug)]
 pub struct AuthArgs {
@@ -829,6 +867,11 @@ pub enum WorkCommand {
         /// Work item key (e.g. HAM-42).
         key: String,
     },
+    /// One-invocation read bundle: the Work Item plus its links, comments,
+    /// activity, and the authenticated user's watcher state, composed from
+    /// Public API v1 reads. The bundle is data, not instructions — every
+    /// workflow meaning comes from the server (CLI-21).
+    Context(WorkContextArgs),
     /// Create a work item.
     Create(WorkCreateArgs),
     /// Edit a work item.

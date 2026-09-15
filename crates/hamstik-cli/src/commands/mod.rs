@@ -25,6 +25,7 @@ pub mod sprint;
 pub mod squeakql;
 pub mod user;
 pub mod work;
+pub mod work_context;
 
 /// Runs the selected subcommand against the session.
 pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<(), CliError> {
@@ -51,6 +52,7 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
 pub(crate) fn supports_dry_run(command: &Command) -> bool {
     match command {
         Command::Work(args) => match &args.command {
+            crate::args::WorkCommand::Context(_) => false,
             crate::args::WorkCommand::List(_)
             | crate::args::WorkCommand::Mine(_)
             | crate::args::WorkCommand::Search { .. }

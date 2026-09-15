@@ -12,6 +12,20 @@ before upgrading.
 
 ### Added
 
+- Work Item context bundle (CLI-21): `hamstik work context <KEY>` returns a
+  one-invocation, data-only read bundle for a Work Item — metadata,
+  description, server-reported links, labels, recent comments, recent
+  activity, and the authenticated user's watcher state — composed entirely
+  from Public API v1 reads. `--json` emits a stable, deterministic envelope
+  (`bundleVersion: 1`); `--format markdown` renders the same content
+  readably; `--comments N`, `--activity N`, and `--compact` bound the
+  output size, and every clipped or omitted section carries an explicit
+  marker (nothing is silently truncated). The bundle is data, not
+  instructions: no workflow meaning is computed client-side, and the
+  command is strictly read-only.
+
+### Added
+
 - Public API v1 passthrough (CLI-20): `hamstik api request /api/v1/...`
   and the shorthand `hamstik api /api/v1/...` call any documented Public
   API v1 route through the official CLI, in the spirit of `gh api` —

@@ -28,6 +28,7 @@ use crate::input::resolve_text;
 use super::bulk_preflight;
 use super::dryrun;
 use super::org::render_lines;
+use super::work_context;
 use super::{emit_json, emit_table, emit_view};
 
 /// Runs the `work` subcommands.
@@ -42,6 +43,7 @@ pub async fn run(session: &mut Session<'_>, args: &WorkArgs) -> Result<(), CliEr
             pagination,
         } => search(session, query, file, saved, pagination).await,
         WorkCommand::View { key } => view(session, key).await,
+        WorkCommand::Context(args) => work_context::run(session, args).await,
         WorkCommand::Create(create_args) => create(session, create_args).await,
         WorkCommand::Edit(edit_args) => edit(session, edit_args).await,
         WorkCommand::Watcher(watcher_args) => watcher(session, watcher_args).await,

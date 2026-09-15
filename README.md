@@ -175,6 +175,11 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
 - first-class My Work via `hamstik work mine` (`work my` alias) and
   Organization-wide SqueakQL search via `hamstik work search` /
   `hamstik squeakql validate`;
+- a one-invocation Work Item read bundle via `hamstik work context
+  <KEY>` (`--json` for agents, `--format markdown` for readable
+  hand-off, `--comments N` / `--activity N` / `--compact` size
+  controls with explicit truncation markers) — data only, composed
+  entirely from Public API v1 reads;
 - attachments — `work attachment list|upload|download|delete`;
 - the unauthenticated live contract via `hamstik api openapi`;
 - a `gh api`-style Public API v1 passthrough (`hamstik api /api/v1/...` /
