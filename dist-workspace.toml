@@ -18,6 +18,13 @@ installers = ["shell", "powershell", "homebrew"]
 #   brew tap blackboardstudios/hamstik https://github.com/blackboardstudios/homebrew-hamstik
 #   brew install blackboardstudios/hamstik/hamstik
 tap = "blackboardstudios/homebrew-hamstik"
+# The Homebrew formula must match the binary's name (brew derives the
+# installable name from the Ruby class, and the file must be named after
+# it): `hamstik.rb` / class Hamstik, installable as
+# blackboardstudios/hamstik/hamstik. Without this, dist names the formula
+# after the crate (hamstik-cli / class HamstikCli), which fails brew audit
+# in the tap ("Expected to find class Hamstik").
+formula = "hamstik"
 # Publish the Homebrew formula to the tap during the release pipeline's
 # publish phase. The builtin publish job checks out the tap with
 # `secrets.HOMEBREW_TAP_TOKEN` — a fine-grained PAT with Contents:write on
