@@ -10,6 +10,8 @@ before upgrading.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-15
+
 ### Added
 
 - Release lifecycle documentation (CLI-30): the maintainer release
@@ -23,6 +25,11 @@ before upgrading.
   section now carries the artifact-verification pointer so it renders in
   the release notes. Updates stay channel-based per SPEC §73: no silent
   self-update, no telemetry, no background version checks.
+- Verify downloads per [design/SIGNING.md](SIGNING.md): run
+  `sha256sum -c sha256.sum` against the release's `sha256.sum` and
+  `gh attestation verify <artifact> --repo blackboardstudios/hamstik-cli`
+  (Sigstore build provenance). See also upgrade/uninstall/rollback notes
+  in [design/INSTALL.md](INSTALL.md).
 
 ## [0.1.1] - 2026-09-15
 
@@ -397,6 +404,7 @@ API v1 (29 → 51 operations; all changes additive):
   (`work`, `project`).
 
 [Unreleased]: https://github.com/blackboardstudios/hamstik-cli/commits/main
+[0.1.2]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.2
 [0.1.1]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.1
 [0.1.1-rc.1]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.1-rc.1
 [0.1.0]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.0
