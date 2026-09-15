@@ -8,10 +8,9 @@ versioning follows [Semantic Versioning](https://semver.org/) as detailed in
 MINOR releases may contain breaking changes — read the *Breaking* notes
 before upgrading.
 
-No release has been published yet: everything below is part of the
-in-progress first release and will be dated and versioned when it ships.
-
 ## [Unreleased]
+
+## [0.1.0] - 2026-09-15
 
 ### Added
 
@@ -33,16 +32,6 @@ in-progress first release and will be dated and versioned when it ships.
   commit sha, or `"unknown"` when built outside a git checkout) and
   `target` fields. The existing `version` field and the `hamstik
   --version`/`-V` terse line are unchanged.
-
-### Internal
-
-- `release-gate` workspace crate: the dependency-free tag/version/changelog
-  consistency check run by the release workflow, with unit tests covering
-  tag parsing, workspace-version extraction, and changelog release-section
-  matching.
-
-### Added
-
 - `context explain` (CLI-12): an offline precedence report for every resolved
   setting — host, Organization, Project, profile, credential source, and
   color/input/retry behavior — showing the winning source, every shadowed
@@ -350,3 +339,4 @@ API v1 (29 → 51 operations; all changes additive):
   (`work`, `project`).
 
 [Unreleased]: https://github.com/blackboardstudios/hamstik-cli/commits/main
+[0.1.0]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.0
