@@ -126,6 +126,7 @@ fn root_command_hierarchy_matches_documented_surface() {
             "user",
             "squeakql",
             "api",
+            "agent",
             "doctor",
             "completion",
             "commands",

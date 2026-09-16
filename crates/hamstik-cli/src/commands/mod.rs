@@ -6,9 +6,10 @@
 use serde_json::Value;
 
 use crate::app::Session;
-use crate::args::Command;
+use crate::args::{AgentCommand, Command};
 use crate::error::CliError;
 
+pub mod agent_skill;
 pub mod api;
 pub mod auth;
 pub mod bulk_preflight;
@@ -42,6 +43,9 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
         Command::Work(args) => work::run(session, args).await,
         Command::User(args) => user::run(session, args).await,
         Command::Squeakql(args) => squeakql::run(session, args).await,
+        Command::Agent(args) => match &args.command {
+            AgentCommand::Skill(skill) => agent_skill::run(session, &skill.command),
+        },
         Command::Api(args) => api::run(session, args).await,
         Command::Doctor { local_only } => doctor::run(session, *local_only).await,
         Command::Completion(args) => completion::run(session, args),

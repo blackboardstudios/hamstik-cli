@@ -109,6 +109,8 @@ pub enum Command {
     Squeakql(SqueakQlArgs),
     /// Inspect the Public API contract.
     Api(ApiArgs),
+    /// Agent automation: manage and validate the bundled Agent Skill.
+    Agent(AgentArgs),
     /// Verify configuration, credentials, connectivity, API compatibility,
     /// and selected Organization/Project context.
     Doctor {
@@ -184,6 +186,57 @@ pub struct ApiArgs {
     /// The API subcommand to run.
     #[command(subcommand)]
     pub command: ApiCommand,
+}
+
+/// Arguments for the `agent` command group.
+#[derive(Args, Debug)]
+pub struct AgentArgs {
+    /// The agent subcommand to run.
+    #[command(subcommand)]
+    pub command: AgentCommand,
+}
+
+/// Agent automation subcommands.
+#[derive(Subcommand, Debug)]
+pub enum AgentCommand {
+    /// Manage the canonical bundled Agent Skill.
+    Skill(SkillArgs),
+}
+
+/// Arguments for the `agent skill` command group.
+#[derive(Args, Debug)]
+pub struct SkillArgs {
+    /// The skill subcommand to run.
+    #[command(subcommand)]
+    pub command: SkillCommand,
+}
+
+/// Agent Skill management subcommands.
+#[derive(Subcommand, Debug)]
+pub enum SkillCommand {
+    /// Install the canonical bundled Agent Skill into a location agents
+    /// discover. Defaults to the current project's portable
+    /// `.agents/skills/hamstik/` location; `--global` installs into the
+    /// user-level portable location. A locally modified installed skill is
+    /// never silently overwritten; `--force` is required for replacement.
+    Install {
+        /// Install into the user-level portable Agent Skills location
+        /// instead of the default current-project location.
+        #[arg(long)]
+        global: bool,
+        /// Replace an existing locally modified installed skill.
+        #[arg(long)]
+        force: bool,
+    },
+    /// Validate an Agent Skill against this binary's command surface and
+    /// compatibility metadata. Defaults to the installed skill; an explicit
+    /// PATH validates any skill file (this is what CI runs).
+    Check {
+        /// Explicit path to a `SKILL.md` to validate instead of the default
+        /// installed-location lookup.
+        #[arg(value_name = "PATH")]
+        path: Option<PathBuf>,
+    },
 }
 
 /// Public API metadata subcommands.

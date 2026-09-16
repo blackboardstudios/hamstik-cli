@@ -1549,11 +1549,14 @@ rather than telling the agent to retry blindly.
 Initial installer design:
 
 ```bash
-hamstik agent skill install --project
+hamstik agent skill install
 hamstik agent skill install --global
 ```
 
-Project default target SHOULD prefer:
+The default target is the current project's portable Agent Skills location;
+a dedicated `--project` flag is unnecessary (and would collide with the
+global `--project <KEY>` context argument). Project default target SHOULD
+prefer:
 
 ```text
 .agents/skills/hamstik/
@@ -1565,7 +1568,8 @@ Global installation SHOULD prefer the current portable/harness-supported user-le
 
 Because harness conventions evolve, concrete target support MUST be verified against current harness documentation at implementation time.
 
-Do not silently overwrite a modified local skill.
+Re-running an install whose installed skill is byte-identical is idempotent
+(no-op). Do not silently overwrite a modified local skill.
 
 Support:
 
@@ -1573,7 +1577,11 @@ Support:
 --force
 ```
 
-for explicit replacement.
+for explicit replacement. The binary carries the canonical skill and its
+frontmatter metadata (`skill-version`, `minimum-cli-version`) so install and
+`hamstik agent skill check` work without network access; `HAMSTIK_SKILL_HOME`
+may override the global root directory (the directory containing the
+portable `skills/` tree).
 
 ---
 

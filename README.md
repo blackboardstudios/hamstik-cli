@@ -192,15 +192,23 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   diagnostics (`hamstik doctor`) covering local configuration, credential
   sources, network/TLS, Public API compatibility, authentication, selected
   Organization/Project validity, and terminal rendering;
+- agent automation — `hamstik agent skill install` writes the canonical
+  bundled Agent Skill ([`skills/hamstik/SKILL.md`](skills/hamstik/SKILL.md))
+  into an Agent Skills discovery location (the current project's portable
+  `.agents/skills/hamstik/` directory by default, `--global` for the
+  user-level location); a locally modified installed skill is never silently
+  overwritten (`--force` is required), and `hamstik agent skill check`
+  validates any skill file — or the installed skill — against this binary's
+  live command manifest and CLI-version metadata;
 - a machine-readable command manifest (`hamstik commands --json`) and
   generated command reference + man pages under [`docs/`](docs/reference) —
   regenerated deterministically with `scripts/generate_docs.py` and
   drift-checked in CI;
 - cross-platform CI on Linux, Windows, and macOS.
 
-OAuth, the MCP server, and automatic Agent Skill installation remain future work. The
-canonical portable Agent Skill is available at
-[`skills/hamstik/SKILL.md`](skills/hamstik/SKILL.md). See the
+OAuth and the MCP server remain future work. The canonical portable Agent
+Skill ships with the CLI (install it with `hamstik agent skill install`; see
+[`skills/hamstik/SKILL.md`](skills/hamstik/SKILL.md)). See the
 [design documents](#design-documents) for where the CLI is headed.
 
 ## Command examples

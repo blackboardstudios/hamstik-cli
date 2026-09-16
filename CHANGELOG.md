@@ -57,6 +57,19 @@ before upgrading.
   versioned preview envelope; `--json` emits
   `{ method, path, data, meta? }` with `meta` carrying `requestId`,
   `etag`, `idempotencyReplayed`, `location`, and the rate-limit snapshot.
+- Canonical Agent Skill installation and validation (CLI-3): the new
+  `hamstik agent skill install` writes the skill bundled into the binary
+  ([`skills/hamstik/SKILL.md`](skills/hamstik/SKILL.md)) into an Agent
+  Skills discovery location — the current project's portable
+  `.agents/skills/hamstik/` directory by default, the user-level portable
+  location with `--global` (override with `HAMSTIK_SKILL_HOME`). Re-running
+  an install is idempotent when the installed file is identical; a locally
+  modified installed skill is never silently overwritten — `--force` is
+  required for replacement. `hamstik agent skill check` validates frontmatter
+  CLI-version compatibility plus every referenced command path and option
+  against this binary's live `hamstik commands --json` manifest, for the
+  installed skill by default (project location, then global) or an explicit
+  file path (CI use); failures exit nonzero.
 
 ### Fixed
 
