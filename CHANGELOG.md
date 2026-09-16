@@ -12,6 +12,24 @@ before upgrading.
 
 ### Added
 
+- Opt-in live Public API v1 acceptance suite (CLI-6):
+  `cargo test --test live_acceptance -- --test-threads=1 --ignored` drives the
+  real `hamstik` binary against a dedicated test Organization/Project over
+  documented `/api/v1` routes. Gated behind `HAMSTIK_TOKEN`, `HAMSTIK_HOST`,
+  `HAMSTIK_ACCEPTANCE_ORG`, and `HAMSTIK_ACCEPTANCE_PROJECT` (plus
+  `HAMSTIK_ACCEPTANCE_MUTATIONS=true` for writes) and `#[ignore]`d, so offline
+  `cargo test` only compiles it. A read-only smoke scenario proves auth, TLS,
+  context, and the read routes; a mutation scenario exercises the full
+  lifecycle — idempotent create/replay, edit, a real ETag conflict, status
+  transitions, labels, comments, links, watchers, byte-for-byte attachment
+  round-trip, sprints, and bulk create/update/transition — cleaning up every
+  Work Item it created (delete, archive fallback) without masking the primary
+  failure. All created resources carry a run-unique `acc-<unix-ts>-<pid>`
+  marker; labels and sprints (undocumented delete routes) are the only
+  residue. Runbook: `crates/hamstik-cli/tests/live_acceptance/README.md`;
+  a manual `workflow_dispatch` job (`.github/workflows/live-acceptance.yml`)
+  runs it against a configured test deployment when repository
+  variables/secrets opt in.
 - Work Item context bundle (CLI-21): `hamstik work context <KEY>` returns a
   one-invocation, data-only read bundle for a Work Item — metadata,
   description, server-reported links, labels, recent comments, recent
