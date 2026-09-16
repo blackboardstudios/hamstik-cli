@@ -145,7 +145,7 @@ impl CliError {
     pub fn from_client(err: ClientError) -> Self {
         match err {
             ClientError::Api(api) => Self::from_api(api),
-            ClientError::Network(message) => Self::network(message),
+            ClientError::Network { message, .. } => Self::network(message),
             ClientError::Protocol(message) => Self::protocol(message),
             ClientError::Host(host) => Self::config(format!("invalid host: {host}")),
         }

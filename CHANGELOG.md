@@ -23,9 +23,6 @@ before upgrading.
   marker (nothing is silently truncated). The bundle is data, not
   instructions: no workflow meaning is computed client-side, and the
   command is strictly read-only.
-
-### Added
-
 - Public API v1 passthrough (CLI-20): `hamstik api request /api/v1/...`
   and the shorthand `hamstik api /api/v1/...` call any documented Public
   API v1 route through the official CLI, in the spirit of `gh api` —
@@ -42,6 +39,13 @@ before upgrading.
   versioned preview envelope; `--json` emits
   `{ method, path, data, meta? }` with `meta` carrying `requestId`,
   `etag`, `idempotencyReplayed`, `location`, and the rate-limit snapshot.
+
+### Fixed
+
+- Network diagnostics are now classified from the concrete transport error
+  source chain (DNS, connection, timeout, TLS) instead of pattern-matching
+  the rendered error text, so a library rewording can no longer silently
+  degrade `doctor` and error output to the generic `network` stage.
 
 ## [0.1.2] - 2026-09-15
 

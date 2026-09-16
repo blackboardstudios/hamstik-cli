@@ -11,7 +11,6 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use async_trait::async_trait;
-use uuid::Uuid;
 
 /// The longest `Retry-After` we are willing to wait before giving up.
 ///
@@ -98,15 +97,18 @@ pub fn backoff_delay(policy: &RetryPolicy, attempt: u32) -> Duration {
         return exp;
     }
 
-    // Derive a jitter fraction in [0, 1) from the low bits of a fresh UUID.
-    let id = Uuid::new_v4();
-    let bytes = id.as_bytes();
-    let raw = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
-    let fraction = (raw as f64) / (u32::MAX as f64); // [0.0, 1.0]
-    // Map to [0.8, 1.2).
-    let scale = 0.8 + (fraction * 0.4);
-    let scaled = (exp.as_secs_f64() * scale).max(0.0);
-    Duration::from_secs_f64(scaled).min(policy.max_delay)
+    // Four fresh random bytes give a jitter fraction in [0, 1); on the
+    // (measure-zero) failure to obtain randomness, use the unjittered delay.
+    let mut buf = [0u8; 4];
+    if getrandom::fill(&mut buf).is_ok() {
+        let raw = u32::from_be_bytes(buf);
+        let fraction = (raw as f64) / (u32::MAX as f64); // [0.0, 1.0]
+        // Map to [0.8, 1.2).
+        let scale = 0.8 + (fraction * 0.4);
+        let scaled = (exp.as_secs_f64() * scale).max(0.0);
+        return Duration::from_secs_f64(scaled).min(policy.max_delay);
+    }
+    exp
 }
 
 /// Parses a `Retry-After` header value (delta-seconds or HTTP-date) into a

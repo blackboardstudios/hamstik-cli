@@ -107,6 +107,38 @@ impl ApiError {
     }
 }
 
+/// Classifies a rendered transport-error message into the earliest failing
+/// network stage.
+///
+/// This is the *fallback* classification: the client crate computes the stage
+/// from the concrete `reqwest` source chain first and only falls back to
+/// marker matching on the rendered text when no source in the chain was
+/// recognizable. The markers are ordered so that more specific failures (TLS
+/// surfaces as a connect error) are checked first.
+#[must_use]
+pub fn network_stage_from_message(message: &str) -> NetworkStage {
+    let lowered = message.to_ascii_lowercase();
+    if lowered.contains("certificate") || lowered.contains("tls") {
+        NetworkStage::Tls
+    } else if lowered.contains("proxy") {
+        NetworkStage::Proxy
+    } else if lowered.contains("timed out") || lowered.contains("timeout") {
+        NetworkStage::Timeout
+    } else if lowered.contains("dns")
+        || lowered.contains("name or service not known")
+        || lowered.contains("resolve")
+    {
+        NetworkStage::Dns
+    } else if lowered.contains("connect")
+        || lowered.contains("refused")
+        || lowered.contains("unreachable")
+    {
+        NetworkStage::Connection
+    } else {
+        NetworkStage::Unknown
+    }
+}
+
 /// The single canonical client error type.
 #[derive(Debug, Error)]
 pub enum ClientError {
@@ -114,8 +146,18 @@ pub enum ClientError {
     #[error(transparent)]
     Api(#[from] ApiError),
     /// A transport-level failure occurred before a usable response arrived.
-    #[error("network error: {0}")]
-    Network(String),
+    ///
+    /// The stage is classified once, at the point where the concrete
+    /// transport error is in hand (see
+    /// [`crate::client::classify_network_error`]), rather than being
+    /// re-derived from the rendered message.
+    #[error("network error: {message}")]
+    Network {
+        /// The rendered transport error (no credentials, no raw headers).
+        message: String,
+        /// The classified transport stage.
+        stage: NetworkStage,
+    },
     /// The server response violated the expected contract.
     #[error("protocol error: {0}")]
     Protocol(String),
@@ -133,38 +175,15 @@ impl ClientError {
         }
     }
 
-    /// Classifies a transport-level failure into the earliest failing stage.
+    /// Returns the transport stage this failure was classified into at
+    /// construction time.
     ///
-    /// The message is the rendered reqwest error, which names its source
-    /// chain ("error sending request...: dns error: ...", "timed out", etc.);
-    /// matching those markers avoids depending on reqwest's concrete error
-    /// type while remaining precise for the documented stages.
+    /// Always [`NetworkStage::Unknown`] for non-network variants.
     #[must_use]
     pub fn network_stage(&self) -> NetworkStage {
-        let ClientError::Network(message) = self else {
-            return NetworkStage::Unknown;
-        };
-        let lowered = message.to_ascii_lowercase();
-        // Order matters: TLS failures surface as connect errors, so the more
-        // specific TLS/proxy/dns/timeout markers must be checked first.
-        if lowered.contains("certificate") || lowered.contains("tls") {
-            NetworkStage::Tls
-        } else if lowered.contains("proxy") {
-            NetworkStage::Proxy
-        } else if lowered.contains("timed out") || lowered.contains("timeout") {
-            NetworkStage::Timeout
-        } else if lowered.contains("dns")
-            || lowered.contains("name or service not known")
-            || lowered.contains("resolve")
-        {
-            NetworkStage::Dns
-        } else if lowered.contains("connect")
-            || lowered.contains("refused")
-            || lowered.contains("unreachable")
-        {
-            NetworkStage::Connection
-        } else {
-            NetworkStage::Unknown
+        match self {
+            ClientError::Network { stage, .. } => *stage,
+            _ => NetworkStage::Unknown,
         }
     }
 }

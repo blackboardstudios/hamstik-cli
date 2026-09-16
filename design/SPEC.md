@@ -1,7 +1,7 @@
 # Hamstik CLI
 ## Technical Specification
 
-**Status:** Draft  
+**Status:** Implemented (authoritative — see `AGENTS.md`)\
 **Related:** `design/PRD.md`  
 **Implementation:** Rust  
 **Binary:** `hamstik`  

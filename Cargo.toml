@@ -41,6 +41,8 @@ url = "2"
 uuid = { version = "1", features = ["v4"] }
 async-trait = "0.1"
 httpdate = "1"
+getrandom = "0.4"
+rustls = { version = "0.23", default-features = false }
 
 # CLI
 clap = { version = "4", features = ["derive"] }

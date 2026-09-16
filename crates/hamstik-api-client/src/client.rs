@@ -14,6 +14,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
+use std::error::Error as _;
+
 use async_trait::async_trait;
 use reqwest::header::{
     ACCEPT, AUTHORIZATION, CACHE_CONTROL, CONTENT_LENGTH, HeaderMap, HeaderName, HeaderValue,
@@ -25,7 +27,7 @@ use secrecy::{ExposeSecret, SecretString};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-use crate::error::{ApiError, ClientError};
+use crate::error::{ApiError, ClientError, NetworkStage, network_stage_from_message};
 use crate::host::Host;
 use crate::models::*;
 use crate::retry::{
@@ -338,7 +340,10 @@ impl HamstikClient {
                         attempt += 1;
                         continue;
                     }
-                    return Err(ClientError::Network(err.to_string()));
+                    return Err(ClientError::Network {
+                        message: err.to_string(),
+                        stage: classify_network_error(&err),
+                    });
                 }
             };
             if let Some(response) = self.retry_or_pass(response, retryable, attempt).await? {
@@ -663,6 +668,64 @@ fn rate_limit_snapshot(headers: &HeaderMap) -> Option<RateLimitSnapshot> {
     })
 }
 
+/// Classifies a transport failure into the earliest failing network stage.
+///
+/// The stage is computed here, where the concrete `reqwest::Error` is in
+/// hand, instead of being re-derived from its rendered text:
+///
+/// 1. `reqwest` flags timeouts itself ([`reqwest::Error::is_timeout`]), and
+///    timeouts can nest inside other errors, so they win unconditionally;
+/// 2. the source chain is walked for concrete types: `std::io::Error` kinds
+///    (stable `std` API) decide connection-class failures, `rustls::Error`
+///    names TLS handshake failures, and DNS failures — whose `io`
+///    kind is not stable across platforms — are matched on the *OS*
+///    resolver message embedded in the `io::Error`, not on reqwest's prose;
+/// 3. only when no source is recognizable does it fall back to marker
+///    matching on the rendered text ([`network_stage_from_message`]).
+#[must_use]
+pub fn classify_network_error(err: &reqwest::Error) -> NetworkStage {
+    if err.is_timeout() {
+        return NetworkStage::Timeout;
+    }
+    let mut source = err.source();
+    while let Some(src) = source {
+        // `rustls::Error` in the chain is authoritative for TLS handshake
+        // failures; matching the concrete type (not rendered prose) means a
+        // reqwest/hyper rewording cannot degrade classification.
+        if src.downcast_ref::<rustls::Error>().is_some() {
+            return NetworkStage::Tls;
+        }
+        if let Some(io) = src.downcast_ref::<std::io::Error>() {
+            match io.kind() {
+                std::io::ErrorKind::TimedOut => return NetworkStage::Timeout,
+                std::io::ErrorKind::ConnectionRefused
+                | std::io::ErrorKind::ConnectionReset
+                | std::io::ErrorKind::NotConnected
+                | std::io::ErrorKind::BrokenPipe
+                | std::io::ErrorKind::AddrNotAvailable
+                | std::io::ErrorKind::HostUnreachable
+                | std::io::ErrorKind::NetworkUnreachable => return NetworkStage::Connection,
+                // DNS failures surface as an io::Error whose kind is not
+                // stable (glibc: Uncategorized/InvalidInput; others vary);
+                // match the OS resolver message, which is stable per platform.
+                _ => {
+                    let msg = io.to_string().to_ascii_lowercase();
+                    if msg.contains("lookup address information")
+                        || msg.contains("name or service not known")
+                        || msg.contains("nodename nor servname provided")
+                        || msg.contains("temporary failure in name resolution")
+                        || msg.contains("no address associated")
+                    {
+                        return NetworkStage::Dns;
+                    }
+                }
+            }
+        }
+        source = src.source();
+    }
+    network_stage_from_message(&err.to_string())
+}
+
 /// Reads a response body, enforcing [`MAX_BODY_BYTES`].
 ///
 /// `Content-Length` above the cap is rejected before reading. When the length
@@ -681,11 +744,10 @@ async fn read_body_capped(response: Response) -> Result<bytes::Bytes, ClientErro
 
     let mut stream = response;
     let mut buffer = bytes::BytesMut::with_capacity(8 * 1024);
-    while let Some(chunk) = stream
-        .chunk()
-        .await
-        .map_err(|err| ClientError::Network(err.to_string()))?
-    {
+    while let Some(chunk) = stream.chunk().await.map_err(|err| ClientError::Network {
+        message: err.to_string(),
+        stage: classify_network_error(&err),
+    })? {
         if buffer.len() + chunk.len() > MAX_BODY_BYTES {
             return Err(ClientError::Protocol(format!(
                 "response body exceeds the {MAX_BODY_BYTES} byte limit"
@@ -2909,6 +2971,90 @@ mod tests {
         assert_eq!(api.code, "FORBIDDEN[2J");
         assert_eq!(api.message, "no]0;evilpe");
         assert_eq!(api.request_id.as_deref(), Some("req-1"));
+    }
+
+    // --- Network-stage classification pinning -----------------------------
+    //
+    // The stage used to be re-derived from reqwest's rendered text by marker
+    // matching; a reqwest/hyper rewording would silently degrade every
+    // failure to `Unknown`. These tests run real transport failures and pin
+    // the concrete-source classification so any reword fails loudly here
+    // (and in CI) instead of degrading silently in the field.
+
+    #[tokio::test]
+    async fn unresolvable_host_classifies_as_dns() {
+        // RFC 2606 reserves `.invalid`; resolution must fail with a DNS error
+        // on every platform without touching a real server.
+        let client = reqwest::Client::new();
+        let err = client
+            .get("https://no-such-host.invalid/api/v1/me")
+            .send()
+            .await
+            .unwrap_err();
+        assert_eq!(classify_network_error(&err), NetworkStage::Dns);
+    }
+
+    #[tokio::test]
+    async fn refused_connection_classifies_as_connection() {
+        // Port 1 on loopback is reserved and effectively never listening; the
+        // connect attempt must fail with a connection-class io error.
+        let client = reqwest::Client::new();
+        let err = client.get("http://127.0.0.1:1/").send().await.unwrap_err();
+        assert_eq!(classify_network_error(&err), NetworkStage::Connection);
+    }
+
+    #[tokio::test]
+    async fn stalled_connect_classifies_as_timeout_or_connection() {
+        // 10.255.255.1 is a non-routable black hole: the connect either times
+        // out (expected) or the network stack fails it fast as unreachable
+        // (rare, e.g. some sandboxes). Both are correct; `Unknown` is not.
+        let client = reqwest::Client::builder()
+            .connect_timeout(Duration::from_millis(500))
+            .build()
+            .unwrap();
+        let err = client
+            .get("http://10.255.255.1:9/")
+            .send()
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                classify_network_error(&err),
+                NetworkStage::Timeout | NetworkStage::Connection
+            ),
+            "expected Timeout or Connection, got {:?}: {}",
+            classify_network_error(&err),
+            err
+        );
+    }
+
+    #[test]
+    fn rendered_text_fallback_still_matches_known_markers() {
+        use crate::error::network_stage_from_message;
+        assert_eq!(
+            network_stage_from_message("error sending request: certificate verify failed"),
+            NetworkStage::Tls
+        );
+        assert_eq!(
+            network_stage_from_message("error sending request: timed out"),
+            NetworkStage::Timeout
+        );
+        assert_eq!(
+            network_stage_from_message("dns error: failed to lookup address information"),
+            NetworkStage::Dns
+        );
+        assert_eq!(
+            network_stage_from_message("error sending request: connection refused"),
+            NetworkStage::Connection
+        );
+        assert_eq!(
+            network_stage_from_message("proxy connection failed"),
+            NetworkStage::Proxy
+        );
+        assert_eq!(
+            network_stage_from_message("something unrecognizable"),
+            NetworkStage::Unknown
+        );
     }
 
     #[test]

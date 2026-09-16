@@ -1024,8 +1024,7 @@ fn record_openapi_failure(
     started: Instant,
 ) -> bool {
     match error {
-        ClientError::Network(message) => {
-            let stage = ClientError::Network(message.clone()).network_stage();
+        ClientError::Network { message, stage } => {
             let (name, remediation) = match stage {
                 hamstik_api_client::NetworkStage::Dns => (
                     "DNS resolution",
