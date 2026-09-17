@@ -130,6 +130,7 @@ fn root_command_hierarchy_matches_documented_surface() {
             "agent",
             "doctor",
             "completion",
+            "init",
             "commands",
             "version",
         ],

@@ -151,6 +151,8 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   retries, and idempotency-key support;
 - authentication and profiles — `hamstik auth login|status|list|switch|logout|forget`,
   with secrets held only in the OS credential store;
+- first-run bootstrap — `hamstik init` creates a `.hamstik.toml` in the
+  current directory with first-run guidance;
 - working context — `hamstik context show|set|clear|init` backed by a
   project-local `.hamstik.toml` plus global profile defaults;
 - global configuration — `hamstik config path|list|get|set|unset` for safe
@@ -247,6 +249,7 @@ The generated command reference lives in
 
 ```bash
 # Authentication, identity, and context
+hamstik init
 hamstik auth login --with-token
 hamstik me --json
 hamstik context init --org acme --project HAM

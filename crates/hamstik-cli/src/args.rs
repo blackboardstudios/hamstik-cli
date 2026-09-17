@@ -118,6 +118,8 @@ pub enum Command {
     Doctor(DoctorArgs),
     /// Generate a shell completion script.
     Completion(CompletionArgs),
+    /// Bootstrap the working directory for Hamstik.
+    Init,
     /// Print the machine-readable command manifest derived from the real
     /// command tree.
     Commands(CommandsArgs),

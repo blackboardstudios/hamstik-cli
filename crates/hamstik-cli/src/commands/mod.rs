@@ -21,6 +21,7 @@ pub mod context_cmd;
 pub mod credential;
 pub mod doctor;
 pub mod dryrun;
+pub mod init;
 pub mod label;
 pub mod manifest;
 pub mod me;
@@ -37,6 +38,7 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
     match command {
         Command::Me => me::run(session).await,
         Command::Auth(args) => auth::run(session, args).await,
+        Command::Init => init::run(session),
         Command::Context(args) => context_cmd::run(session, args).await,
         Command::Config(args) => config::run(session, args).await,
         Command::Org(args) => org::run(session, args).await,

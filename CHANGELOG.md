@@ -10,6 +10,13 @@ before upgrading.
 
 ## [Unreleased]
 
+### Added
+
+- `hamstik init` bootstraps the working directory by creating a `.hamstik.toml`
+  file populated from the current resolved context (organization, project) and
+  prints tailored first-run guidance. It fails if the file already exists and
+  supports `--json` for machine-readable output. (CLI-68)
+
 ## [0.1.3] - 2026-09-17
 
 ### Added
