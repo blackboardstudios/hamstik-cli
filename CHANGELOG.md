@@ -12,6 +12,10 @@ before upgrading.
 
 ### Added
 
+- `hamstik work await <KEY>` polls until a Work Item reaches a server-reported
+  condition (repeatable `--status`, `--timeout` up to 1h with exponential
+  backoff, human-readable and `--json` output). (CLI-25)
+
 - Opt-in live Public API v1 acceptance suite (CLI-6):
   `cargo test --test live_acceptance -- --test-threads=1 --ignored` drives the
   real `hamstik` binary against a dedicated test Organization/Project over

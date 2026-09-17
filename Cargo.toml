@@ -51,6 +51,7 @@ toml = "1.1"
 directories = "6"
 keyring = "3"
 rpassword = "7"
+humantime = "2.2"
 
 # Testing
 wiremock = "0.6"

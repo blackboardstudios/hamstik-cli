@@ -1038,6 +1038,8 @@ pub enum WorkCommand {
         #[arg(long = "idempotency-key", value_name = "KEY")]
         idempotency_key: Option<String>,
     },
+    /// Wait for a work item to reach a server-reported condition.
+    Await(WorkAwaitArgs),
     /// Create, update, or transition many work items in one request.
     Bulk(WorkBulkArgs),
 }
@@ -1089,6 +1091,23 @@ pub struct MyWorkArgs {
     /// Pagination options.
     #[command(flatten)]
     pub pagination: PaginationArgs,
+}
+
+/// Arguments for `work await`.
+#[derive(Args, Debug)]
+pub struct WorkAwaitArgs {
+    /// Work item key (e.g. HAM-42).
+    #[arg(value_name = "KEY")]
+    pub key: String,
+    /// Target status to wait for (repeatable; all specified conditions must
+    /// match). When omitted, the command returns immediately once the item is
+    /// reachable (any status satisfies the condition).
+    #[arg(long = "status", value_name = "STATUS", value_enum)]
+    pub status: Vec<StatusArg>,
+    /// Maximum time to wait (e.g. 10m, 1h30m). Defaults to 5m; upper-bounded
+    /// at 1h to prevent accidental infinite waits.
+    #[arg(long = "timeout", value_name = "DURATION", default_value = "5m")]
+    pub timeout: String,
 }
 
 /// Work Item filter options shared by `work list` and `org work`.

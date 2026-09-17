@@ -39,6 +39,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 toml = { workspace = true }
 uuid = { workspace = true }
+humantime = { workspace = true }
 zip = { workspace = true }
 
 # Credential store backends. `keyring` ships NO default features: with no

@@ -214,6 +214,7 @@ fn subcommand_groups_match_documented_surface() {
                 "activity",
                 "archive",
                 "attachment",
+                "await",
                 "bulk",
                 "close",
                 "comment",

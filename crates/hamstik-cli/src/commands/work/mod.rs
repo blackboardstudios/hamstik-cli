@@ -10,6 +10,7 @@
 mod activity;
 mod archive;
 mod attachment;
+mod await_cmd;
 mod bulk;
 mod comment;
 mod common;
@@ -80,6 +81,7 @@ pub async fn run(session: &mut Session<'_>, args: &WorkArgs) -> Result<(), CliEr
             force,
             idempotency_key,
         } => archive::delete(session, key, *cascade, *force, idempotency_key.as_deref()).await,
+        WorkCommand::Await(await_args) => await_cmd::await_item(session, await_args).await,
         WorkCommand::Bulk(bulk_args) => bulk::bulk(session, bulk_args).await,
     }
 }

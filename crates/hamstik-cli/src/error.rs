@@ -132,6 +132,11 @@ impl CliError {
         Self::new(ErrorKind::Auth, "AUTH_REQUIRED", message)
     }
 
+    /// Builds an authorization/insufficient-scope error (exit 4).
+    pub fn authorization(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Api, "FORBIDDEN", message)
+    }
+
     /// Builds a client-side stand-in for a server `NOT_FOUND` API error
     /// (exit 5); used when a local lookup cannot produce the id the request
     /// needs.

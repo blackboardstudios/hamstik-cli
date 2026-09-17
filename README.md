@@ -170,8 +170,9 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   (`work comment list|add|edit|delete`), links
   (`work link list|add|delete`), activity (`work activity`), archive/
   unarchive/delete lifecycle, watcher state (`work watcher
-  show|watch|unwatch|mute|unmute`), and bulk operations
-  (`work bulk create|update|transition`);
+  show|watch|unwatch|mute|unmute`), bulk operations
+  (`work bulk create|update|transition`), and condition waiting
+  (`work await`);
 - first-class My Work via `hamstik work mine` (`work my` alias) and
   Organization-wide SqueakQL search via `hamstik work search` /
   `hamstik squeakql validate`;

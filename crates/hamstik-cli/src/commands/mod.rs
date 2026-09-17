@@ -108,6 +108,7 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
             | crate::args::WorkCommand::Archive { .. }
             | crate::args::WorkCommand::Unarchive { .. }
             | crate::args::WorkCommand::Delete { .. }
+            | crate::args::WorkCommand::Await(_)
             | crate::args::WorkCommand::Bulk(_) => true,
         },
         Command::Project(args) => match &args.command {
