@@ -43,7 +43,9 @@ The CLI can use a profile credential from the OS credential store or an ephemera
 from `HAMSTIK_TOKEN`. `HAMSTIK_HOST` overrides the host; otherwise normal context and
 profile resolution applies. An environment token takes precedence and is never
 persisted by the CLI. `HAMSTIK_PROFILE` selects a profile; `hamstik auth list` shows
-configured profiles.
+configured profiles. When no profile exists under `HAMSTIK_TOKEN`, `hamstik org use`
+and `hamstik project use` create and activate one from `GET /api/v1/me` so their
+default is reachable afterwards; the token itself is never persisted.
 
 Verify identity and granted scopes without displaying the token:
 

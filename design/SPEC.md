@@ -894,6 +894,12 @@ https://hamstik.com
 
 Project validation must occur inside the resolved Organization.
 
+Under an ephemeral `HAMSTIK_TOKEN` with no stored credential and no profile,
+`org use` and `project use` create a profile on the fly from `GET /api/v1/me`
+(the same validation and metadata flow as login) and make it active before
+writing the default; otherwise the written default could never be selected
+again (§28). The token itself is never persisted.
+
 ---
 
 # 36. Command Grammar

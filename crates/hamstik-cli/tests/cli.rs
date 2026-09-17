@@ -1244,8 +1244,9 @@ async fn org_use_rejects_unknown_slug() {
     assert_eq!(body["profile"], Value::Null);
 }
 
-/// `org use` validates before persisting: the API is contacted first, and the
-/// missing-profile usage error surfaces only after validation succeeded.
+/// `org use` validates before persisting: the API is contacted first, then
+/// profile auto-creation calls `/api/v1/me`; the missing-me endpoint causes
+/// the overall failure.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn org_use_persists_validated_slug() {
     let server = MockServer::start().await;
@@ -1258,18 +1259,77 @@ async fn org_use_persists_validated_slug() {
         })))
         .mount(&server)
         .await;
+    // `/api/v1/me` is not mocked here: profile auto-creation will fail with
+    // 404, which is the expected overall error for this ephemeral-token setup.
+    let _ = Mock::given(method("GET"))
+        .and(path("/api/v1/me"))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&server)
+        .await;
 
     let dir = TempDir::new().unwrap();
     base(&server, &dir)
         .args(["org", "use", "sph"])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("no active profile"));
+        .stderr(predicate::str::contains("request failed"));
 
-    // Validation hit the API (the 200 above matched) before persistence was
-    // attempted — persistence needs a profile, which the usage error confirms
-    // comes after validation.
-    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+    // Validation hit the API (the 200 above matched), then profile
+    // auto-creation attempted `/api/v1/me` — two requests total.
+    assert_eq!(server.received_requests().await.unwrap().len(), 2);
+}
+
+/// `org use` under an ephemeral token auto-creates the profile and makes it
+/// active; the written default organization must then be resolvable instead of
+/// silently unreachable (the doctor/`context show` mismatch regression).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn org_use_auto_created_profile_becomes_active() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/organizations/sph"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": "o1", "slug": "sph", "name": "SPH", "role": "member",
+            "description": null, "plan": "pro", "isDefault": false, "suspended": false,
+            "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z"
+        })))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/me"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(me_json()))
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    let output = base(&server, &dir)
+        .args(["--json", "org", "use", "sph"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let body: Value = serde_json::from_slice(&output).unwrap();
+    // The auto-created profile name embeds the mock server's host.
+    let profile_name = body["profile"].as_str().unwrap().to_string();
+    let expected = hamstik_cli::config::profile_auto_name(&server.uri(), "steven@example.com");
+    assert_eq!(profile_name, expected, "{profile_name}");
+    assert_eq!(body["defaultOrganization"], "sph");
+
+    let written = std::fs::read_to_string(dir.path().join("config.toml")).unwrap();
+    assert!(
+        written.contains(&format!(r#"active_profile = "{profile_name}""#)),
+        "{written}"
+    );
+
+    // The default is now reachable: resolution reports it without --org.
+    let shown = base(&server, &dir)
+        .args(["context", "show", "--json"])
+        .output()
+        .unwrap();
+    assert!(shown.status.success());
+    let shown: Value = serde_json::from_slice(&shown.stdout).unwrap();
+    assert_eq!(shown["organization"]["value"], "sph");
+    assert_eq!(shown["profile"], profile_name);
 }
 
 /// `project use` validates the key inside the resolved organization; an
@@ -1300,16 +1360,84 @@ async fn project_use_persists_validated_key() {
         .respond_with(ResponseTemplate::new(200).set_body_json(project_json("P01")))
         .mount(&server)
         .await;
+    // `/api/v1/me` is not mocked here: profile auto-creation will fail with
+    // 404, which is the expected overall error for this ephemeral-token setup.
+    let _ = Mock::given(method("GET"))
+        .and(path("/api/v1/me"))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&server)
+        .await;
 
     let dir = TempDir::new().unwrap();
     base(&server, &dir)
         .args(["--org", "sph", "project", "use", "P01"])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("no active profile"));
+        .stderr(predicate::str::contains("request failed"));
 
-    // Validation hit the API (one request) before persistence was attempted.
-    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+    // Validation hit the API (the 200 above matched), then profile
+    // auto-creation attempted `/api/v1/me` — two requests total.
+    assert_eq!(server.received_requests().await.unwrap().len(), 2);
+}
+
+/// `project use` under an ephemeral token auto-creates the profile and makes it
+/// active; the written default project must then be resolvable (same
+/// regression class as `org use`). The profile also seeds the user's server
+/// default organization from `/me`, matching `auth login`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn project_use_auto_created_profile_becomes_active() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/organizations/sph/projects/P01"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(project_json("P01")))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/me"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": "u1", "publicId": "usr_cPbfeqnghA-RLpDVOMQhHg",
+            "name": "Steven", "email": "steven@example.com",
+            "authentication": {"type": "pat", "credentialId": "c", "credentialName": "n", "scopes": [], "expiresAt": "2027-01-01T00:00:00Z"},
+            "defaultOrganization": {"id": "o1", "slug": "sph", "name": "SPH"},
+            "organizations": []
+        })))
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    let output = base(&server, &dir)
+        .args(["--org", "sph", "--json", "project", "use", "P01"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let body: Value = serde_json::from_slice(&output).unwrap();
+    // The auto-created profile name embeds the mock server's host.
+    let profile_name = body["profile"].as_str().unwrap().to_string();
+    let expected = hamstik_cli::config::profile_auto_name(&server.uri(), "steven@example.com");
+    assert_eq!(profile_name, expected, "{profile_name}");
+    assert_eq!(body["defaultProject"], "P01");
+
+    let written = std::fs::read_to_string(dir.path().join("config.toml")).unwrap();
+    assert!(
+        written.contains(&format!(r#"active_profile = "{profile_name}""#)),
+        "{written}"
+    );
+    assert!(
+        written.contains(r#"default_organization = "sph""#),
+        "{written}"
+    );
+
+    // The default is now reachable: resolution reports it without flags.
+    let shown = base(&server, &dir)
+        .args(["context", "show", "--json"])
+        .output()
+        .unwrap();
+    assert!(shown.status.success());
+    let shown: Value = serde_json::from_slice(&shown.stdout).unwrap();
+    assert_eq!(shown["project"]["value"], "P01");
+    assert_eq!(shown["profile"], profile_name);
 }
 
 // ---- New API surface: sprints, labels, attachments, comment deletion -----

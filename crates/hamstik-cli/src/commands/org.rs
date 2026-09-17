@@ -14,6 +14,7 @@ use crate::app::Session;
 use crate::args::{OrgArgs, OrgCommand, OrgWorkListArgs, PaginationArgs};
 use crate::error::CliError;
 
+use super::ensure_profile_for_default;
 use super::work::apply_filters as apply_work_filters;
 use super::{emit_json, emit_table, emit_view};
 
@@ -123,10 +124,8 @@ async fn use_org(session: &mut Session<'_>, slug: &str) -> Result<(), CliError> 
         .map_err(CliError::from_client)?;
     let org = response.value;
 
-    let profile_name = selection
-        .profile
-        .clone()
-        .ok_or_else(|| CliError::usage("no active profile; run `hamstik auth login` first"))?;
+    let profile_name = ensure_profile_for_default(session, &selection).await?;
+
     let mut config = session.config.load()?;
     let profile = config
         .profiles

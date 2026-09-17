@@ -10,8 +10,18 @@ before upgrading.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-09-17
+
 ### Added
 
+- `hamstik org use <slug>` and `hamstik project use <key>` now auto-create a
+  config profile on-the-fly when `HAMSTIK_TOKEN` is set but no stored
+  credential or config profile exists. The CLI calls `GET /api/v1/me` to
+  populate the new profile (host + identity), then validates the requested
+  organization or project through the API before persisting it as the
+  default. This matches the existing env-token auth flow used by other
+  commands and eliminates the previous "no active profile" error for
+  headless or ephemeral setups (`org`, `project`).
 - `hamstik work await <KEY>` polls until a Work Item reaches a server-reported
   condition (repeatable `--status`, `--timeout` up to 1h with exponential
   backoff, human-readable and `--json` output). (CLI-25)
@@ -98,6 +108,16 @@ before upgrading.
   source chain (DNS, connection, timeout, TLS) instead of pattern-matching
   the rendered error text, so a library rewording can no longer silently
   degrade `doctor` and error output to the generic `network` stage.
+- `hamstik org use` and `hamstik project use` now make the auto-created profile
+  the active profile when they create it under an ephemeral `HAMSTIK_TOKEN`.
+  Previously the default organization/project was written into a profile that
+  profile selection never chose, so `doctor` and every command reported
+  "organization not selected" even though the config contained the default.
+- Auto-created profiles now seed the user's default organization from
+  `GET /api/v1/me` (matching `auth login`), and configuration write failures
+  during `org use`/`project use` report the configuration error class (exit 10)
+  instead of a generic internal error.
+
 
 ## [0.1.2] - 2026-09-15
 
@@ -493,6 +513,7 @@ API v1 (29 → 51 operations; all changes additive):
   (`work`, `project`).
 
 [Unreleased]: https://github.com/blackboardstudios/hamstik-cli/commits/main
+[0.1.3]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.3
 [0.1.2]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.2
 [0.1.1]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.1
 [0.1.1-rc.1]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.1-rc.1

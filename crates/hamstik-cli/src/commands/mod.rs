@@ -5,8 +5,9 @@
 
 use serde_json::Value;
 
-use crate::app::Session;
+use crate::app::{Selection, Session};
 use crate::args::{AgentCommand, Command};
+use crate::config::{Profile, profile_auto_name, unique_profile_name};
 use crate::error::CliError;
 
 pub mod agent_skill;
@@ -143,6 +144,47 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
         }
         _ => false,
     }
+}
+
+/// Returns the profile name the default-organization/project write targets.
+///
+/// When a profile is already selected it is returned unchanged. Under an
+/// ephemeral `HAMSTIK_TOKEN` no profile exists, so one is created on the fly
+/// from `GET /api/v1/me` (the same flow `auth login` uses) and made active —
+/// SPEC §28 otherwise selects no profile, which would leave the default the
+/// caller is about to write permanently unreachable by resolution.
+pub(crate) async fn ensure_profile_for_default(
+    session: &Session<'_>,
+    selection: &Selection,
+) -> Result<String, CliError> {
+    if let Some(name) = &selection.profile {
+        return Ok(name.clone());
+    }
+
+    let secret = session.token_for(selection)?;
+    let api = session.build_client(selection.host.clone(), secret)?;
+    let me = api.whoami().await.map_err(CliError::from_client)?;
+    let me = me.value;
+
+    let mut config = session.config.load()?;
+    let base = profile_auto_name(selection.host.as_str(), &me.email);
+    let name = unique_profile_name(&config, &base, &me.id, selection.host.as_str());
+    config.profiles.insert(
+        name.clone(),
+        Profile {
+            host: selection.host.as_str().to_string(),
+            user_id: me.id.clone(),
+            email: me.email.clone(),
+            default_organization: me.default_organization.map(|org| org.slug),
+            default_project: None,
+        },
+    );
+    config.active_profile = Some(name.clone());
+    // The profile was chosen by this command, not by the user's selection
+    // state; make it active so the default written by the caller is actually
+    // reachable by resolution. The write is a single atomic replace.
+    session.config.save(&config)?;
+    Ok(name)
 }
 
 /// `hamstik version`: release identity for the running binary.
