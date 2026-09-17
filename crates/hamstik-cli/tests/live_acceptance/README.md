@@ -62,6 +62,35 @@ The mutation scenario therefore:
 
 Everything else the run creates is removed by cleanup.
 
+## Rate limits
+
+The Public API v1 may return `429 Too Many Requests` with `Retry-After`
+headers. The CLI normally retries with backoff, but the acceptance suite
+passes `--no-retry` so transient rate limits surface immediately instead of
+masking contract regressions. If the server exhausts the test PAT's rate
+budget, pause and rerun after the `Retry-After` interval elapses.
+
+## Test-data retention
+
+The suite targets a dedicated test Organization and Project only. Every
+created Work Item, comment, link, attachment, and sprint transition is
+cleaned up at the end of the run (delete first, archive as fallback). The
+only permanent residue is the label and sprint described above, because the
+Public API v1 does not document delete operations for them.
+
+## Interrupted-run recovery
+
+If a run is interrupted (CI timeout, network partition, `SIGINT`, panic
+outside the cleanup wrapper), resources carrying the run-unique marker
+`acc-<unix-ts>-<pid>` may remain. Operators can recover by:
+
+1. Listing or searching the test Project for the marker prefix.
+2. Manually deleting or archiving any leftover Work Items.
+3. Renaming or archiving the leftover label and sprint if present.
+
+Because the marker embeds the PID and timestamp, two interrupted runs never
+collide, and the prefix is short enough to locate manually.
+
 ## Running
 
 ```bash

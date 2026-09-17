@@ -80,6 +80,10 @@ fn run_smoke(env: &AcceptanceEnv) {
     env.ok(&["org", "work", "--limit", "5"]);
     env.ok(&["org", "members", &env.org, "--limit", "5"]);
 
+    // Cursor pagination: --all follows every page internally; the test never
+    // touches an opaque cursor.
+    env.ok(&["work", "list", "--limit", "1", "--all"]);
+
     // SqueakQL validation (offline path) and the API contract probe.
     env.ok(&[
         "squeakql",
