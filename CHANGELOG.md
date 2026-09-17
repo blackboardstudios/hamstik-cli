@@ -16,6 +16,14 @@ before upgrading.
   condition (repeatable `--status`, `--timeout` up to 1h with exponential
   backoff, human-readable and `--json` output). (CLI-25)
 
+- Global configuration commands (CLI-6): `hamstik config path|list|get|set|unset`
+  manages safe, non-secret defaults in `~/.config/hamstik/config.toml`
+  (`editor`, `pager`, `output`, `git_branch_template`, `profile`,
+  `organization`, `project`). `set` rejects credential-like values (use
+  `hamstik credential` or the OS keyring), and `get`/`set`/`unset` expose
+  stable `{ key, value }` or `{ path }` JSON envelopes. Unknown keys and
+  unsupported schema versions fail deterministically with exit code 10.
+
 - Opt-in live Public API v1 acceptance suite (CLI-6):
   `cargo test --test live_acceptance -- --test-threads=1 --ignored` drives the
   real `hamstik` binary against a dedicated test Organization/Project over

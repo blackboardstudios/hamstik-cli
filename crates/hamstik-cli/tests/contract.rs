@@ -118,6 +118,7 @@ fn root_command_hierarchy_matches_documented_surface() {
             "me",
             "auth",
             "context",
+            "config",
             "org",
             "project",
             "sprint",

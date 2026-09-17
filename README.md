@@ -153,6 +153,8 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   with secrets held only in the OS credential store;
 - working context — `hamstik context show|set|clear|init` backed by a
   project-local `.hamstik.toml` plus global profile defaults;
+- global configuration — `hamstik config path|list|get|set|unset` for safe
+  non-secret defaults (editor, pager, output format, Git branch template);
 - organizations and projects — `hamstik org list|view|use` and
   `hamstik project list|view|create|edit|archive|unarchive|activity|use`;
 - member directory — `hamstik org members` and Organization-wide work via

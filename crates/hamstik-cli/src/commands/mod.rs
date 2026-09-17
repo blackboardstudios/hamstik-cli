@@ -15,6 +15,7 @@ pub mod auth;
 pub mod bulk_preflight;
 pub mod commands_manifest;
 pub mod completion;
+pub mod config;
 pub mod context_cmd;
 pub mod credential;
 pub mod doctor;
@@ -36,6 +37,7 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
         Command::Me => me::run(session).await,
         Command::Auth(args) => auth::run(session, args).await,
         Command::Context(args) => context_cmd::run(session, args).await,
+        Command::Config(args) => config::run(session, args).await,
         Command::Org(args) => org::run(session, args).await,
         Command::Project(args) => project::run(session, args).await,
         Command::Sprint(args) => sprint::run(session, args).await,

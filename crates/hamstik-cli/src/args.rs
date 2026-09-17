@@ -93,6 +93,8 @@ pub enum Command {
     Auth(AuthArgs),
     /// Inspect and manage the working context.
     Context(ContextArgs),
+    /// Inspect and modify global CLI configuration.
+    Config(ConfigArgs),
     /// Work with organizations.
     Org(OrgArgs),
     /// Work with projects.
@@ -434,6 +436,40 @@ pub enum ContextCommand {
     Init,
     /// Explain how every resolved setting won precedence, fully offline.
     Explain,
+}
+
+/// Arguments for the `config` command group.
+#[derive(Args, Debug)]
+pub struct ConfigArgs {
+    /// The config subcommand to run.
+    #[command(subcommand)]
+    pub command: ConfigCommand,
+}
+
+/// Configuration subcommands.
+#[derive(Subcommand, Debug)]
+pub enum ConfigCommand {
+    /// Print the path to the active configuration file.
+    Path,
+    /// List all effective non-secret configuration values.
+    List,
+    /// Get a single configuration value.
+    Get {
+        /// Configuration key (e.g. `editor`, `pager`, `output`, `profile`).
+        key: String,
+    },
+    /// Set a configuration value.
+    Set {
+        /// Configuration key (e.g. `editor`, `pager`, `output`, `profile`).
+        key: String,
+        /// New value for the key.
+        value: String,
+    },
+    /// Remove a configuration value.
+    Unset {
+        /// Configuration key to remove.
+        key: String,
+    },
 }
 
 /// Arguments for the `org` command group.

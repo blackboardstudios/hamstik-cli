@@ -17,7 +17,10 @@ use crate::error::CliError;
 use crate::fsutil;
 
 /// Current configuration schema version.
-pub const CONFIG_VERSION: u32 = 1;
+pub const CONFIG_VERSION: u32 = 2;
+
+/// Minimum supported configuration schema version.
+pub const MIN_CONFIG_VERSION: u32 = 1;
 
 /// Maximum accepted config file size (1 MiB).
 pub const MAX_CONFIG_BYTES: u64 = 1024 * 1024;
@@ -40,6 +43,24 @@ pub struct Profile {
     pub default_project: Option<String>,
 }
 
+/// Non-secret global settings persisted alongside profiles.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ConfigSettings {
+    /// Preferred editor command used by authoring commands.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub editor: Option<String>,
+    /// Preferred pager command for long output.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pager: Option<String>,
+    /// Preferred output format (e.g. `json`, `table`, `plain`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output: Option<String>,
+    /// Git branch name template used by context-aware commands.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git_branch_template: Option<String>,
+}
+
 /// On-disk configuration document.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -52,6 +73,9 @@ pub struct ConfigFile {
     /// All configured profiles, keyed by profile name.
     #[serde(default)]
     pub profiles: BTreeMap<String, Profile>,
+    /// Global non-secret CLI defaults.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settings: Option<ConfigSettings>,
 }
 
 impl Default for ConfigFile {
@@ -60,6 +84,7 @@ impl Default for ConfigFile {
             version: CONFIG_VERSION,
             active_profile: None,
             profiles: BTreeMap::new(),
+            settings: None,
         }
     }
 }
@@ -100,14 +125,24 @@ impl ConfigStore {
         }
         let contents = fs::read_to_string(self.path())
             .map_err(|err| self.fail(&format!("cannot read file ({err})")))?;
-        let config: ConfigFile = toml::from_str(&contents).map_err(|err| {
+        let mut config: ConfigFile = toml::from_str(&contents).map_err(|err| {
             self.fail(&format!(
                 "invalid configuration (repair the file, or upgrade this CLI if it was \
                  written by a newer version): {err}"
             ))
         })?;
         self.check_version(&config)?;
+        self.migrate(&mut config)?;
         Ok(config)
+    }
+
+    /// Migrates older schema versions in place.
+    fn migrate(&self, config: &mut ConfigFile) -> Result<(), CliError> {
+        if config.version < CONFIG_VERSION {
+            config.settings.get_or_insert(ConfigSettings::default());
+            config.version = CONFIG_VERSION;
+        }
+        Ok(())
     }
 
     /// Rejects documents written for a different schema version.
@@ -119,11 +154,17 @@ impl ConfigStore {
                  {CONFIG_VERSION}); upgrade the Hamstik CLI",
                 config.version
             ))),
-            std::cmp::Ordering::Less => Err(self.fail(&format!(
-                "schema version {} is no longer supported (this CLI writes version \
-                 {CONFIG_VERSION})",
-                config.version
-            ))),
+            std::cmp::Ordering::Less => {
+                if config.version < MIN_CONFIG_VERSION {
+                    Err(self.fail(&format!(
+                        "schema version {} is no longer supported (this CLI writes version \
+                         {CONFIG_VERSION})",
+                        config.version
+                    )))
+                } else {
+                    Ok(())
+                }
+            }
         }
     }
 
