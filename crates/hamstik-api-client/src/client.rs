@@ -687,24 +687,35 @@ pub fn classify_network_error(err: &reqwest::Error) -> NetworkStage {
     if err.is_timeout() {
         return NetworkStage::Timeout;
     }
-    let mut source = err.source();
+    if let Some(stage) = classify_from_source_chain(err.source()) {
+        return stage;
+    }
+    network_stage_from_message(&err.to_string())
+}
+
+/// Walks a transport-error source chain for concrete types: connection-class
+/// `io::Error` kinds, `rustls::Error` (TLS), and OS resolver messages (DNS).
+fn classify_from_source_chain(
+    source: Option<&(dyn std::error::Error + 'static)>,
+) -> Option<NetworkStage> {
+    let mut source = source;
     while let Some(src) = source {
         // `rustls::Error` in the chain is authoritative for TLS handshake
         // failures; matching the concrete type (not rendered prose) means a
         // reqwest/hyper rewording cannot degrade classification.
         if src.downcast_ref::<rustls::Error>().is_some() {
-            return NetworkStage::Tls;
+            return Some(NetworkStage::Tls);
         }
         if let Some(io) = src.downcast_ref::<std::io::Error>() {
             match io.kind() {
-                std::io::ErrorKind::TimedOut => return NetworkStage::Timeout,
+                std::io::ErrorKind::TimedOut => return Some(NetworkStage::Timeout),
                 std::io::ErrorKind::ConnectionRefused
                 | std::io::ErrorKind::ConnectionReset
                 | std::io::ErrorKind::NotConnected
                 | std::io::ErrorKind::BrokenPipe
                 | std::io::ErrorKind::AddrNotAvailable
                 | std::io::ErrorKind::HostUnreachable
-                | std::io::ErrorKind::NetworkUnreachable => return NetworkStage::Connection,
+                | std::io::ErrorKind::NetworkUnreachable => return Some(NetworkStage::Connection),
                 // DNS failures surface as an io::Error whose kind is not
                 // stable (glibc: Uncategorized/InvalidInput; others vary);
                 // match the OS resolver message, which is stable per platform.
@@ -715,15 +726,19 @@ pub fn classify_network_error(err: &reqwest::Error) -> NetworkStage {
                         || msg.contains("nodename nor servname provided")
                         || msg.contains("temporary failure in name resolution")
                         || msg.contains("no address associated")
+                        // Windows: getaddrinfo reports WSAHOST_NOT_FOUND /
+                        // WSATRY_AGAIN through `std`, with no kind to match.
+                        || msg.contains("no such host is known")
+                        || msg.contains("error occurred during a database lookup")
                     {
-                        return NetworkStage::Dns;
+                        return Some(NetworkStage::Dns);
                     }
                 }
             }
         }
         source = src.source();
     }
-    network_stage_from_message(&err.to_string())
+    None
 }
 
 /// Reads a response body, enforcing [`MAX_BODY_BYTES`].
@@ -3055,6 +3070,28 @@ mod tests {
             network_stage_from_message("something unrecognizable"),
             NetworkStage::Unknown
         );
+    }
+
+    #[test]
+    fn windows_dns_message_classifies_as_dns() {
+        // Windows `getaddrinfo` failures render through `io::Error` as
+        // WSAHOST_NOT_FOUND / WSATRY_AGAIN prose with no stable ErrorKind;
+        // the source-chain walk must recognize them instead of falling
+        // through to `Unknown` (a real regression the Windows CI caught).
+        for message in [
+            "No such host is known. (os error 11001)",
+            "A non-recoverable error occurred during a database lookup. (os error 11002)",
+        ] {
+            let io = std::io::Error::other(message);
+            let stage = classify_from_source_chain(Some(&io));
+            assert_eq!(stage, Some(NetworkStage::Dns), "{message}");
+        }
+        // Nothing recognizable stays `None` (falls back to rendered text).
+        assert_eq!(
+            classify_from_source_chain(Some(&std::io::Error::other("mysterious"))),
+            None
+        );
+        assert_eq!(classify_from_source_chain(None), None);
     }
 
     #[test]
