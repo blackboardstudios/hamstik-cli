@@ -17,7 +17,6 @@
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::{Command, Output};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -240,11 +239,13 @@ impl AcceptanceEnv {
         }
     }
 
-    /// Writes a temp file (mode 0666) and returns its path.
+    /// Writes a temp file and returns its path. Default permissions are
+    /// used: the file lives in a private temp directory, and POSIX file
+    /// modes are not portable to Windows, which must still compile this
+    /// suite (the offline `cargo test` gates do).
     pub fn temp_file(&self, name: &str, content: &[u8]) -> PathBuf {
         let path = self.temp_config.join(name);
         fs::write(&path, content).expect("write temp file");
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o666)).expect("set mode");
         path
     }
 

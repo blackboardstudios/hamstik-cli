@@ -1,0 +1,20 @@
+.TH HAMSTIK 1 "HAMSTIK WORK AWAIT"
+.SH NAME
+hamstik work await \- Wait for a work item to reach a server\-reported condition
+.SH SYNOPSIS
+.B hamstik work await [OPTIONS]
+.SH DESCRIPTION
+Wait for a work item to reach a server\-reported condition
+.SH ARGUMENTS
+.TP
+.I KEY
+Work item key (e.g. HAM-42)
+.SH OPTIONS
+.TP
+.B --status
+Target status to wait for (repeatable; all specified conditions must match). When omitted, the command returns immediately once the item is reachable (any status satisfies the condition)
+Choices: backlog, todo, in_progress, in_review, done
+.TP
+.B --timeout
+Maximum time to wait (e.g. 10m, 1h30m). Defaults to 5m; upper-bounded at 1h to prevent accidental infinite waits
+Default: 5m

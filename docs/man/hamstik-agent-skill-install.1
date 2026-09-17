@@ -1,0 +1,16 @@
+.TH HAMSTIK 1 "HAMSTIK AGENT SKILL INSTALL"
+.SH NAME
+hamstik agent skill install \- Install the canonical bundled Agent Skill into a location agents discover. Defaults to the current project's portable `.agents/skills/hamstik/` location; `\-\-global` installs into the user\-level portable location. A locally modified installed skill is never silently overwritten; `\-\-force` is required for replacement
+.SH SYNOPSIS
+.B hamstik agent skill install [OPTIONS]
+.SH DESCRIPTION
+Install the canonical bundled Agent Skill into a location agents discover. Defaults to the current project's portable `.agents/skills/hamstik/` location; `\-\-global` installs into the user\-level portable location. A locally modified installed skill is never silently overwritten; `\-\-force` is required for replacement
+.SH OPTIONS
+.TP
+.B --global
+Install into the user-level portable Agent Skills location instead of the default current-project location
+Choices: true, false
+.TP
+.B --force
+Replace an existing locally modified installed skill
+Choices: true, false

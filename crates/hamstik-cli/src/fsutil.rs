@@ -83,6 +83,11 @@ pub fn restrict_permissions(path: &Path) -> io::Result<()> {
     fs::set_permissions(path, permissions)
 }
 
+/// A no-op on non-Unix platforms.
+///
+/// Windows ACLs do not map to Unix file modes, and the restricted-group/
+/// owner behavior is a Unix hardening convention; files already live in the
+/// user's profile directory.
 #[cfg(not(unix))]
 pub fn restrict_permissions(_path: &Path) -> io::Result<()> {
     Ok(())

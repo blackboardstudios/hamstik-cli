@@ -357,6 +357,118 @@
    "positionals": []
   },
   {
+   "about": "Inspect and modify global CLI configuration",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik config",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Print the path to the active configuration file",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik config path",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List all effective non-secret configuration values",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik config list",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Get a single configuration value",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Configuration key (e.g. `editor`, `pager`, `output`, `profile`)",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik config get",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Set a configuration value",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Configuration key (e.g. `editor`, `pager`, `output`, `profile`)",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "New value for the key",
+     "kind": "positional",
+     "name": "value",
+     "valueName": "VALUE"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik config set",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "key",
+    "value"
+   ]
+  },
+  {
+   "about": "Remove a configuration value",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Configuration key to remove",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik config unset",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
    "about": "Work with organizations",
    "aliases": [],
    "arguments": [],
@@ -3281,6 +3393,49 @@
    ]
   },
   {
+   "about": "Wait for a work item to reach a server-reported condition",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key (e.g. HAM-42)",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "choices": [
+      "backlog",
+      "todo",
+      "in_progress",
+      "in_review",
+      "done"
+     ],
+     "help": "Target status to wait for (repeatable; all specified conditions must match). When omitted, the command returns immediately once the item is reachable (any status satisfies the condition)",
+     "kind": "option",
+     "long": "--status"
+    },
+    {
+     "default": "5m",
+     "help": "Maximum time to wait (e.g. 10m, 1h30m). Defaults to 5m; upper-bounded at 1h to prevent accidental infinite waits",
+     "kind": "option",
+     "long": "--timeout"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work await",
+   "hasSubcommands": false,
+   "options": [
+    "--status",
+    "--timeout"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
    "about": "Create, update, or transition many work items in one request",
    "aliases": [],
    "arguments": [],
@@ -3992,6 +4147,89 @@
    ]
   },
   {
+   "about": "Agent automation: manage and validate the bundled Agent Skill",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik agent",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Manage the canonical bundled Agent Skill",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik agent skill",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Install the canonical bundled Agent Skill into a location agents discover. Defaults to the current project's portable `.agents/skills/hamstik/` location; `--global` installs into the user-level portable location. A locally modified installed skill is never silently overwritten; `--force` is required for replacement",
+   "aliases": [],
+   "arguments": [
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Install into the user-level portable Agent Skills location instead of the default current-project location",
+     "kind": "option",
+     "long": "--global"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Replace an existing locally modified installed skill",
+     "kind": "option",
+     "long": "--force"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik agent skill install",
+   "hasSubcommands": false,
+   "options": [
+    "--global",
+    "--force"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Validate an Agent Skill against this binary's command surface and compatibility metadata. Defaults to the installed skill; an explicit PATH validates any skill file (this is what CI runs)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Explicit path to a `SKILL.md` to validate instead of the default installed-location lookup",
+     "kind": "positional",
+     "name": "path",
+     "valueName": "PATH"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik agent skill check",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "path"
+   ]
+  },
+  {
    "about": "Verify configuration, credentials, connectivity, API compatibility, and selected Organization/Project context",
    "aliases": [],
    "arguments": [
@@ -4003,6 +4241,11 @@
      "help": "Check only local configuration, context, credential-store access, terminal behavior, and bundled compatibility metadata; remote checks are marked skipped and no network traffic is generated",
      "kind": "option",
      "long": "--local-only"
+    },
+    {
+     "help": "Write a versioned support bundle to the given path. The bundle is a ZIP containing: `bundle-manifest.json` (layout version and file list), `doctor-report.json` (redacted diagnostic results), `context-explain.json` (redacted context resolution chains), `cli-info.json` (version, target, build profile), `api-compatibility.json` (required/additive operation counts), and `config-metadata.json` (safe config summary, no secrets)",
+     "kind": "option",
+     "long": "--bundle"
     }
    ],
    "capabilities": {
@@ -4012,7 +4255,8 @@
    "command": "hamstik doctor",
    "hasSubcommands": false,
    "options": [
-    "--local-only"
+    "--local-only",
+    "--bundle"
    ],
    "positionals": []
   },
