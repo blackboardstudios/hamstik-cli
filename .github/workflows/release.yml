@@ -239,11 +239,16 @@ jobs:
       # Hamstik addition: ship man pages with every archive (design docs +
       # manifest derive from the same command tree). Pages land in
       # target/distrib/man/; dist's upload step ships every file there.
+      # The binary comes from the archive this job just built (dist owns
+      # target/distrib/, not target/release/), extracted by
+      # scripts/release_binary.py so the docs are generated from the
+      # released executable. bash works on every runner in the matrix
+      # (Windows runners resolve `shell: bash` to Git Bash).
       - name: Generate man pages
+        shell: bash
         run: |
-          python3 scripts/generate_docs.py \
-            --binary "$(cargo locate-project --workspace --message-format plain | xargs dirname)/target/release/hamstik" \
-            --out docs/reference
+          BINARY="$(python3 scripts/release_binary.py --manifest dist-manifest.json)"
+          python3 scripts/generate_docs.py --binary "$BINARY" --out docs/reference
           mkdir -p target/distrib/man
           cp docs/man/* target/distrib/man/
       - id: cargo-dist
