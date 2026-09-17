@@ -39,6 +39,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 toml = { workspace = true }
 uuid = { workspace = true }
+zip = { workspace = true }
 
 # Credential store backends. `keyring` ships NO default features: with no
 # backend feature enabled it silently resolves to its in-process mock store,

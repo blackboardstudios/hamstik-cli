@@ -47,7 +47,9 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
             AgentCommand::Skill(skill) => agent_skill::run(session, &skill.command),
         },
         Command::Api(args) => api::run(session, args).await,
-        Command::Doctor { local_only } => doctor::run(session, *local_only).await,
+        Command::Doctor(args) => {
+            doctor::run(session, args.local_only, args.bundle.as_deref()).await
+        }
         Command::Completion(args) => completion::run(session, args),
         Command::Commands(_) => commands_manifest::run(session),
         Command::Version => version(session),

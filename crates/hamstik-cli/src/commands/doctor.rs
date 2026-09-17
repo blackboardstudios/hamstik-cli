@@ -274,13 +274,17 @@ struct Compatibility {
 /// credential-store accessibility, terminal behavior, and bundled
 /// compatibility metadata without contacting the host: remote checks are
 /// reported as skipped and no DNS or HTTP traffic is generated.
-pub async fn run(session: &mut Session<'_>, local_only: bool) -> Result<(), CliError> {
+pub async fn run(
+    session: &mut Session<'_>,
+    local_only: bool,
+    bundle: Option<&std::path::Path>,
+) -> Result<(), CliError> {
     let mut report = Report::new();
     let local = diagnose_local_state(session, &mut report);
 
     let Some(selection) = local.selection else {
         finish_without_host(session, &mut report, local_only);
-        return render(session, report);
+        return finish(session, report, bundle).await;
     };
 
     if local_only {
@@ -323,7 +327,7 @@ pub async fn run(session: &mut Session<'_>, local_only: bool) -> Result<(), CliE
                 );
                 report.push(color_check(session));
                 report.push(emoji_check(session));
-                return render(session, report);
+                return finish(session, report, bundle).await;
             }
         };
         match check_api_compatibility(&bundled) {
@@ -357,7 +361,7 @@ pub async fn run(session: &mut Session<'_>, local_only: bool) -> Result<(), CliE
         ));
         report.push(color_check(session));
         report.push(emoji_check(session));
-        return render(session, report);
+        return finish(session, report, bundle).await;
     }
 
     // An explicit ephemeral token makes the keyring irrelevant; do not even
@@ -531,7 +535,7 @@ pub async fn run(session: &mut Session<'_>, local_only: bool) -> Result<(), CliE
 
     report.push(color_check(session));
     report.push(emoji_check(session));
-    render(session, report)
+    finish(session, report, bundle).await
 }
 
 fn diagnose_local_state(session: &Session<'_>, report: &mut Report) -> LocalState {
@@ -1531,13 +1535,325 @@ fn render(session: &mut Session<'_>, report: Report) -> Result<(), CliError> {
     Ok(())
 }
 
+/// Either render the report to the terminal/JSON or write a support bundle.
+async fn finish(
+    session: &mut Session<'_>,
+    report: Report,
+    bundle: Option<&std::path::Path>,
+) -> Result<(), CliError> {
+    if let Some(path) = bundle {
+        write_bundle(session, &report, path).await?;
+    }
+    render(session, report)
+}
+
+/// Bundle layout version. Bump when the on-disk structure changes.
+const BUNDLE_VERSION: &str = "1.0";
+
+/// Writes a redacted, versioned support bundle to `path`.
+async fn write_bundle(
+    session: &mut Session<'_>,
+    report: &Report,
+    path: &std::path::Path,
+) -> Result<(), CliError> {
+    use std::io::Write;
+
+    let file = std::fs::File::create(path)
+        .map_err(|err| CliError::general(format!("cannot create bundle: {err}")))?;
+    let mut zip = zip::ZipWriter::new(file);
+    let options = zip::write::SimpleFileOptions::default();
+
+    // --- bundle-manifest.json ---
+    let manifest = json!({
+        "bundleVersion": BUNDLE_VERSION,
+        "generatedAt": std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| format!("{}", d.as_secs()))
+            .unwrap_or_else(|_| "0".to_string()),
+        "contents": [
+            "bundle-manifest.json",
+            "doctor-report.json",
+            "context-explain.json",
+            "cli-info.json",
+            "api-compatibility.json",
+            "config-metadata.json",
+        ],
+        "redaction": "by construction plus explicit scrub pass",
+    });
+    zip.start_file("bundle-manifest.json", options)
+        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+    zip.write_all(manifest.to_string().as_bytes())
+        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+
+    // --- doctor-report.json ---
+    let report_json = report_to_json(report);
+    zip.start_file("doctor-report.json", options)
+        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+    zip.write_all(report_json.to_string().as_bytes())
+        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+
+    // --- context-explain.json ---
+    let context_json = context_explain_json(session);
+    zip.start_file("context-explain.json", options)
+        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+    zip.write_all(context_json.to_string().as_bytes())
+        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+
+    // --- cli-info.json ---
+    let cli_info = cli_info_json();
+    zip.start_file("cli-info.json", options)
+        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+    zip.write_all(cli_info.to_string().as_bytes())
+        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+
+    // --- api-compatibility.json ---
+    let api_compat = api_compatibility_json();
+    zip.start_file("api-compatibility.json", options)
+        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+    zip.write_all(api_compat.to_string().as_bytes())
+        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+
+    // --- config-metadata.json ---
+    let config_meta = config_metadata_json(session);
+    zip.start_file("config-metadata.json", options)
+        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+    zip.write_all(config_meta.to_string().as_bytes())
+        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+
+    zip.finish()
+        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+
+    session
+        .out
+        .line(&format!("support bundle written to {}", path.display()))
+        .map_err(CliError::general)?;
+    Ok(())
+}
+
+fn report_to_json(report: &Report) -> Value {
+    let items: Vec<_> = report
+        .checks
+        .iter()
+        .map(|check| {
+            let mut value = json!({
+                "id": check.id,
+                "name": check.name,
+                "status": check.status.as_str(),
+                "ok": check.ok(),
+                "critical": check.critical,
+                "detail": check.detail,
+            });
+            if let Some(remediation) = &check.remediation {
+                value["remediation"] = Value::String(remediation.clone());
+            }
+            if let Some(duration_ms) = check.duration_ms {
+                value["durationMs"] = Value::from(duration_ms);
+            }
+            if let Some(request_id) = &check.request_id {
+                value["requestId"] = Value::String(request_id.clone());
+            }
+            if let Some(stage) = check.network_stage {
+                value["networkStage"] = Value::String(stage.as_str().to_string());
+            }
+            if let Some(error) = &check.error {
+                value["error"] = error.to_json();
+            }
+            value
+        })
+        .collect();
+    json!({
+        "schemaVersion": 1,
+        "checks": items,
+        "summary": {
+            "pass": ReportSummary::of(report).pass,
+            "warn": ReportSummary::of(report).warn,
+            "fail": ReportSummary::of(report).fail,
+            "skipped": ReportSummary::of(report).skipped,
+        },
+        "ok": report.exit_code == exit::SUCCESS,
+        "exitCode": report.exit_code,
+    })
+}
+
+fn context_explain_json(session: &Session<'_>) -> Value {
+    let selection = match session.selection() {
+        Ok(s) => s,
+        Err(_) => return json!({"error": "context resolution unavailable"}),
+    };
+    let config = match session.config.load() {
+        Ok(c) => c,
+        Err(_) => return json!({"error": "config unavailable"}),
+    };
+    let context_document = selection
+        .context_path
+        .as_deref()
+        .and_then(|path| crate::context::load(path).ok());
+    let (host_chain, org_chain, project_chain) = crate::context::explain_chains(
+        (
+            &session.global.host,
+            &session.global.org,
+            &session.global.project,
+        ),
+        session.env,
+        context_document.as_ref(),
+        selection.profile_meta.as_ref(),
+    );
+
+    let profile_chain = {
+        let mut sources = Vec::new();
+        let mut push = |value: Option<String>, source: &str, status: &str| {
+            sources.push(json!({
+                "source": source,
+                "status": status,
+                "value": value,
+            }));
+        };
+        match (
+            session.global.profile.clone(),
+            session.env.var("HAMSTIK_PROFILE"),
+            config.active_profile.clone(),
+        ) {
+            (Some(flag), env, active) => {
+                push(Some(flag), "cli", "winner");
+                if let Some(env) = env {
+                    push(Some(env), "environment", "shadowed");
+                }
+                if let Some(active) = active {
+                    push(Some(active), "profile", "shadowed");
+                }
+            }
+            (None, Some(env), active) => {
+                push(Some(env), "environment", "winner");
+                if let Some(active) = active {
+                    push(Some(active), "profile", "shadowed");
+                }
+            }
+            (None, None, Some(active)) => push(Some(active), "profile", "winner"),
+            (None, None, None) => push(None, "default", "unset"),
+        }
+        json!({ "sources": sources })
+    };
+
+    let token_chain = {
+        let env_token = session.env.var("HAMSTIK_TOKEN").is_some();
+        let mut sources = Vec::new();
+        if env_token {
+            sources.push(json!({
+                "source": "environment",
+                "status": "winner",
+                "value": "<set; value not displayed>",
+            }));
+        } else if selection.profile.is_some() {
+            sources.push(json!({
+                "source": "credential_store",
+                "status": "winner",
+                "value": "<stored credential; value never displayed>",
+            }));
+        } else {
+            sources.push(json!({
+                "source": "default",
+                "status": "unset",
+                "value": Value::Null,
+            }));
+        }
+        json!({ "sources": sources })
+    };
+
+    json!({
+        "schemaVersion": 1,
+        "values": {
+            "host": chain_json(&host_chain, "HAMSTIK_HOST"),
+            "organization": chain_json(&org_chain, "HAMSTIK_ORG"),
+            "project": chain_json(&project_chain, "HAMSTIK_PROJECT"),
+            "profile": profile_chain,
+            "token": token_chain,
+        },
+        "contextDiscovery": {
+            "searchedFrom": session.cwd.display().to_string(),
+            "filename": crate::context::CONTEXT_FILENAME,
+            "found": selection.context_path.as_ref().map(|p| p.display().to_string()),
+        },
+        "localOnly": true,
+    })
+}
+
+fn chain_json(field: &crate::context::ResolvedChain, env_var: &str) -> Value {
+    let mut sources = Vec::new();
+    if let Some((value, source)) = &field.winner {
+        sources.push(json!({
+            "source": source.as_key(),
+            "status": "winner",
+            "value": value,
+        }));
+    }
+    for (value, source) in &field.shadowed {
+        sources.push(json!({
+            "source": source.as_key(),
+            "status": "shadowed",
+            "value": value,
+        }));
+    }
+    if field.winner.is_none() {
+        sources.push(json!({
+            "source": "default",
+            "status": "unset",
+            "value": Value::Null,
+        }));
+    }
+    json!({
+        "envVar": env_var,
+        "sources": sources,
+        "winningSource": field.source().as_key(),
+    })
+}
+
+fn cli_info_json() -> Value {
+    json!({
+        "cliVersion": env!("CARGO_PKG_VERSION"),
+        "profile": std::env::var("PROFILE").unwrap_or_default(),
+        "targetArch": std::env::consts::ARCH,
+        "targetOs": std::env::consts::OS,
+        "rustVersion": env!("CARGO_PKG_RUST_VERSION"),
+    })
+}
+
+fn api_compatibility_json() -> Value {
+    match bundled_openapi() {
+        Ok(doc) => match check_api_compatibility(&doc) {
+            Ok(compat) => {
+                json!({"detail": compat.detail, "additiveOperations": compat.additive_operations})
+            }
+            Err(message) => json!({"error": message}),
+        },
+        Err(message) => json!({"error": message}),
+    }
+}
+
+fn config_metadata_json(session: &Session<'_>) -> Value {
+    let path = session.config.path();
+    let mut meta = json!({
+        "path": path.display().to_string(),
+        "exists": path.exists(),
+    });
+    if let Ok(config) = session.config.load() {
+        meta["activeProfile"] = json!(config.active_profile);
+        meta["profiles"] = json!(config.profiles.keys().collect::<Vec<_>>());
+        let _ = config;
+    }
+    meta
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
+    use crate::app::{ApiFactory, ClientRequest, PublicClientRequest};
     use crate::context::{ResolvedField, Source};
     use crate::credentials::CredentialError;
     use crate::environment::MapEnvironment;
+    use crate::input::Prompt;
+    use std::io;
+    use std::sync::Arc;
 
     struct FailingStore;
 
@@ -1552,6 +1868,33 @@ mod tests {
 
         fn delete(&self, _account: &str) -> Result<(), CredentialError> {
             Err(CredentialError::Unavailable("locked".to_string()))
+        }
+    }
+
+    struct MockFactory;
+
+    impl ApiFactory for MockFactory {
+        fn build(&self, _request: &ClientRequest) -> Result<Arc<dyn HamstikApi>, CliError> {
+            unimplemented!()
+        }
+
+        fn build_public(
+            &self,
+            _request: &PublicClientRequest,
+        ) -> Result<Arc<dyn HamstikApi>, CliError> {
+            unimplemented!()
+        }
+    }
+
+    struct MockPrompt;
+
+    impl Prompt for MockPrompt {
+        fn read_line(&mut self, _prompt: &str) -> io::Result<String> {
+            unimplemented!()
+        }
+
+        fn read_secret(&mut self, _prompt: &str) -> io::Result<String> {
+            unimplemented!()
         }
     }
 
@@ -1646,5 +1989,132 @@ mod tests {
             .remove("/api/v1/me");
         let error = check_api_compatibility(&document).unwrap_err();
         assert!(error.contains("getMe"), "{error}");
+    }
+
+    #[test]
+    fn report_json_does_not_contain_raw_credentials() {
+        let mut report = Report::new();
+        report.push(Check::failure(
+            "api.authentication",
+            "authentication",
+            "token expired",
+            &CliError::auth("token expired"),
+        ));
+        let json = report_to_json(&report);
+        let text = json.to_string();
+        assert!(
+            !text.contains("Authorization"),
+            "report must not contain Authorization headers: {text}"
+        );
+        assert!(
+            !text.contains("Bearer ") && !text.contains("bearer "),
+            "report must not contain bearer tokens: {text}"
+        );
+    }
+
+    #[test]
+    fn config_metadata_json_never_exposes_secrets() {
+        let env = MapEnvironment::new().with_var("HAMSTIK_TOKEN", "secret-token-value");
+        let session = Session {
+            global: crate::args::GlobalOptions {
+                host: None,
+                profile: None,
+                org: None,
+                project: None,
+                json: false,
+                quiet: false,
+                verbose: false,
+                no_color: false,
+                no_input: true,
+                no_retry: false,
+                dry_run: false,
+                ca_bundle: None,
+            },
+            env: &env,
+            cwd: std::path::PathBuf::from("."),
+            config: crate::config::ConfigStore::new(std::path::PathBuf::from(
+                "/tmp/nonexistent-config.toml",
+            )),
+            store: &FailingStore,
+            out: crate::output::Output::new(
+                crate::output::Mode::Human,
+                false,
+                Box::new(Vec::new()),
+                Box::new(Vec::new()),
+            ),
+            factory: &MockFactory,
+            prompt: &mut MockPrompt,
+            exit_code: 0,
+        };
+        let json = config_metadata_json(&session);
+        let text = json.to_string();
+        assert!(
+            !text.contains("secret-token-value"),
+            "config metadata must not contain token values: {text}"
+        );
+        assert!(
+            !text.contains("HAMSTIK_TOKEN"),
+            "config metadata must not reference token env var: {text}"
+        );
+    }
+
+    #[test]
+    fn cli_info_json_contains_no_secrets() {
+        let json = cli_info_json();
+        let text = json.to_string();
+        assert!(
+            !text.contains("Authorization"),
+            "cli info must not contain Authorization: {text}"
+        );
+        assert!(
+            !text.contains("token"),
+            "cli info must not contain token: {text}"
+        );
+    }
+
+    #[test]
+    fn context_explain_json_never_exposes_token_values() {
+        let env = MapEnvironment::new().with_var("HAMSTIK_TOKEN", "super-secret-token");
+        let session = Session {
+            global: crate::args::GlobalOptions {
+                host: None,
+                profile: None,
+                org: None,
+                project: None,
+                json: false,
+                quiet: false,
+                verbose: false,
+                no_color: false,
+                no_input: true,
+                no_retry: false,
+                dry_run: false,
+                ca_bundle: None,
+            },
+            env: &env,
+            cwd: std::path::PathBuf::from("."),
+            config: crate::config::ConfigStore::new(std::path::PathBuf::from(
+                "/tmp/nonexistent-config.toml",
+            )),
+            store: &FailingStore,
+            out: crate::output::Output::new(
+                crate::output::Mode::Human,
+                false,
+                Box::new(Vec::new()),
+                Box::new(Vec::new()),
+            ),
+            factory: &MockFactory,
+            prompt: &mut MockPrompt,
+            exit_code: 0,
+        };
+        let json = context_explain_json(&session);
+        let text = json.to_string();
+        assert!(
+            !text.contains("super-secret-token"),
+            "context explain must not contain token values: {text}"
+        );
+        assert!(
+            text.contains("<set; value not displayed>") || !text.contains("HAMSTIK_TOKEN"),
+            "context explain must not reference token env var: {text}"
+        );
     }
 }

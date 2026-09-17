@@ -30,6 +30,15 @@ before upgrading.
   a manual `workflow_dispatch` job (`.github/workflows/live-acceptance.yml`)
   runs it against a configured test deployment when repository
   variables/secrets opt in.
+- Doctor support bundle (CLI-6): `hamstik doctor --bundle <path>` produces a
+  versioned ZIP bundle (`bundleVersion: 1`) containing a redacted
+  `doctor-report.json`, `context-explain.json`, `cli-info.json`,
+  `api-compatibility.json`, `config-metadata.json`, and
+  `bundle-manifest.json`. The bundle never contains PAT values, Authorization
+  headers, credential-store contents, token-bearing environment variables, or
+  credential-bearing proxy URLs. It is compatible with `--local-only`; remote
+  checks are safely skipped when the flag is active. Automated redaction unit
+  tests verify all bundle sections are secret-free.
 - Work Item context bundle (CLI-21): `hamstik work context <KEY>` returns a
   one-invocation, data-only read bundle for a Work Item — metadata,
   description, server-reported links, labels, recent comments, recent

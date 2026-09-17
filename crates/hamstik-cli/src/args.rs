@@ -113,13 +113,7 @@ pub enum Command {
     Agent(AgentArgs),
     /// Verify configuration, credentials, connectivity, API compatibility,
     /// and selected Organization/Project context.
-    Doctor {
-        /// Check only local configuration, context, credential-store access,
-        /// terminal behavior, and bundled compatibility metadata; remote
-        /// checks are marked skipped and no network traffic is generated.
-        #[arg(long)]
-        local_only: bool,
-    },
+    Doctor(DoctorArgs),
     /// Generate a shell completion script.
     Completion(CompletionArgs),
     /// Print the machine-readable command manifest derived from the real
@@ -194,6 +188,38 @@ pub struct AgentArgs {
     /// The agent subcommand to run.
     #[command(subcommand)]
     pub command: AgentCommand,
+}
+
+/// Arguments for the `doctor` command.
+#[derive(Args, Debug)]
+pub struct DoctorArgs {
+    /// Check only local configuration, context, credential-store access,
+    /// terminal behavior, and bundled compatibility metadata; remote
+    /// checks are marked skipped and no network traffic is generated.
+    #[arg(long)]
+    pub local_only: bool,
+    /// Write a versioned support bundle to the given path. The bundle is a
+    /// ZIP containing: `bundle-manifest.json` (layout version and file list),
+    /// `doctor-report.json` (redacted diagnostic results),
+    /// `context-explain.json` (redacted context resolution chains),
+    /// `cli-info.json` (version, target, build profile),
+    /// `api-compatibility.json` (required/additive operation counts),
+    /// and `config-metadata.json` (safe config summary, no secrets).
+    ///
+    /// Redaction rules: no PAT values, no Authorization headers, no
+    /// credential-store contents, no token values, no proxy URLs with
+    /// embedded credentials, and no arbitrary environment dumps. The bundle
+    /// is not telemetry: it is written locally and never uploaded.
+    ///
+    /// Compatible with `--local-only`; remote checks are safely skipped
+    /// when that flag is active and only safe, local data is included.
+    ///
+    /// Layout version is `1.0` and is declared in the manifest so future
+    /// support workflows can parse it reliably.
+    ///
+    /// See also: `doctor --help`.
+    #[arg(long, value_name = "PATH")]
+    pub bundle: Option<PathBuf>,
 }
 
 /// Agent automation subcommands.
