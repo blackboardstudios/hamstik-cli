@@ -206,7 +206,15 @@ fn subcommand_groups_match_documented_surface() {
         (
             "sprint",
             &["sprint"],
-            &["create", "list", "transition", "transitions", "view"],
+            &[
+                "archive",
+                "create",
+                "list",
+                "transition",
+                "transitions",
+                "unarchive",
+                "view",
+            ],
         ),
         ("label", &["label"], &["create", "list"]),
         (

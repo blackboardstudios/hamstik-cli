@@ -481,6 +481,8 @@ pub struct Sprint {
     pub created_at: String,
     /// Last-update timestamp (RFC 3339).
     pub updated_at: String,
+    /// When the Sprint was archived; null while unarchived.
+    pub archived_at: Option<String>,
     /// Optimistic-concurrency revision (matches the `sprint-N` `ETag`).
     pub revision: i64,
 }
@@ -1591,7 +1593,8 @@ mod tests {
         let raw = r##"{
             "id":"s1","name":"Sprint 1","state":"active","startDate":"2026-09-01T00:00:00Z",
             "endDate":null,"goal":"Ship","targetPoints":40,
-            "createdAt":"2026-08-01T00:00:00Z","updatedAt":"2026-09-01T00:00:00Z","revision":2
+            "createdAt":"2026-08-01T00:00:00Z","updatedAt":"2026-09-01T00:00:00Z","archivedAt":null,
+            "revision":2
         }"##;
         let sprint: Sprint = serde_json::from_str(raw).unwrap();
         assert_eq!(sprint.state, "active");

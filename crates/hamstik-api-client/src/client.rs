@@ -1120,6 +1120,26 @@ pub trait HamstikApi: Send + Sync {
         if_match: &str,
         idempotency_key: &str,
     ) -> Result<ApiResponse<Sprint>, ClientError>;
+    /// `POST .../sprints/{id}/archive`: archive a Sprint (idempotent,
+    /// `If-Match`, empty `{}` body).
+    async fn archive_sprint(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        sprint_id: &str,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<Sprint>, ClientError>;
+    /// `POST .../sprints/{id}/unarchive`: unarchive a Sprint (idempotent,
+    /// `If-Match`, empty `{}` body).
+    async fn unarchive_sprint(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        sprint_id: &str,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<Sprint>, ClientError>;
     /// `GET .../labels`: list the Project's labels.
     async fn list_labels(
         &self,
@@ -1984,6 +2004,66 @@ impl HamstikApi for HamstikClient {
                 (header_idempotency_key(), idempotency_key.to_string()),
             ],
             body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn archive_sprint(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        sprint_id: &str,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<Sprint>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "sprints".to_string(),
+                sprint_id.to_string(),
+                "archive".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&serde_json::json!({})),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn unarchive_sprint(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        sprint_id: &str,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<Sprint>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "sprints".to_string(),
+                sprint_id.to_string(),
+                "unarchive".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&serde_json::json!({})),
             retryable: true,
         })
         .await

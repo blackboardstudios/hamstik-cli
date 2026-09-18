@@ -726,6 +726,34 @@ pub enum SprintCommand {
         #[arg(long)]
         project: Option<String>,
     },
+    /// Archive a sprint.
+    Archive {
+        /// Sprint id (UUID).
+        id: String,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Bypass revision conflict protection (If-Match: *).
+        #[arg(long)]
+        force: bool,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Unarchive a sprint.
+    Unarchive {
+        /// Sprint id (UUID).
+        id: String,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Bypass revision conflict protection (If-Match: *).
+        #[arg(long)]
+        force: bool,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
     /// Transition a sprint to a target state.
     Transition {
         /// Sprint id (UUID).

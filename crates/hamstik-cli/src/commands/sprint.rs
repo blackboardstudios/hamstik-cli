@@ -50,6 +50,38 @@ pub async fn run(session: &mut Session<'_>, args: &SprintArgs) -> Result<(), Cli
         SprintCommand::Transitions { id, project } => {
             transitions(session, id, project.as_deref()).await
         }
+        SprintCommand::Archive {
+            id,
+            force,
+            idempotency_key,
+            project,
+        } => {
+            change_archive(
+                session,
+                id,
+                true,
+                *force,
+                idempotency_key.as_deref(),
+                project.as_deref(),
+            )
+            .await
+        }
+        SprintCommand::Unarchive {
+            id,
+            force,
+            idempotency_key,
+            project,
+        } => {
+            change_archive(
+                session,
+                id,
+                false,
+                *force,
+                idempotency_key.as_deref(),
+                project.as_deref(),
+            )
+            .await
+        }
         SprintCommand::Transition {
             id,
             target,
@@ -201,6 +233,13 @@ fn render_sprint(session: &mut Session<'_>, sprint: &Sprint) -> Result<(), CliEr
                 .target_points
                 .map(|p| p.to_string())
                 .unwrap_or_else(|| "-".to_string()),
+        ),
+        (
+            "archived",
+            sprint
+                .archived_at
+                .clone()
+                .unwrap_or_else(|| "no".to_string()),
         ),
         ("revision", sprint.revision.to_string()),
     ];
@@ -443,6 +482,87 @@ async fn transition(
         .transition_sprint(&org, &project, id, &body, &if_match, &idempotency)
         .await
         .map_err(CliError::from_client)?;
+    if response.idempotency_replayed {
+        session
+            .out
+            .warn("note: request replayed (idempotent duplicate)");
+    }
+    let sprint = response.value.clone();
+    emit_view(session, &response.raw, id, |session| {
+        render_sprint(session, &sprint)
+    })
+}
+
+/// Archives or unarchives a Sprint with its Sprint ETag.
+async fn change_archive(
+    session: &mut Session<'_>,
+    id: &str,
+    archived: bool,
+    force: bool,
+    idempotency_key: Option<&str>,
+    project_flag: Option<&str>,
+) -> Result<(), CliError> {
+    let selection = session.selection()?;
+    let org = session.require_org(&selection)?;
+    let project = require_project(session, project_flag)?;
+    let api = session.api(&selection)?;
+
+    let if_match = if force {
+        "*".to_string()
+    } else {
+        let current = api
+            .get_sprint(&org, &project, id)
+            .await
+            .map_err(CliError::from_client)?;
+        current.etag.ok_or_else(|| {
+            CliError::protocol("server did not return an ETag; re-run with --force")
+        })?
+    };
+    let idempotency = match idempotency_key {
+        Some(key) => {
+            validate_key(key).map_err(|err| CliError::usage(err.to_string()))?;
+            key.to_string()
+        }
+        None => generate_key(),
+    };
+
+    if session.global.dry_run {
+        let (operation, suffix) = if archived {
+            ("sprint.archive", "/archive")
+        } else {
+            ("sprint.unarchive", "/unarchive")
+        };
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation,
+                method: "POST",
+                path_template: "/api/v1/organizations/{organization}/projects/{project}/sprints/{sprintId}/archive",
+                path: format!(
+                    "/api/v1/organizations/{org}/projects/{project}/sprints/{id}{suffix}"
+                ),
+                resolved: json!({
+                    "organization": org,
+                    "project": project,
+                    "sprint": id,
+                }),
+                if_match: Some(&if_match),
+                idempotency_key: Some(&idempotency),
+                body: Some(json!({})),
+                notes: Vec::new(),
+            },
+        );
+    }
+
+    let response = if archived {
+        api.archive_sprint(&org, &project, id, &if_match, &idempotency)
+            .await
+            .map_err(CliError::from_client)?
+    } else {
+        api.unarchive_sprint(&org, &project, id, &if_match, &idempotency)
+            .await
+            .map_err(CliError::from_client)?
+    };
     if response.idempotency_replayed {
         session
             .out

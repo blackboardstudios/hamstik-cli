@@ -131,7 +131,9 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
             | crate::args::SprintCommand::View { .. }
             | crate::args::SprintCommand::Transitions { .. } => false,
             crate::args::SprintCommand::Create { .. }
-            | crate::args::SprintCommand::Transition { .. } => true,
+            | crate::args::SprintCommand::Transition { .. }
+            | crate::args::SprintCommand::Archive { .. }
+            | crate::args::SprintCommand::Unarchive { .. } => true,
         },
         Command::Label(args) => {
             matches!(args.command, crate::args::LabelCommand::Create { .. })
