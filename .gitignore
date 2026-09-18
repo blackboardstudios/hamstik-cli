@@ -33,3 +33,6 @@ Thumbs.db
 # Python caches from the optional developer precheck script
 __pycache__/
 *.pyc
+
+# Hamstik Wheel config
+.hamstik-wheel.toml
