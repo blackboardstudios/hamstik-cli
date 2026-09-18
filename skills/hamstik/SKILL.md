@@ -119,8 +119,15 @@ hamstik --json --no-input --org <ORG> org work --project <KEY> --overdue true
 hamstik --json --no-input --org <ORG> squeakql validate "status = 'backlog'"
 hamstik --json --no-input --org <ORG> work search "status = 'backlog'"
 hamstik --json --no-input --org <ORG> --project <KEY> work view <ITEM-KEY>
+hamstik --json --no-input --org <ORG> --project <KEY> work view <KEY> <KEY> --comments 5
 hamstik --json --no-input --org <ORG> --project <KEY> work activity <ITEM-KEY>
 ```
+
+For backlog-scale reads, `work view` accepts multiple keys (or `--file`, `-`
+for stdin; up to 500) and emits one JSON envelope in input order with per-item
+`status`/`error` entries and optional `comments`/`activity`/`links` sections;
+a missing or forbidden item never aborts the batch, and the exit code is the
+most severe per-item exit code.
 
 Resolve people before assigning: `org members --all` lists active members, and
 `user view <PUBLIC_ID>` / `user work <PUBLIC_ID>` inspect a profile and its visible

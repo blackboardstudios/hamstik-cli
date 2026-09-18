@@ -2045,14 +2045,46 @@
    ]
   },
   {
-   "about": "View a work item",
+   "about": "View one or more work items",
    "aliases": [],
    "arguments": [
     {
-     "help": "Work item key (e.g. HAM-42)",
+     "help": "Work item keys (e.g. HAM-42). Accepts multiple keys for one batch read (up to 500 per invocation)",
      "kind": "positional",
-     "name": "key",
+     "name": "keys",
      "valueName": "KEY"
+    },
+    {
+     "help": "Read keys from a file (`-` for stdin), one key per line. Blank lines and lines starting with `#` are ignored. Up to 500 keys; input is capped at 1 MiB",
+     "kind": "option",
+     "long": "--file"
+    },
+    {
+     "default": "0",
+     "help": "Maximum comments included per item (0 omits the section). Batch reads only (two or more keys); use `work context` for one item with sections",
+     "kind": "option",
+     "long": "--comments"
+    },
+    {
+     "default": "0",
+     "help": "Maximum activity events included per item (0 omits the section). Batch reads only (two or more keys); use `work context` for one item with sections",
+     "kind": "option",
+     "long": "--activity"
+    },
+    {
+     "default": "0",
+     "help": "Maximum links included per item (0 omits the section). Batch reads only (two or more keys); use `work context` for one item with sections",
+     "kind": "option",
+     "long": "--links"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Omit long text bodies (description, comment bodies) \u2014 each replaced by an explicit truncated marker",
+     "kind": "option",
+     "long": "--compact"
     }
    ],
    "capabilities": {
@@ -2061,9 +2093,16 @@
    },
    "command": "hamstik work view",
    "hasSubcommands": false,
-   "options": [],
+   "longAbout": "View one or more work items.\n\nA single key keeps the regular single-item output. Two or more keys (or `--file`, `-` for stdin; up to 500 keys) fetch items in one invocation with bounded concurrency and emit exactly one JSON envelope in input order: `{\"items\": [{\"key\", \"status\": \"ok\", \"item\", plus requested \"comments\"/\"activity\"/\"links\" sections} | {\"key\", \"status\": \"error\", \"error\"}], \"failures\": N, \"total\": N}`. A missing or forbidden item never aborts the batch; the exit code is the most severe per-item exit code (0 when every item succeeded).",
+   "options": [
+    "--file",
+    "--comments",
+    "--activity",
+    "--links",
+    "--compact"
+   ],
    "positionals": [
-    "key"
+    "keys"
    ]
   },
   {

@@ -1,11 +1,31 @@
 .TH HAMSTIK 1 "HAMSTIK WORK VIEW"
 .SH NAME
-hamstik work view \- View a work item
+hamstik work view \- View one or more work items
 .SH SYNOPSIS
 .B hamstik work view [OPTIONS]
 .SH DESCRIPTION
-View a work item
+View one or more work items
 .SH ARGUMENTS
 .TP
 .I KEY
-Work item key (e.g. HAM-42)
+Work item keys (e.g. HAM-42). Accepts multiple keys for one batch read (up to 500 per invocation)
+.SH OPTIONS
+.TP
+.B --file
+Read keys from a file (`-` for stdin), one key per line. Blank lines and lines starting with `#` are ignored. Up to 500 keys; input is capped at 1 MiB
+.TP
+.B --comments
+Maximum comments included per item (0 omits the section). Batch reads only (two or more keys); use `work context` for one item with sections
+Default: 0
+.TP
+.B --activity
+Maximum activity events included per item (0 omits the section). Batch reads only (two or more keys); use `work context` for one item with sections
+Default: 0
+.TP
+.B --links
+Maximum links included per item (0 omits the section). Batch reads only (two or more keys); use `work context` for one item with sections
+Default: 0
+.TP
+.B --compact
+Omit long text bodies (description, comment bodies) — each replaced by an explicit truncated marker
+Choices: true, false

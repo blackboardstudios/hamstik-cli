@@ -9,7 +9,7 @@ use serde_json::json;
 
 use tokio::sync::Semaphore;
 
-use hamstik_api_client::{ActivityOptions, HamstikApi, ListOptions, UserSummary, WorkItem};
+use hamstik_api_client::{ActivityOptions, HamstikApi, ListOptions, WorkItem};
 
 use crate::app::Session;
 use crate::args::WorkViewArgs;
@@ -30,7 +30,7 @@ pub(super) async fn view(session: &mut Session<'_>, args: &WorkViewArgs) -> Resu
     }
     if keys.len() > MAX_KEYS {
         return Err(CliError::usage(format!(
-            "too many keys: {}/{}",
+            "too many keys: {}/{} (maximum {MAX_KEYS} per invocation)",
             keys.len(),
             MAX_KEYS
         )));
@@ -41,81 +41,97 @@ pub(super) async fn view(session: &mut Session<'_>, args: &WorkViewArgs) -> Resu
     let org = session.require_org(&selection)?;
     let project = session.require_project(&selection)?;
     let api = session.api(&selection)?;
-    let comments = args.comments;
-    let activity = args.activity;
-    let compact = args.compact;
+
+    // Section selection applies to batch reads; the single-item bundle with
+    // sections is `work context`, not `work view`.
+    if single && (args.comments > 0 || args.activity > 0 || args.links > 0) {
+        return Err(CliError::usage(
+            "--comments/--activity/--links apply to batch reads (two or more keys); \
+             for one item use `hamstik work context KEY`",
+        ));
+    }
 
     let semaphore = Arc::new(Semaphore::new(DEFAULT_CONCURRENCY));
     let mut tasks = Vec::with_capacity(keys.len());
+    let spec = FetchSpec::from(args);
 
     for key in keys {
         let api = api.clone();
         let org = org.clone();
         let project = project.clone();
         let sem = semaphore.clone();
-        let key_for_task = key.clone();
         let handle = tokio::spawn(async move {
-            let _permit = sem
-                .acquire()
-                .await
-                .map_err(|e| CliError::general(format!("concurrency control failed: {e}")))?;
-            fetch_one(
-                &api,
-                &org,
-                &project,
-                &key_for_task,
-                comments,
-                activity,
-                compact,
-            )
-            .await
+            // One permit covers the whole item (item + requested sections),
+            // bounding in-flight requests to DEFAULT_CONCURRENCY.
+            match sem.acquire().await {
+                Ok(_permit) => fetch_one(&api, &org, &project, &key, spec).await,
+                Err(e) => FetchedKey {
+                    key,
+                    result: Err(CliError::general(format!(
+                        "concurrency control failed: {e}"
+                    ))),
+                },
+            }
         });
-        tasks.push((key, handle));
-    }
-
-    let mut results: Vec<ItemResult> = Vec::with_capacity(tasks.len());
-    let mut worst: Option<CliError> = None;
-
-    for (key, handle) in tasks {
-        match handle
-            .await
-            .map_err(|e| CliError::general(format!("task failed: {e}")))?
-        {
-            Ok(item) => {
-                results.push(ItemResult::success(key.clone(), item));
-            }
-            Err(err) => {
-                worst = Some(worst.map(|w| worst_exit(w, &err)).unwrap_or(err.clone()));
-                results.push(ItemResult::failure(key.clone(), err));
-            }
-        }
+        tasks.push(handle);
     }
 
     if single {
-        let result = results
+        let handle = tasks
             .into_iter()
             .next()
-            .ok_or_else(|| CliError::general("no results returned for single key"))?;
-        let key = result.key.clone();
-        match result.outcome {
-            Outcome::Success(item) => emit_view(session, &item.raw_response, &key, |session| {
+            .ok_or_else(|| CliError::general("no result for single key"))?;
+        let fetched = handle
+            .await
+            .map_err(|e| CliError::general(format!("task failed: {e}")))?;
+        let key = &fetched.key;
+        match fetched.result {
+            Ok(item) => emit_view(session, &item.raw, key, |session| {
                 render_work_item(session, &item.item, args.compact)
             }),
-            Outcome::Failure(err) => Err(err),
+            Err(err) => Err(err),
         }
     } else {
+        let mut results: Vec<ItemResult> = Vec::with_capacity(tasks.len());
+        let mut worst: Option<CliError> = None;
+
+        for handle in tasks {
+            let fetched = handle
+                .await
+                .map_err(|e| CliError::general(format!("task failed: {e}")))?;
+            match fetched.result {
+                Ok(item) => results.push(ItemResult::success(fetched.key, item)),
+                Err(err) => {
+                    worst = Some(
+                        worst
+                            .map(|w| worst_exit(w, &err))
+                            .unwrap_or_else(|| err.clone()),
+                    );
+                    results.push(ItemResult::failure(fetched.key, err));
+                }
+            }
+        }
+
+        for result in &mut results {
+            if let Outcome::Success(item) = &mut result.outcome
+                && args.compact
+            {
+                apply_compact(&mut item.raw);
+            }
+        }
         let failures = results.iter().filter(|r| r.outcome.is_failure()).count();
         let envelope = json!({
-            "items": results.iter().map(|r| r.to_json()).collect::<Vec<_>>(),
+            "items": results.iter().map(ItemResult::to_json).collect::<Vec<_>>(),
             "failures": failures,
             "total": results.len(),
         });
-        if let Some(err) = worst {
-            // Emit the JSON envelope first, then surface the worst exit code.
-            let _ = emit_json(session, &envelope);
-            Err(err)
-        } else {
-            emit_json(session, &envelope)
+        // The envelope is always the single stdout document; partial-failure
+        // detail rides on the stderr error envelope and the exit code (the
+        // most severe per-item code, 0 when every item succeeded).
+        emit_json(session, &envelope)?;
+        match worst {
+            Some(err) => Err(err),
+            None => Ok(()),
         }
     }
 }
@@ -126,6 +142,24 @@ fn worst_exit(current: CliError, contender: &CliError) -> CliError {
     } else {
         current
     }
+}
+
+struct FetchedItem {
+    /// Parsed item, for the single-key human rendering.
+    item: WorkItem,
+    /// Server item JSON verbatim (compacted when `--compact` in batch mode).
+    raw: serde_json::Value,
+    /// Present only when the section was requested (`--comments N`, N > 0).
+    comments: Option<serde_json::Value>,
+    /// Present only when the section was requested (`--activity N`, N > 0).
+    activity: Option<serde_json::Value>,
+    /// Present only when the section was requested (`--links N`, N > 0).
+    links: Option<serde_json::Value>,
+}
+
+struct FetchedKey {
+    key: String,
+    result: Result<FetchedItem, CliError>,
 }
 
 struct ItemResult {
@@ -150,21 +184,34 @@ impl ItemResult {
 
     fn to_json(&self) -> serde_json::Value {
         match &self.outcome {
-            Outcome::Success(item) => json!({
-                "key": self.key,
-                "status": "ok",
-                "item": item.to_json(),
-            }),
+            Outcome::Success(item) => {
+                let mut value = json!({
+                    "key": self.key,
+                    "status": "ok",
+                    "item": item.raw,
+                });
+                if let Some(comments) = &item.comments {
+                    value["comments"] = comments.clone();
+                }
+                if let Some(activity) = &item.activity {
+                    value["activity"] = activity.clone();
+                }
+                if let Some(links) = &item.links {
+                    value["links"] = links.clone();
+                }
+                value
+            }
             Outcome::Failure(err) => json!({
                 "key": self.key,
+                // CliError::to_json wraps in an outer "error" object; the
+                // per-item entry carries that object directly.
                 "status": "error",
-                "error": err.to_json(),
+                "error": err.to_json()["error"].clone(),
             }),
         }
     }
 }
 
-#[derive(Debug)]
 enum Outcome {
     Success(Box<FetchedItem>),
     Failure(CliError),
@@ -173,52 +220,6 @@ enum Outcome {
 impl Outcome {
     fn is_failure(&self) -> bool {
         matches!(self, Self::Failure(_))
-    }
-}
-
-#[derive(Debug)]
-pub(super) struct FetchedItem {
-    item: WorkItem,
-    raw_response: serde_json::Value,
-}
-
-impl FetchedItem {
-    fn to_json(&self) -> serde_json::Value {
-        json!({
-            "key": self.item.key,
-            "title": self.item.title,
-            "status": self.item.status,
-            "type": self.item.item_type,
-            "priority": self.item.priority,
-            "assignee": self.item.assignee.as_ref().map(|a| {
-                let id = match a {
-                    UserSummary::Legacy { id, .. } => id,
-                    UserSummary::Public { public_id, .. } => public_id,
-                };
-                json!({ "id": id, "name": a.name() })
-            }),
-            "reporter": self.item.reporter.as_ref().map(|a| {
-                let id = match a {
-                    UserSummary::Legacy { id, .. } => id,
-                    UserSummary::Public { public_id, .. } => public_id,
-                };
-                json!({ "id": id, "name": a.name() })
-            }),
-            "project": self.item.project_id,
-            "sprint": self.item.sprint.as_ref().map(|s| json!({
-                "id": s.id,
-                "name": s.name,
-            })),
-            "parent": self.item.parent.as_ref().map(|p| json!({
-                "id": p.id,
-                "key": p.key,
-            })),
-            "story_points": self.item.story_points,
-            "due_date": self.item.due_date,
-            "revision": self.item.revision,
-            "created_at": self.item.created_at,
-            "updated_at": self.item.updated_at,
-        })
     }
 }
 
@@ -256,15 +257,46 @@ fn read_keys_file(path: &str) -> Result<Vec<String>, CliError> {
     Ok(keys)
 }
 
-#[allow(unused_variables)]
+/// Per-item fetch options resolved once from parsed arguments.
+#[derive(Clone, Copy)]
+struct FetchSpec {
+    comments: u32,
+    activity: u32,
+    links: u32,
+    compact: bool,
+}
+
+impl From<&WorkViewArgs> for FetchSpec {
+    fn from(args: &WorkViewArgs) -> Self {
+        Self {
+            comments: args.comments,
+            activity: args.activity,
+            links: args.links,
+            compact: args.compact,
+        }
+    }
+}
+
 async fn fetch_one(
     api: &Arc<dyn HamstikApi>,
     org: &str,
     project: &str,
     key: &str,
-    comments: u32,
-    activity: u32,
-    compact: bool,
+    spec: FetchSpec,
+) -> FetchedKey {
+    let result = fetch_item(api, org, project, key, spec).await;
+    FetchedKey {
+        key: key.to_string(),
+        result,
+    }
+}
+
+async fn fetch_item(
+    api: &Arc<dyn HamstikApi>,
+    org: &str,
+    project: &str,
+    key: &str,
+    spec: FetchSpec,
 ) -> Result<FetchedItem, CliError> {
     let response = api
         .get_work_item(org, project, key)
@@ -273,61 +305,85 @@ async fn fetch_one(
     let item = response.value.clone();
     let raw = response.raw.clone();
 
-    // Fetch optional sections concurrently.
-    let comment_handle: tokio::task::JoinHandle<Result<serde_json::Value, CliError>> =
-        if comments > 0 {
-            let api = api.clone();
-            let org = org.to_string();
-            let project = project.to_string();
-            let key = key.to_string();
-            tokio::spawn(async move {
-                let opts = ListOptions {
-                    limit: Some(comments),
+    let mut comments = None;
+    if spec.comments > 0 {
+        let resp = api
+            .list_comments(
+                org,
+                project,
+                key,
+                ListOptions {
+                    limit: Some(spec.comments),
                     cursor: None,
-                };
-                let resp = api
-                    .list_comments(&org, &project, &key, opts)
-                    .await
-                    .map_err(CliError::from_client)?;
-                Ok(resp.raw)
-            })
-        } else {
-            tokio::spawn(async { Ok(json!(null)) })
-        };
+                },
+            )
+            .await
+            .map_err(CliError::from_client)?;
+        let mut section = json!({ "items": resp.value.items, "page": resp.value.page });
+        if spec.compact {
+            truncate_comment_bodies(&mut section);
+        }
+        comments = Some(section);
+    }
 
-    let activity_handle: tokio::task::JoinHandle<Result<serde_json::Value, CliError>> =
-        if activity > 0 {
-            let api = api.clone();
-            let org = org.to_string();
-            let project = project.to_string();
-            let key = key.to_string();
-            tokio::spawn(async move {
-                let opts = ActivityOptions {
-                    limit: Some(activity),
+    let mut activity = None;
+    if spec.activity > 0 {
+        let resp = api
+            .list_work_item_activity(
+                org,
+                project,
+                key,
+                ActivityOptions {
+                    limit: Some(spec.activity),
                     cursor: None,
                     since: None,
-                };
-                let resp = api
-                    .list_work_item_activity(&org, &project, &key, opts)
-                    .await
-                    .map_err(CliError::from_client)?;
-                Ok(resp.raw)
-            })
-        } else {
-            tokio::spawn(async { Ok(json!(null)) })
-        };
+                },
+            )
+            .await
+            .map_err(CliError::from_client)?;
+        activity = Some(json!({ "items": resp.value.items, "page": resp.value.page }));
+    }
 
-    let _ = comment_handle
-        .await
-        .map_err(|e| CliError::general(format!("comment fetch task failed: {e}")))?;
-    let _ = activity_handle
-        .await
-        .map_err(|e| CliError::general(format!("activity fetch task failed: {e}")))?;
+    let mut links = None;
+    if spec.links > 0 {
+        let resp = api
+            .list_work_item_links(
+                org,
+                project,
+                key,
+                ListOptions {
+                    limit: Some(spec.links),
+                    cursor: None,
+                },
+            )
+            .await
+            .map_err(CliError::from_client)?;
+        links = Some(json!({ "items": resp.value.items, "page": resp.value.page }));
+    }
 
     Ok(FetchedItem {
         item,
-        raw_response: raw,
+        raw,
+        comments,
+        activity,
+        links,
     })
+}
+
+fn apply_compact(raw: &mut serde_json::Value) {
+    if raw.get("description").is_some() {
+        raw["description"] = json!({ "truncated": true, "note": "omitted by --compact" });
+    }
+}
+
+fn truncate_comment_bodies(section: &mut serde_json::Value) {
+    if let Some(items) = section.get_mut("items").and_then(|v| v.as_array_mut()) {
+        for item in items {
+            if item.get("body").is_some() {
+                item["body"] = json!({ "truncated": true, "note": "omitted by --compact" });
+            }
+        }
+    }
 }
 
 pub(super) fn render_work_item(

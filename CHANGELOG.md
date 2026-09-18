@@ -12,10 +12,18 @@ before upgrading.
 
 ### Added
 
-- `hamstik work view` now accepts multiple keys and a `--file` flag for batch
-  lookups. A single key keeps the existing human-readable output; multiple keys
-  emit a JSON envelope with per-item results and a failure count. Comments and
-  activity depth are controlled with `--comments` and `--activity`. (CLI-XX)
+- `hamstik work view` now accepts multiple keys and a `--file` flag (`-` for
+  stdin) for batch lookups, up to 500 keys per invocation. A single key keeps
+  the existing single-item output; two or more keys fetch in one invocation
+  with bounded concurrency and emit exactly one JSON envelope in input order:
+  `{"items": [{"key", "status": "ok", "item", plus requested
+  "comments"/"activity"/"links" sections} | {"key", "status": "error",
+  "error"}], "failures": N, "total": N}`. A missing or forbidden item never
+  aborts the batch; the exit code is the most severe per-item exit code
+  (0 when every item succeeds). Sections are selected with `--comments N`,
+  `--activity N`, and `--links N` (batch reads only; use `work context` for
+  one item with sections) and long text bodies are trimmed with `--compact`.
+  (CLI-54)
 
 - `hamstik init` bootstraps the working directory by creating a `.hamstik.toml`
   file populated from the current resolved context (organization, project) and
