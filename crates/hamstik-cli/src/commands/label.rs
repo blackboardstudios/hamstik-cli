@@ -6,7 +6,7 @@
 use serde_json::json;
 
 use hamstik_api_client::{
-    CreateLabelRequest, ListOptions, PageItems, ProjectLabel, follow_all, generate_key,
+    CreateLabelRequest, ListOptions, PageItems, ProjectLabel, follow_with, generate_key,
     validate_key,
 };
 
@@ -15,7 +15,7 @@ use crate::args::{LabelArgs, LabelCommand};
 use crate::error::CliError;
 
 use super::dryrun;
-use super::{emit_table, emit_view};
+use super::{emit_table, emit_view, follow_policy};
 
 /// Runs the `label` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &LabelArgs) -> Result<(), CliError> {
@@ -62,11 +62,11 @@ async fn list(
     let api = session.api(&selection)?;
 
     if pagination.all {
-        let limit = pagination.limit;
+        let limit = pagination.directory_page_size();
         let fetch_api = api.clone();
         let org = org.clone();
         let project = project.clone();
-        let page = follow_all(move |cursor| {
+        let page = follow_with(follow_policy(pagination), move |cursor| {
             let fetch_api = fetch_api.clone();
             let org = org.clone();
             let project = project.clone();
@@ -96,7 +96,7 @@ async fn list(
                 &org,
                 &project,
                 ListOptions {
-                    limit: pagination.limit,
+                    limit: pagination.directory_page_size(),
                     cursor: pagination.cursor.clone(),
                 },
             )

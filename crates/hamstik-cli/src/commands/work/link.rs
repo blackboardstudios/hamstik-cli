@@ -5,7 +5,7 @@
 
 use serde_json::json;
 
-use hamstik_api_client::{CreateWorkItemLinkRequest, ListOptions, PageItems, follow_all};
+use hamstik_api_client::{CreateWorkItemLinkRequest, ListOptions, PageItems, follow_with};
 
 use crate::app::Session;
 use crate::args::{WorkLinkArgs, WorkLinkCommand};
@@ -16,6 +16,7 @@ use super::dryrun;
 use super::emit_json;
 use super::emit_table;
 use super::emit_view;
+use super::follow_policy;
 use super::render_lines;
 pub(super) async fn link(session: &mut Session<'_>, args: &WorkLinkArgs) -> Result<(), CliError> {
     match &args.command {
@@ -183,7 +184,7 @@ async fn list_links(
     pagination: &crate::args::PaginationArgs,
 ) -> Result<hamstik_api_client::ApiResponse<hamstik_api_client::WorkItemLinkList>, CliError> {
     let opts = ListOptions {
-        limit: pagination.limit,
+        limit: pagination.directory_page_size(),
         cursor: pagination.cursor.clone(),
     };
     if pagination.all {
@@ -191,8 +192,8 @@ async fn list_links(
         let org = org.to_string();
         let project = project.to_string();
         let key = key.to_string();
-        let limit = pagination.limit;
-        let page = follow_all(move |cursor| {
+        let limit = pagination.directory_page_size();
+        let page = follow_with(follow_policy(pagination), move |cursor| {
             let fetch_api = fetch_api.clone();
             let org = org.clone();
             let project = project.clone();

@@ -10,7 +10,30 @@ before upgrading.
 
 ## [Unreleased]
 
+### Breaking
+
+- `--limit` on list commands is now the total number of items the command emits
+  instead of the size of the page requested from the server (the wire page size
+  is `min(limit, endpoint maximum)`: 200 items by default, 100 on the
+  organization, project, sprint, label, and link endpoints the contract caps
+  lower). A cap larger than one page — which was previously sent as an oversized
+  page and rejected by the API with a 400 — is now met by paging, and
+  `--all --limit N` stops at exactly `N` items. When a cap cuts through a
+  server page the result reports `page.nextCursor: null` with
+  `page.hasMore: true`, because the Public API has no cursor for a position
+  inside a page. (CLI-58)
+
 ### Added
+
+- Shell pipeline ergonomics for every list command (CLI-58): `--since-cursor
+  <CURSOR>` is an accepted alias of `--cursor` and is now honored as the start of
+  a traversal even when combined with `--all`, so a pipeline that crashed
+  mid-consumption resumes from the checkpoint it recorded without duplicates or
+  gaps (within the server's own ordering consistency); `--sort` accepts an
+  explicit direction (`--sort dueDate:desc`, `--sort priority:asc`) for the
+  documented keys `updated`, `dueDate`, `priority`, and `rank`, and the CLI
+  breaks ties on the Work Item key so a repeated query is byte-identical.
+  Unknown keys and directions are usage errors.
 
 - `hamstik work view` now accepts multiple keys and a `--file` flag (`-` for
   stdin) for batch lookups, up to 500 keys per invocation. A single key keeps

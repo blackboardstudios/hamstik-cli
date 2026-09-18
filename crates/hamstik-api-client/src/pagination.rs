@@ -76,22 +76,92 @@ impl<T> PageItems<T> {
     }
 }
 
+/// How one collection command traverses pages.
+///
+/// The three knobs map one-to-one onto the documented pipeline ergonomics
+/// flags: `--all` ([`FollowPolicy::follow`]), `--limit` ([`FollowPolicy::max_items`],
+/// the total result cap, which is *not* the server page size) and
+/// `--cursor` / `--since-cursor` ([`FollowPolicy::start_cursor`]).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FollowPolicy {
+    /// Follow `nextCursor` until the server reports no more pages. When false,
+    /// exactly one page is fetched.
+    pub follow: bool,
+    /// Hard cap on the total number of items returned by the command, counted
+    /// across pages. `None` means the server decides how much a traversal
+    /// yields.
+    pub max_items: Option<usize>,
+    /// Opaque cursor the traversal starts after. It is handed verbatim to the
+    /// first request; the client never inspects or constructs cursors.
+    pub start_cursor: Option<String>,
+}
+
+impl FollowPolicy {
+    /// Fetches a single page (the default first-page behavior).
+    #[must_use]
+    pub fn single_page() -> Self {
+        Self::default()
+    }
+
+    /// Follows every page (`--all`).
+    #[must_use]
+    pub fn all() -> Self {
+        Self {
+            follow: true,
+            ..Self::default()
+        }
+    }
+}
+
 /// Follows every page using `fetch`, concatenating items and raw items.
 ///
-/// `fetch` is called with `None` for the first page and then the previous page's
-/// `next_cursor` until `has_more` is false or a cursor is absent. Aggregation
-/// stops with an error at [`MAX_FOLLOW_PAGES`] pages or [`MAX_FOLLOW_ITEMS`]
-/// items, whichever comes first.
-pub async fn follow_all<T, F, Fut>(mut fetch: F) -> Result<PageItems<T>, ClientError>
+/// Equivalent to [`follow_with`] with [`FollowPolicy::all`] — the traversal
+/// starts at the first page and has no client-side result cap.
+pub async fn follow_all<T, F, Fut>(fetch: F) -> Result<PageItems<T>, ClientError>
 where
     F: FnMut(Option<String>) -> Fut,
     Fut: Future<Output = Result<PageItems<T>, ClientError>>,
 {
+    follow_with(FollowPolicy::all(), fetch).await
+}
+
+/// Traverses pages according to `policy`, concatenating items and raw items.
+///
+/// The first `fetch` receives [`FollowPolicy::start_cursor`] (or `None`), then
+/// each page's `next_cursor`, until `has_more` is false, a cursor is absent,
+/// [`FollowPolicy::max_items`] items have been produced, or — when
+/// [`FollowPolicy::follow`] is false — one page has been fetched. Aggregation
+/// stops with an error at [`MAX_FOLLOW_PAGES`] pages or [`MAX_FOLLOW_ITEMS`]
+/// items, whichever comes first, so a hostile or looping server cannot spin
+/// forever.
+///
+/// Resume semantics: a cursor is only ever a server-issued boundary, so a
+/// traversal started from one never re-reads or skips items ahead of that
+/// boundary. If [`FollowPolicy::max_items`] cuts the traversal through the
+/// middle of a server page, the returned `page.next_cursor` is `None`: the
+/// Public API has no cursor for a position partway through a page, and
+/// reporting the page-end cursor would silently skip the items that were
+/// dropped from this result. `page.has_more` still reports `true` in that
+/// case, so a consumer can tell a capped result from an exhausted one.
+pub async fn follow_with<T, F, Fut>(
+    policy: FollowPolicy,
+    mut fetch: F,
+) -> Result<PageItems<T>, ClientError>
+where
+    F: FnMut(Option<String>) -> Fut,
+    Fut: Future<Output = Result<PageItems<T>, ClientError>>,
+{
+    let FollowPolicy {
+        follow,
+        max_items,
+        start_cursor,
+    } = policy;
     let mut items: Vec<T> = Vec::new();
     let mut raw_items: Vec<serde_json::Value> = Vec::new();
-    let mut cursor: Option<String> = None;
-    let mut last_page: Page;
+    let mut cursor: Option<String> = start_cursor.filter(|c| !c.is_empty());
+    let mut last_page: Option<Page>;
     let mut pages = 0usize;
+    let mut trimmed = false;
 
     loop {
         if pages >= MAX_FOLLOW_PAGES {
@@ -102,12 +172,22 @@ where
         let page = fetch(cursor).await?;
         pages += 1;
         let PageItems {
-            items: page_items,
-            raw_items: page_raw,
+            items: mut page_items,
+            raw_items: mut page_raw,
             page: page_meta,
         } = page;
         let has_more = page_meta.has_more;
         let next = page_meta.next_cursor.clone();
+        if let Some(max) = max_items {
+            let room = max.saturating_sub(items.len());
+            if page_items.len() > room {
+                page_items.truncate(room);
+                trimmed = true;
+            }
+            if page_raw.len() > room {
+                page_raw.truncate(room);
+            }
+        }
         if items.len() + page_items.len() > MAX_FOLLOW_ITEMS {
             return Err(ClientError::Protocol(format!(
                 "pagination exceeded the {MAX_FOLLOW_ITEMS}-item limit; narrow the query instead of using --all"
@@ -115,7 +195,19 @@ where
         }
         items.extend(page_items);
         raw_items.extend(page_raw);
-        last_page = page_meta;
+        let reached_cap = max_items.is_some_and(|max| items.len() >= max);
+        last_page = Some(page_meta);
+        if reached_cap {
+            if trimmed {
+                break;
+            }
+            // The cap landed exactly on a page boundary: `next` remains a valid
+            // resume point for whatever comes after this result.
+            break;
+        }
+        if !follow {
+            break;
+        }
         match (has_more, next) {
             (true, Some(next_cursor)) if !next_cursor.is_empty() => {
                 cursor = Some(next_cursor);
@@ -124,10 +216,16 @@ where
         }
     }
 
+    let mut page = last_page
+        .ok_or_else(|| ClientError::Protocol("pagination produced no page".to_string()))?;
+    if trimmed {
+        page.next_cursor = None;
+    }
+
     Ok(PageItems {
         items,
         raw_items,
-        page: last_page,
+        page,
     })
 }
 
@@ -198,6 +296,114 @@ mod tests {
         .unwrap();
         assert_eq!(calls, 1);
         assert_eq!(result.items, vec![1]);
+    }
+
+    #[tokio::test]
+    async fn starts_from_the_policy_start_cursor() {
+        let seen = std::cell::RefCell::new(Vec::new());
+        let result = follow_with(
+            FollowPolicy {
+                follow: true,
+                start_cursor: Some("resume-1".to_string()),
+                ..FollowPolicy::default()
+            },
+            |cursor| {
+                seen.borrow_mut().push(cursor.clone());
+                let next = match cursor.as_deref() {
+                    Some("resume-1") => Some("resume-2".to_string()),
+                    _ => None,
+                };
+                let has_more = next.is_some();
+                async move {
+                    let items = vec![cursor.unwrap_or_default()];
+                    let raw = serde_json::json!({ "items": items });
+                    Ok(PageItems::new(items, &raw, page(has_more, next.as_deref())))
+                }
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            seen.borrow()[0].as_deref(),
+            Some("resume-1"),
+            "a resume cursor must be sent on the first request"
+        );
+        assert_eq!(
+            result.items,
+            vec!["resume-1".to_string(), "resume-2".to_string()]
+        );
+    }
+
+    #[tokio::test]
+    async fn caps_total_items_and_drops_an_unrepresentable_cursor() {
+        let result = follow_with(
+            FollowPolicy {
+                follow: true,
+                max_items: Some(3),
+                ..FollowPolicy::default()
+            },
+            |_cursor| async move {
+                let raw = serde_json::json!({ "items": [1, 2] });
+                Ok(PageItems::new(vec![1, 2], &raw, page(true, Some("next"))))
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(result.items, vec![1, 2, 1]);
+        assert!(
+            result.page.next_cursor.is_none(),
+            "a mid-page cap must not advertise a resume cursor that skips items"
+        );
+        assert!(
+            result.page.has_more,
+            "a capped result must still report that more items exist"
+        );
+    }
+
+    #[tokio::test]
+    async fn keeps_the_resume_cursor_when_the_cap_lands_on_a_page_boundary() {
+        let mut calls = 0;
+        let result = follow_with(
+            FollowPolicy {
+                follow: true,
+                max_items: Some(4),
+                ..FollowPolicy::default()
+            },
+            |_cursor| {
+                calls += 1;
+                async move {
+                    let raw = serde_json::json!({ "items": [1, 2] });
+                    Ok(PageItems::new(vec![1, 2], &raw, page(true, Some("third"))))
+                }
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(calls, 2, "the cap must stop the traversal at 4 items");
+        assert_eq!(result.items.len(), 4);
+        assert_eq!(
+            result.page.next_cursor.as_deref(),
+            Some("third"),
+            "a boundary-aligned cap keeps the server resume cursor"
+        );
+    }
+
+    #[tokio::test]
+    async fn single_page_policy_fetches_one_page() {
+        let mut calls = 0;
+        let result = follow_with(FollowPolicy::single_page(), |_cursor| {
+            calls += 1;
+            async move {
+                let items = vec![1];
+                let raw = serde_json::json!({ "items": items });
+                Ok(PageItems::new(items, &raw, page(true, Some("more"))))
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(calls, 1);
+        assert_eq!(result.items, vec![1]);
+        assert_eq!(result.page.next_cursor.as_deref(), Some("more"));
     }
 
     #[test]

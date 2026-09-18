@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 
 use hamstik_api_client::{
     ListOptions, ListOrganizationUsersOptions, ListWorkItemsQuery, OrganizationListItem, PageItems,
-    follow_all,
+    follow_with,
 };
 
 use crate::app::Session;
@@ -16,7 +16,7 @@ use crate::error::CliError;
 
 use super::ensure_profile_for_default;
 use super::work::apply_filters as apply_work_filters;
-use super::{emit_json, emit_table, emit_view};
+use super::{emit_json, emit_table, emit_view, follow_policy};
 
 /// Runs the `org` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &OrgArgs) -> Result<(), CliError> {
@@ -38,9 +38,9 @@ async fn list(session: &mut Session<'_>, pagination: &PaginationArgs) -> Result<
     let api = session.api(&selection)?;
 
     let (rows, json_value) = if pagination.all {
-        let limit = pagination.limit;
+        let limit = pagination.directory_page_size();
         let fetch_api = api.clone();
-        let page = follow_all(move |cursor| {
+        let page = follow_with(follow_policy(pagination), move |cursor| {
             let fetch_api = fetch_api.clone();
             async move {
                 let response = fetch_api
@@ -61,7 +61,7 @@ async fn list(session: &mut Session<'_>, pagination: &PaginationArgs) -> Result<
     } else {
         let response = api
             .list_organizations(ListOptions {
-                limit: pagination.limit,
+                limit: pagination.directory_page_size(),
                 cursor: pagination.cursor.clone(),
             })
             .await
@@ -158,13 +158,13 @@ async fn members(
     let selection = session.selection()?;
     let api = session.api(&selection)?;
     let base = ListOrganizationUsersOptions {
-        limit: pagination.limit,
+        limit: pagination.directory_page_size(),
         cursor: pagination.cursor.clone(),
         q: search.map(str::to_string),
     };
     let json_value: Value = if pagination.all {
         let fetch_api = api.clone();
-        let page = follow_all(move |cursor| {
+        let page = follow_with(follow_policy(pagination), move |cursor| {
             let fetch_api = fetch_api.clone();
             let mut opts = base.clone();
             opts.cursor = cursor;
@@ -225,7 +225,7 @@ async fn work(session: &mut Session<'_>, args: &OrgWorkListArgs) -> Result<(), C
     let org = session.require_org(&selection)?;
     let api = session.api(&selection)?;
     let mut query = ListWorkItemsQuery {
-        limit: args.pagination.limit,
+        limit: args.pagination.directory_page_size(),
         cursor: args.pagination.cursor.clone(),
         ..Default::default()
     };
@@ -236,7 +236,7 @@ async fn work(session: &mut Session<'_>, args: &OrgWorkListArgs) -> Result<(), C
         let fetch_api = api.clone();
         let org = org.clone();
         let base = query.clone();
-        let page = follow_all(move |cursor| {
+        let page = follow_with(follow_policy(&args.pagination), move |cursor| {
             let fetch_api = fetch_api.clone();
             let org = org.clone();
             let mut query = base.clone();

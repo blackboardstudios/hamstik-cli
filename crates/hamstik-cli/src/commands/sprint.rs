@@ -7,7 +7,7 @@ use serde_json::json;
 
 use hamstik_api_client::{
     CompletionAction, CreateSprintRequest, ListOptions, PageItems, Sprint, SprintTransitionList,
-    TransitionSprintRequest, follow_all, generate_key, validate_key,
+    TransitionSprintRequest, follow_with, generate_key, validate_key,
 };
 
 use crate::app::Session;
@@ -16,7 +16,7 @@ use crate::error::CliError;
 
 use super::dryrun;
 use super::org::render_lines;
-use super::{emit_table, emit_view};
+use super::{emit_table, emit_view, follow_policy};
 
 /// Runs the `sprint` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &SprintArgs) -> Result<(), CliError> {
@@ -126,11 +126,11 @@ async fn list(
     let api = session.api(&selection)?;
 
     if pagination.all {
-        let limit = pagination.limit;
+        let limit = pagination.directory_page_size();
         let fetch_api = api.clone();
         let org = org.clone();
         let project = project.clone();
-        let page = follow_all(move |cursor| {
+        let page = follow_with(follow_policy(pagination), move |cursor| {
             let fetch_api = fetch_api.clone();
             let org = org.clone();
             let project = project.clone();
@@ -161,7 +161,7 @@ async fn list(
                 &org,
                 &project,
                 ListOptions {
-                    limit: pagination.limit,
+                    limit: pagination.directory_page_size(),
                     cursor: pagination.cursor.clone(),
                 },
             )

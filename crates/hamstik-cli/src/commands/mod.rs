@@ -3,10 +3,11 @@
 
 //! Command dispatch and shared output helpers.
 
+use hamstik_api_client::FollowPolicy;
 use serde_json::Value;
 
 use crate::app::{Selection, Session};
-use crate::args::{AgentCommand, Command};
+use crate::args::{AgentCommand, Command, PaginationArgs};
 use crate::config::{Profile, profile_auto_name, unique_profile_name};
 use crate::error::CliError;
 
@@ -32,6 +33,20 @@ pub mod squeakql;
 pub mod user;
 pub mod work;
 pub mod work_context;
+
+/// Page-traversal policy implied by a command's shared pagination flags.
+///
+/// `--limit` caps the total result, `--all` decides whether cursors are
+/// followed, and `--cursor` / `--since-cursor` is the opaque cursor the stream
+/// starts after — forwarded verbatim, including when `--all` continues from it.
+#[must_use]
+pub(crate) fn follow_policy(pagination: &PaginationArgs) -> FollowPolicy {
+    FollowPolicy {
+        follow: pagination.all,
+        max_items: pagination.max_items(),
+        start_cursor: pagination.cursor.clone(),
+    }
+}
 
 /// Runs the selected subcommand against the session.
 pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<(), CliError> {

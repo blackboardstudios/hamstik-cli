@@ -92,8 +92,19 @@ on unrelated profile defaults for a mutation.
 - Parse stdout only. Normal command diagnostics and structured errors go to stderr.
 - `doctor --json` is the exception: its diagnostic report remains on stdout even when
   the process exits nonzero.
-- Treat cursors as opaque. Pass `.page.nextCursor` back unchanged with `--cursor`, or
-  use `--all` when one deterministic aggregate is appropriate.
+- Treat cursors as opaque. Pass `.page.nextCursor` back unchanged with `--cursor`
+  (or its `--since-cursor` alias), or use `--all` when one deterministic aggregate
+  is appropriate. Resume flags are honored when combined with `--all`, so an
+  interrupted stream continues from its checkpoint with no re-reads and no gaps.
+- Bound what a pipeline consumes with `--limit N`: it caps the total emitted items,
+  not the page size, and a page is never requested larger than the endpoint allows
+  (200 items, 100 on organization/project/sprint/label/link endpoints). If
+  `page.nextCursor` is `null` while `page.hasMore` is true, the
+  cap cut through a server page and no resume cursor exists for that position — re-run
+  with a smaller cap or `--all` from the last complete checkpoint.
+- Make ordering deterministic with `--sort KEY[:DIR]` (`updated`, `dueDate`,
+  `priority`, `rank`; optional `:asc`/`:desc`). Ties break on the Work Item key, so
+  repeated runs of the same query produce identical output.
 - Keep binary downloads out of ordinary formatted or JSON stdout; use `--output`.
 - Before a risky mutation, preview it with the global `--dry-run` flag (mutation
   commands only). The preview resolves identifiers and validates local input exactly

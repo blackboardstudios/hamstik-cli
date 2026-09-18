@@ -816,18 +816,71 @@ pub enum LabelCommand {
     },
 }
 
-/// Shared list pagination options.
+/// Shared list pagination and pipeline options.
+///
+/// `--limit` bounds the *result* (total items emitted), `--cursor` / its
+/// `--since-cursor` alias names the opaque server cursor the result starts
+/// after, and `--all` follows cursors to the end. They compose: a bounded,
+/// resumable stream is `--since-cursor <checkpoint> --all --limit <N>`.
 #[derive(Args, Debug, Clone)]
 pub struct PaginationArgs {
-    /// Maximum items per page (endpoint maximum is 100 or 200).
-    #[arg(long, value_name = "N")]
+    /// Maximum total items to emit, counted across pages (distinct from the
+    /// server page size). Without `--all` at most one page is returned, holding
+    /// at most this many items; a page is never requested larger than the
+    /// endpoint allows (200 items, or 100 on organization, project, sprint,
+    /// label, and link endpoints). With `--all` successive pages are followed
+    /// until this cap or the end of the collection. A cap that cuts through a
+    /// server page ends the run with `page.nextCursor: null`, because the Public
+    /// API has no cursor for a position partway through a page.
+    #[arg(long, value_name = "N", value_parser = clap::value_parser!(u32).range(1..))]
     pub limit: Option<u32>,
-    /// Opaque continuation cursor.
-    #[arg(long, value_name = "CURSOR")]
+    /// Opaque cursor returned by a preceding page; the result starts after it.
+    /// `--since-cursor` is the pipeline-checkpoint spelling of the same option:
+    /// resume an interrupted stream from the `page.nextCursor` a previous run
+    /// reported. Cursors are opaque and are always forwarded verbatim.
+    #[arg(
+        long,
+        visible_alias = "since-cursor",
+        value_name = "CURSOR",
+        value_parser = clap::builder::NonEmptyStringValueParser::new()
+    )]
     pub cursor: Option<String>,
     /// Follow all pages.
     #[arg(long)]
     pub all: bool,
+}
+
+impl PaginationArgs {
+    /// Largest page size the Public API accepts on list endpoints.
+    pub const MAX_PAGE_SIZE: u32 = 200;
+
+    /// Per-request page size for these options.
+    ///
+    /// `--limit` is a result cap, so the page size never exceeds the endpoint
+    /// maximum; below it the two coincide and one request satisfies the cap.
+    #[must_use]
+    pub fn page_size(&self) -> Option<u32> {
+        self.limit.map(|n| n.clamp(1, Self::MAX_PAGE_SIZE))
+    }
+
+    /// Largest page size the organization-scoped directory endpoints accept
+    /// (organizations, projects, sprints, labels, links), which the contract
+    /// caps below [`Self::MAX_PAGE_SIZE`].
+    pub const DIRECTORY_PAGE_SIZE: u32 = 100;
+
+    /// Per-request page size for the directory endpoints, which are capped
+    /// lower than [`Self::MAX_PAGE_SIZE`]. A larger `--limit` is still honored
+    /// as a total cap by paging.
+    #[must_use]
+    pub fn directory_page_size(&self) -> Option<u32> {
+        self.limit.map(|n| n.clamp(1, Self::DIRECTORY_PAGE_SIZE))
+    }
+
+    /// Total result cap requested by `--limit`, if any.
+    #[must_use]
+    pub fn max_items(&self) -> Option<usize> {
+        self.limit.map(|n| usize::try_from(n).unwrap_or(usize::MAX))
+    }
 }
 
 /// Arguments for the `work` command group.
@@ -948,8 +1001,9 @@ pub struct UserWorkArgs {
     /// Only items due strictly after this RFC 3339 timestamp.
     #[arg(long = "due-after", value_name = "RFC3339")]
     pub due_after: Option<String>,
-    /// Result ordering.
-    #[arg(long, value_enum)]
+    /// Result ordering: updated, dueDate, priority, or rank, optionally with
+    /// a :asc/:desc direction (for example `--sort dueDate:desc`).
+    #[arg(long, value_name = "KEY[:DIR]", value_parser = SortValueParser)]
     pub sort: Option<SortArg>,
     /// Only archived (true) or only unarchived (false) Work Items; when
     /// omitted, unarchived Work Items are listed. Listing both states in one
@@ -1188,8 +1242,9 @@ pub struct MyWorkArgs {
     /// Only items due strictly after this RFC 3339 timestamp.
     #[arg(long = "due-after", value_name = "RFC3339")]
     pub due_after: Option<String>,
-    /// Result ordering.
-    #[arg(long, value_enum)]
+    /// Result ordering: updated, dueDate, priority, or rank, optionally with
+    /// a :asc/:desc direction (for example `--sort dueDate:desc`).
+    #[arg(long, value_name = "KEY[:DIR]", value_parser = SortValueParser)]
     pub sort: Option<SortArg>,
     /// Only archived (true) or only unarchived (false) Work Items; when
     /// omitted, unarchived Work Items are listed. Listing both states in one
@@ -1274,8 +1329,9 @@ pub struct WorkFilters {
     /// Only items due strictly after this RFC 3339 timestamp.
     #[arg(long = "due-after", value_name = "RFC3339")]
     pub due_after: Option<String>,
-    /// Result ordering: updated, dueDate, priority, or rank.
-    #[arg(long, value_enum)]
+    /// Result ordering: updated, dueDate, priority, or rank, optionally with
+    /// a :asc/:desc direction (for example `--sort dueDate:desc`).
+    #[arg(long, value_name = "KEY[:DIR]", value_parser = SortValueParser)]
     pub sort: Option<SortArg>,
     /// Only archived (true) or only unarchived (false) items; when omitted,
     /// unarchived items are listed. Listing both states in one result
@@ -1811,13 +1867,73 @@ impl RelationArg {
     }
 }
 
-/// Work item collection ordering.
-#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SortArg {
+/// Work item collection ordering: a documented key plus an optional
+/// direction (`--sort dueDate:desc`).
+///
+/// The Public API `sort` parameter accepts the key only, so the key is sent
+/// verbatim and the direction is applied by the CLI to the fetched (bounded)
+/// result, together with a deterministic tie-break so the same query produces
+/// byte-identical ordering across runs. See `commands::work::sort`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SortArg {
+    key: SortKeyArg,
+    dir: Option<SortDirArg>,
+}
+
+impl SortArg {
+    /// Parses `KEY` or `KEY:<asc|desc>` for a `value_parser`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a human-readable message when the key or direction is not one
+    /// of the documented values.
+    pub fn parse(raw: &str) -> Result<Self, String> {
+        let (key, dir) = match raw.split_once(':') {
+            Some((key, dir)) => (key, Some(dir)),
+            None => (raw, None),
+        };
+        let key = SortKeyArg::parse(key).ok_or_else(|| {
+            format!(
+                "invalid sort key {key:?}; expected one of {}",
+                SortKeyArg::as_list()
+            )
+        })?;
+        let dir =
+            match dir {
+                None => None,
+                Some("") => return Err("invalid sort direction: expected asc or desc".to_string()),
+                Some(dir) => Some(SortDirArg::parse(dir).ok_or_else(|| {
+                    format!("invalid sort direction {dir:?}; expected asc or desc")
+                })?),
+            };
+        Ok(Self { key, dir })
+    }
+
+    /// The documented key this sort orders on.
+    #[must_use]
+    pub fn key(self) -> SortKeyArg {
+        self.key
+    }
+
+    /// The requested direction, if the caller named one.
+    #[must_use]
+    pub fn dir(self) -> Option<SortDirArg> {
+        self.dir
+    }
+
+    /// The wire value for this sort (the `sort` query parameter).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.key.as_str()
+    }
+}
+
+/// Sortable work item keys, matching the Public API `sort` enum.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SortKeyArg {
     /// Most recently updated first (default).
     Updated,
     /// Earliest due date first, undated last.
-    #[value(name = "dueDate")]
     DueDate,
     /// Urgent → high → medium → low.
     Priority,
@@ -1825,15 +1941,109 @@ pub enum SortArg {
     Rank,
 }
 
-impl SortArg {
-    /// The wire value for this sort.
+impl SortKeyArg {
+    /// Parses one of the documented key spellings.
+    #[must_use]
+    pub fn parse(raw: &str) -> Option<Self> {
+        match raw {
+            "updated" => Some(Self::Updated),
+            "dueDate" => Some(Self::DueDate),
+            "priority" => Some(Self::Priority),
+            "rank" => Some(Self::Rank),
+            _ => None,
+        }
+    }
+
+    /// The wire value for this key.
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
-            SortArg::Updated => "updated",
-            SortArg::DueDate => "dueDate",
-            SortArg::Priority => "priority",
-            SortArg::Rank => "rank",
+            Self::Updated => "updated",
+            Self::DueDate => "dueDate",
+            Self::Priority => "priority",
+            Self::Rank => "rank",
+        }
+    }
+
+    /// Help text listing the documented key set.
+    #[must_use]
+    pub fn as_list() -> String {
+        [
+            Self::Updated.as_str(),
+            Self::DueDate.as_str(),
+            Self::Priority.as_str(),
+            Self::Rank.as_str(),
+        ]
+        .join(", ")
+    }
+}
+
+/// Every accepted `--sort` spelling: the documented key plus its hidden
+/// `:asc` / `:desc` forms. Kept as `&'static str` so clap can advertise the
+/// keys in help, completion, and the command manifest while accepting the
+/// directional spellings; `sort_spellings_match_the_documented_keys` keeps this
+/// table and [`SortKeyArg`] from drifting apart.
+const SORT_SPELLINGS: [(&str, &[&str]); 4] = [
+    ("updated", &["updated:asc", "updated:desc"]),
+    ("dueDate", &["dueDate:asc", "dueDate:desc"]),
+    ("priority", &["priority:asc", "priority:desc"]),
+    ("rank", &["rank:asc", "rank:desc"]),
+];
+
+/// Clap parser for `--sort`, which also publishes the documented key set so
+/// help, shell completion, and the command manifest keep listing it.
+#[derive(Clone, Copy, Debug)]
+pub struct SortValueParser;
+
+impl clap::builder::TypedValueParser for SortValueParser {
+    type Value = SortArg;
+
+    fn parse_ref(
+        &self,
+        cmd: &clap::Command,
+        _arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, clap::Error> {
+        let text = value.to_string_lossy();
+        SortArg::parse(&text).map_err(|message| {
+            clap::Error::raw(
+                clap::error::ErrorKind::InvalidValue,
+                format!("invalid --sort value {text:?}: {message}"),
+            )
+            .with_cmd(cmd)
+        })
+    }
+
+    fn possible_values(
+        &self,
+    ) -> Option<Box<dyn Iterator<Item = clap::builder::PossibleValue> + '_>> {
+        Some(Box::new(SORT_SPELLINGS.iter().map(|(key, directions)| {
+            let mut value = clap::builder::PossibleValue::new(*key);
+            for dir in *directions {
+                value = value.alias(*dir);
+            }
+            value
+        })))
+    }
+}
+
+/// Sort direction applied by the CLI to a fetched result.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SortDirArg {
+    /// Lowest/earliest first.
+    Asc,
+    /// Highest/latest first.
+    Desc,
+}
+
+impl SortDirArg {
+    /// Parses `asc` or `desc`.
+    #[must_use]
+    pub fn parse(raw: &str) -> Option<Self> {
+        match raw {
+            "asc" => Some(Self::Asc),
+            "desc" => Some(Self::Desc),
+            _ => None,
         }
     }
 }
@@ -2006,6 +2216,78 @@ mod tests {
     #[test]
     fn command_definition_is_valid() {
         Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn sort_spellings_match_the_documented_keys() {
+        let documented = SORT_SPELLINGS
+            .iter()
+            .map(|(key, _)| *key)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            documented.join(", "),
+            SortKeyArg::as_list(),
+            "the advertised --sort spellings must be the documented keys"
+        );
+        for (key, directions) in SORT_SPELLINGS {
+            assert!(SortArg::parse(key).is_ok(), "{key} must parse");
+            assert_eq!(SortArg::parse(key).expect("parses").dir(), None);
+            for spelling in directions {
+                let parsed = SortArg::parse(spelling).unwrap_or_else(|e| panic!("{spelling}: {e}"));
+                assert_eq!(parsed.key().as_str(), key);
+                assert_eq!(
+                    parsed.dir(),
+                    Some(if spelling.ends_with(":asc") {
+                        SortDirArg::Asc
+                    } else {
+                        SortDirArg::Desc
+                    })
+                );
+                assert_eq!(parsed.as_str(), key, "only the key goes on the wire");
+            }
+        }
+        assert!(SortArg::parse("assignee:desc").is_err());
+        assert!(SortArg::parse("updated:sideways").is_err());
+        assert!(SortArg::parse("updated:").is_err());
+    }
+
+    #[test]
+    fn pagination_flags_separate_the_result_cap_from_the_page_size() {
+        let none = PaginationArgs {
+            limit: None,
+            cursor: None,
+            all: false,
+        };
+        assert_eq!(none.page_size(), None);
+        assert_eq!(none.max_items(), None);
+
+        let capped = PaginationArgs {
+            limit: Some(40),
+            cursor: Some("opaque".to_string()),
+            all: true,
+        };
+        assert_eq!(capped.page_size(), Some(40));
+        assert_eq!(capped.max_items(), Some(40));
+
+        let oversized = PaginationArgs {
+            limit: Some(500),
+            cursor: None,
+            all: true,
+        };
+        assert_eq!(
+            oversized.page_size(),
+            Some(PaginationArgs::MAX_PAGE_SIZE),
+            "the wire page size never exceeds the endpoint maximum"
+        );
+        assert_eq!(oversized.max_items(), Some(500));
+
+        // Endpoints the contract caps lower still page to the requested total.
+        assert_eq!(
+            oversized.directory_page_size(),
+            Some(PaginationArgs::DIRECTORY_PAGE_SIZE)
+        );
+        assert_eq!(oversized.directory_page_size(), Some(100));
+        assert_eq!(capped.directory_page_size(), Some(40));
     }
 
     #[test]

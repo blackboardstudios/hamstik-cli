@@ -1067,14 +1067,40 @@ hamstik work list
 --updated-after <RFC3339>
 
 --limit <N>
---cursor <CURSOR>
+--cursor <CURSOR>        (alias: --since-cursor)
 --all
 ```
+
+`--limit` is the total result cap, distinct from the server page size: the page
+size sent on the wire is `min(limit, endpoint maximum)` — 200 items
+(`PaginationArgs::MAX_PAGE_SIZE`) by default, 100 (`PaginationArgs::DIRECTORY_PAGE_SIZE`)
+on the organization, project, sprint, label, and link endpoints the contract caps
+lower — and caps above one page are met by following cursors (with `--all`)
+rather than by asking the server for an oversized page.
 
 `--all` follows `nextCursor` until the server reports no more pages, subject
 to client-side budgets (1,000 pages / 50,000 items). A hostile or looping
 server therefore fails the command with a protocol error instead of spinning
 forever; the error tells the user to narrow the query.
+
+Resume and ordering guarantees:
+
+- `--cursor` / `--since-cursor` is forwarded verbatim as the first request of
+  the traversal, so `--since-cursor <checkpoint> --all [--limit N]` continues a
+  stream a previous invocation did not finish. Cursors stay opaque; the CLI
+  never constructs or edits one.
+- A cap or resume point that cuts through a server page yields
+  `page.nextCursor: null` (with `page.hasMore` unchanged), because the Public
+  API has no cursor for a position inside a page and reporting the page-end
+  cursor would silently skip items.
+- `--sort KEY[:DIR]` sends the documented key (`updated`, `dueDate`,
+  `priority`, `rank`) and applies the direction the REST parameter does not
+  carry. The CLI then makes the ordering of the fetched, bounded result total
+  by breaking ties on `key` and then `id`, which is what makes repeated
+  invocations byte-identical; without a direction the server order is kept and
+  only ties are stabilized. `rank` has no client-side representation, so
+  `rank:desc` reverses the fetched order. Ordering is never applied to items
+  the CLI did not fetch.
 
 Convenience:
 

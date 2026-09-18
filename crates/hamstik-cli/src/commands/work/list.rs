@@ -5,18 +5,17 @@
 
 use serde_json::{Value, json};
 
-use hamstik_api_client::{
-    ListWorkItemsQuery, PageItems, SqueakQlSearchRequest, WorkItemSummary, follow_all,
-};
+use hamstik_api_client::{ListWorkItemsQuery, PageItems, SqueakQlSearchRequest, follow_with};
 
 use crate::app::Session;
 use crate::args::{MyWorkArgs, WorkListArgs};
 use crate::error::CliError;
 
-use super::emit_table;
+use super::sort::apply_sort;
+use super::{emit_table, follow_policy};
 fn my_work_query(args: &MyWorkArgs) -> ListWorkItemsQuery {
     ListWorkItemsQuery {
-        limit: args.pagination.limit,
+        limit: args.pagination.page_size(),
         cursor: args.pagination.cursor.clone(),
         projects: args.project.clone(),
         status: args
@@ -51,9 +50,9 @@ pub(super) async fn mine(session: &mut Session<'_>, args: &MyWorkArgs) -> Result
     let selection = session.selection()?;
     let api = session.api(&selection)?;
     let base = my_work_query(args);
-    let json_value = if args.pagination.all {
+    let mut json_value = if args.pagination.all {
         let fetch_api = api.clone();
-        let page = follow_all(move |cursor| {
+        let page = follow_with(follow_policy(&args.pagination), move |cursor| {
             let fetch_api = fetch_api.clone();
             let mut query = base.clone();
             query.cursor = cursor;
@@ -75,6 +74,9 @@ pub(super) async fn mine(session: &mut Session<'_>, args: &MyWorkArgs) -> Result
             .map_err(CliError::from_client)?
             .raw
     };
+    if let Some(sort) = args.sort {
+        apply_sort(&mut json_value, sort);
+    }
     render_context_work_items(session, &json_value)
 }
 
@@ -100,13 +102,13 @@ pub(super) async fn search(
     let api = session.api(&selection)?;
     let base = SqueakQlSearchRequest {
         query: query.to_string(),
-        limit: pagination.limit,
+        limit: pagination.page_size(),
         cursor: pagination.cursor.clone(),
     };
     let json_value = if pagination.all {
         let fetch_api = api.clone();
         let org = org.clone();
-        let page = follow_all(move |cursor| {
+        let page = follow_with(follow_policy(pagination), move |cursor| {
             let fetch_api = fetch_api.clone();
             let org = org.clone();
             let mut body = base.clone();
@@ -179,7 +181,7 @@ fn raw_string(value: &Value, field: &str) -> String {
 /// Applies the shared Work Item filters to a query.
 fn build_query(args: &WorkListArgs) -> ListWorkItemsQuery {
     let mut query = ListWorkItemsQuery {
-        limit: args.pagination.limit,
+        limit: args.pagination.page_size(),
         cursor: args.pagination.cursor.clone(),
         ..Default::default()
     };
@@ -194,12 +196,12 @@ pub(super) async fn list(session: &mut Session<'_>, args: &WorkListArgs) -> Resu
     let api = session.api(&selection)?;
     let query = build_query(args);
 
-    if args.pagination.all {
+    let mut json_value = if args.pagination.all {
         let org = org.clone();
         let project = project.clone();
         let base = query.clone();
         let fetch_api = api.clone();
-        let page = follow_all(move |cursor| {
+        let page = follow_with(follow_policy(&args.pagination), move |cursor| {
             let fetch_api = fetch_api.clone();
             let org = org.clone();
             let project = project.clone();
@@ -216,39 +218,46 @@ pub(super) async fn list(session: &mut Session<'_>, args: &WorkListArgs) -> Resu
         })
         .await
         .map_err(CliError::from_client)?;
-        let rows: Vec<Vec<String>> = page.items.iter().map(summary_row).collect();
-        let json_value = json!({ "items": page.raw_items, "page": page.page });
-        emit_table(
-            session,
-            &json_value,
-            &["KEY", "TITLE", "STATUS", "TYPE", "PRIORITY", "ASSIGNEE"],
-            &rows,
-        )
+        json!({ "items": page.raw_items, "page": page.page })
     } else {
-        let response = api
-            .list_work_items(&org, &project, query)
+        api.list_work_items(&org, &project, query)
             .await
-            .map_err(CliError::from_client)?;
-        let rows: Vec<Vec<String>> = response.value.items.iter().map(summary_row).collect();
-        emit_table(
-            session,
-            &response.raw,
-            &["KEY", "TITLE", "STATUS", "TYPE", "PRIORITY", "ASSIGNEE"],
-            &rows,
-        )
+            .map_err(CliError::from_client)?
+            .raw
+    };
+    if let Some(sort) = args.filters.sort {
+        apply_sort(&mut json_value, sort);
     }
+    let rows = summary_rows(&json_value);
+    emit_table(
+        session,
+        &json_value,
+        &["KEY", "TITLE", "STATUS", "TYPE", "PRIORITY", "ASSIGNEE"],
+        &rows,
+    )
 }
 
-fn summary_row(item: &WorkItemSummary) -> Vec<String> {
-    vec![
-        item.key.clone(),
-        item.title.clone().unwrap_or_default(),
-        item.status.clone().unwrap_or_default(),
-        item.item_type.clone().unwrap_or_default(),
-        item.priority.clone().unwrap_or_default(),
-        item.assignee
-            .clone()
-            .map(|a| a.name().to_string())
-            .unwrap_or_else(|| "-".to_string()),
-    ]
+/// Table rows for a Work Item collection payload, in the order the payload is
+/// emitted so a table never disagrees with `--json`.
+fn summary_rows(value: &Value) -> Vec<Vec<String>> {
+    let Some(items) = value.get("items").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .map(|item| {
+            vec![
+                raw_string(item, "key"),
+                raw_string(item, "title"),
+                raw_string(item, "status"),
+                raw_string(item, "type"),
+                raw_string(item, "priority"),
+                item.get("assignee")
+                    .and_then(|assignee| assignee.get("name"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("-")
+                    .to_string(),
+            ]
+        })
+        .collect()
 }

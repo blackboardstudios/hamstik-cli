@@ -432,9 +432,24 @@ For automation:
 - `--quiet` emits only the essential identifier or result;
 - `--no-input` disables prompts and `--no-retry` disables safe automatic
   retries;
-- `--cursor` requests one page from an opaque cursor, while `--all` starts at
-  the first page, follows every returned cursor, and emits one deterministic
-  aggregate;
+- `--cursor` requests the page that follows an opaque cursor — `--since-cursor`
+  is the pipeline-checkpoint spelling of the same option — while `--all` starts
+  at the first page, follows every returned cursor, and emits one deterministic
+  aggregate; they compose, so a stream a downstream command crashed halfway
+  through resumes with
+  `--since-cursor "$(…previous output… | jq -r .page.nextCursor)" --all`
+  without re-reading what was already emitted;
+- `--limit` caps the total items a command emits, which is not the server page
+  size: `--limit 40` is a single 40-item page, `--all --limit 400` walks pages of
+  at most 200 items and stops at 400. A page is never larger than the endpoint
+  allows (200 items, 100 on the organization, project, sprint, label, and link
+  endpoints). A cap that cuts through a server page ends with
+  `"nextCursor": null` and `hasMore: true`, because the Public API has no cursor
+  for a position inside a page;
+- `--sort KEY[:DIR]` orders by `updated`, `dueDate`, `priority`, or `rank` with
+  an optional `:asc`/`:desc` direction. Ties always break on the Work Item key,
+  so the same query repeats byte for byte; `rank:desc` reverses the server's
+  rank order;
 - `--json` and `--quiet` are mutually exclusive.
 
 Stable process exit codes are:

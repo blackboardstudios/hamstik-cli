@@ -7,7 +7,7 @@
 use serde_json::{Value, json};
 
 use hamstik_api_client::{
-    ActivityOptions, AvatarOptions, ListWorkItemsQuery, PageItems, follow_all,
+    ActivityOptions, AvatarOptions, ListWorkItemsQuery, PageItems, follow_with,
 };
 
 use crate::app::Session;
@@ -15,7 +15,8 @@ use crate::args::{UserArgs, UserCommand, UserWorkArgs};
 use crate::error::CliError;
 
 use super::org::render_lines;
-use super::{emit_json, emit_table, emit_view};
+use super::work::sort::apply_sort;
+use super::{emit_json, emit_table, emit_view, follow_policy};
 
 /// Runs the `user` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &UserArgs) -> Result<(), CliError> {
@@ -106,7 +107,7 @@ async fn work(session: &mut Session<'_>, args: &UserWorkArgs) -> Result<(), CliE
     let api = session.api(&selection)?;
     let target = resolve_target(session, &args.public_id).await?;
     let base = ListWorkItemsQuery {
-        limit: args.pagination.limit,
+        limit: args.pagination.page_size(),
         cursor: args.pagination.cursor.clone(),
         involvement: args
             .involvement
@@ -148,10 +149,10 @@ async fn work(session: &mut Session<'_>, args: &UserWorkArgs) -> Result<(), CliE
         // choose one.
         ..Default::default()
     };
-    let json_value: Value = if args.pagination.all {
+    let mut json_value: Value = if args.pagination.all {
         let fetch_api = api.clone();
         let public_id = target.clone();
-        let page = follow_all(move |cursor| {
+        let page = follow_with(follow_policy(&args.pagination), move |cursor| {
             let fetch_api = fetch_api.clone();
             let public_id = public_id.clone();
             let mut query = base.clone();
@@ -175,6 +176,9 @@ async fn work(session: &mut Session<'_>, args: &UserWorkArgs) -> Result<(), CliE
             .map_err(CliError::from_client)?;
         response.raw
     };
+    if let Some(sort) = args.sort {
+        apply_sort(&mut json_value, sort);
+    }
     let rows: Vec<Vec<String>> = json_value
         .get("items")
         .and_then(Value::as_array)
@@ -230,14 +234,14 @@ async fn activity(
     let api = session.api(&selection)?;
     let target = resolve_target(session, public_id).await?;
     let base = ActivityOptions {
-        limit: pagination.limit,
+        limit: pagination.page_size(),
         cursor: pagination.cursor.clone(),
         since: since.map(str::to_string),
     };
     let json_value: Value = if pagination.all {
         let fetch_api = api.clone();
         let public_id = target.clone();
-        let page = follow_all(move |cursor| {
+        let page = follow_with(follow_policy(pagination), move |cursor| {
             let fetch_api = fetch_api.clone();
             let public_id = public_id.clone();
             let mut opts = base.clone();

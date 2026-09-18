@@ -26,7 +26,9 @@ pub use error::{ApiError, ClientError, HostError, NetworkStage};
 pub use host::Host;
 pub use idempotency::{IdempotencyKeyError, generate_key, validate_key};
 pub use models::*;
-pub use pagination::{MAX_FOLLOW_ITEMS, MAX_FOLLOW_PAGES, Page, PageItems, follow_all};
+pub use pagination::{
+    FollowPolicy, MAX_FOLLOW_ITEMS, MAX_FOLLOW_PAGES, Page, PageItems, follow_all, follow_with,
+};
 pub use retry::{RetryPolicy, Sleeper, TokioSleeper};
 
 #[cfg(test)]

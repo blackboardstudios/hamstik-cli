@@ -5,12 +5,13 @@
 
 use serde_json::{Value, json};
 
-use hamstik_api_client::{ActivityOptions, PageItems, follow_all};
+use hamstik_api_client::{ActivityOptions, PageItems, follow_with};
 
 use crate::app::Session;
 use crate::error::CliError;
 
 use super::emit_table;
+use super::follow_policy;
 pub(super) async fn activity(
     session: &mut Session<'_>,
     key: &str,
@@ -22,7 +23,7 @@ pub(super) async fn activity(
     let project = session.require_project(&selection)?;
     let api = session.api(&selection)?;
     let opts = ActivityOptions {
-        limit: pagination.limit,
+        limit: pagination.page_size(),
         cursor: pagination.cursor.clone(),
         since: since.map(str::to_string),
     };
@@ -32,8 +33,8 @@ pub(super) async fn activity(
         let project = project.clone();
         let key = key.to_string();
         let since = opts.since.clone();
-        let limit = pagination.limit;
-        let page = follow_all(move |cursor| {
+        let limit = pagination.page_size();
+        let page = follow_with(follow_policy(pagination), move |cursor| {
             let fetch_api = fetch_api.clone();
             let org = org.clone();
             let project = project.clone();

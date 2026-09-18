@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 
 use hamstik_api_client::{
     ActivityOptions, CreateProjectRequest, ListProjectsOptions, PageItems, Project,
-    UpdateProjectRequest, follow_all, generate_key, validate_key,
+    UpdateProjectRequest, follow_with, generate_key, validate_key,
 };
 
 use crate::app::Session;
@@ -18,7 +18,7 @@ use crate::input::resolve_text;
 
 use super::dryrun;
 use super::org::render_lines;
-use super::{emit_json, emit_table, emit_view, ensure_profile_for_default};
+use super::{emit_json, emit_table, emit_view, ensure_profile_for_default, follow_policy};
 
 /// Runs the `project` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &ProjectArgs) -> Result<(), CliError> {
@@ -58,14 +58,14 @@ async fn list(
     let org = session.require_org(&selection)?;
     let api = session.api(&selection)?;
     let base = ListProjectsOptions {
-        limit: pagination.limit,
+        limit: pagination.directory_page_size(),
         cursor: pagination.cursor.clone(),
         archived,
     };
     let json_value: Value = if pagination.all {
         let fetch_api = api.clone();
         let org = org.clone();
-        let page = follow_all(move |cursor| {
+        let page = follow_with(follow_policy(pagination), move |cursor| {
             let fetch_api = fetch_api.clone();
             let org = org.clone();
             let mut opts = base.clone();
@@ -443,7 +443,7 @@ async fn activity(
     };
     let api = session.api(&selection)?;
     let opts = ActivityOptions {
-        limit: pagination.limit,
+        limit: pagination.directory_page_size(),
         cursor: pagination.cursor.clone(),
         since: since.map(str::to_string),
     };
@@ -452,7 +452,7 @@ async fn activity(
         let org = org.clone();
         let project = project.clone();
         let since = opts.since.clone();
-        let page = follow_all(move |cursor| {
+        let page = follow_with(follow_policy(pagination), move |cursor| {
             let fetch_api = fetch_api.clone();
             let org = org.clone();
             let project = project.clone();

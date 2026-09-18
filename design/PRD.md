@@ -819,17 +819,29 @@ Collection commands SHOULD expose:
 
 ```text
 --limit
---cursor
+--cursor           (--since-cursor is an accepted alias)
 --all
 ```
 
 Default behavior should request a bounded first page.
 
+`--limit` bounds the *result* (total items emitted), not the transport page
+size. When the cap spans more than one page it is satisfied by following
+cursors; it never causes an unbounded read.
+
 `--all` automatically follows cursors until complete.
+
+`--cursor` / `--since-cursor` names the opaque cursor a result starts after and
+MUST be honored for the first request of a traversal, including a traversal
+continued with `--all`. A pipeline that crashed after consuming a page resumes
+from the cursor it recorded with no re-reads and no gaps, within the
+consistency guarantees of the server's own ordering.
 
 The CLI MUST treat cursors as opaque.
 
-The CLI MUST NOT construct Public API cursors itself.
+The CLI MUST NOT construct Public API cursors itself. When a cap or a resume
+point lands partway through a server page, the CLI reports that no resume cursor
+is available rather than inventing one.
 
 ---
 

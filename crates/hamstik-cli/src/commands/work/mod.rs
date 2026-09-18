@@ -19,6 +19,7 @@ mod edit;
 mod label;
 mod link;
 mod list;
+pub(crate) mod sort;
 mod transitions;
 mod view;
 mod watcher;
@@ -33,7 +34,7 @@ use crate::error::CliError;
 pub(crate) use super::bulk_preflight;
 pub(crate) use super::dryrun;
 pub(crate) use super::org::render_lines;
-pub(crate) use super::{emit_json, emit_table, emit_view};
+pub(crate) use super::{emit_json, emit_table, emit_view, follow_policy};
 /// Runs the `work` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &WorkArgs) -> Result<(), CliError> {
     match &args.command {
