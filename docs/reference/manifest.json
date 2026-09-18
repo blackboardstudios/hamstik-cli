@@ -1364,6 +1364,96 @@
    ]
   },
   {
+   "about": "Archive a sprint",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Sprint id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik sprint archive",
+   "hasSubcommands": false,
+   "options": [
+    "--project",
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Unarchive a sprint",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Sprint id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik sprint unarchive",
+   "hasSubcommands": false,
+   "options": [
+    "--project",
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
    "about": "Transition a sprint to a target state",
    "aliases": [],
    "arguments": [
@@ -4288,6 +4378,19 @@
    "positionals": [
     "shell"
    ]
+  },
+  {
+   "about": "Bootstrap the working directory for Hamstik",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik init",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
   },
   {
    "about": "Print the machine-readable command manifest derived from the real command tree",

@@ -1,0 +1,22 @@
+.TH HAMSTIK 1 "HAMSTIK SPRINT UNARCHIVE"
+.SH NAME
+hamstik sprint unarchive \- Unarchive a sprint
+.SH SYNOPSIS
+.B hamstik sprint unarchive [OPTIONS]
+.SH DESCRIPTION
+Unarchive a sprint
+.SH ARGUMENTS
+.TP
+.I ID
+Sprint id (UUID)
+.SH OPTIONS
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false
+.TP
+.B --idempotency-key
+Explicit idempotency key
