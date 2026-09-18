@@ -14,6 +14,8 @@ mod await_cmd;
 mod bulk;
 mod comment;
 mod common;
+mod create;
+mod edit;
 mod label;
 mod link;
 mod list;
@@ -45,8 +47,8 @@ pub async fn run(session: &mut Session<'_>, args: &WorkArgs) -> Result<(), CliEr
         } => list::search(session, query, file, saved, pagination).await,
         WorkCommand::View(args) => view::view(session, args).await,
         WorkCommand::Context(args) => super::work_context::run(session, args).await,
-        WorkCommand::Create(create_args) => view::create(session, create_args).await,
-        WorkCommand::Edit(edit_args) => view::edit(session, edit_args).await,
+        WorkCommand::Create(create_args) => create::create(session, create_args).await,
+        WorkCommand::Edit(edit_args) => edit::edit(session, edit_args).await,
         WorkCommand::Watcher(watcher_args) => watcher::watcher(session, watcher_args).await,
         WorkCommand::Transitions { key } => transitions::transitions(session, key).await,
         WorkCommand::Transition { key, target } => {
