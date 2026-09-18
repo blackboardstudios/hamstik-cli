@@ -70,7 +70,7 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
             crate::args::WorkCommand::List(_)
             | crate::args::WorkCommand::Mine(_)
             | crate::args::WorkCommand::Search { .. }
-            | crate::args::WorkCommand::View { .. }
+            | crate::args::WorkCommand::View(_)
             | crate::args::WorkCommand::Transitions { .. }
             | crate::args::WorkCommand::Activity { .. } => false,
             crate::args::WorkCommand::Watcher(args) => {

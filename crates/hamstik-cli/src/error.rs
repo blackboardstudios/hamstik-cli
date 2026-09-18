@@ -79,6 +79,21 @@ pub struct CliError {
     pub source: Option<Box<dyn std::error::Error + Send + Sync>>,
 }
 
+impl Clone for CliError {
+    fn clone(&self) -> Self {
+        Self {
+            kind: self.kind,
+            code: self.code.clone(),
+            message: self.message.clone(),
+            request_id: self.request_id.clone(),
+            status: self.status,
+            field_errors: self.field_errors.clone(),
+            details: self.details.clone(),
+            source: None,
+        }
+    }
+}
+
 impl CliError {
     fn new(kind: ErrorKind, code: impl Into<String>, message: impl Into<String>) -> Self {
         Self {

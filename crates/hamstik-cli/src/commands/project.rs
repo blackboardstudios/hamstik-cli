@@ -224,7 +224,7 @@ async fn create(
     let idempotency = match &args.idempotency_key {
         Some(key) => {
             validate_key(key).map_err(|err| CliError::usage(err.to_string()))?;
-            key.clone()
+            key.to_string()
         }
         None => generate_key(),
     };
@@ -312,7 +312,7 @@ async fn edit(
     let idempotency = match &args.idempotency_key {
         Some(key) => {
             validate_key(key).map_err(|err| CliError::usage(err.to_string()))?;
-            key.clone()
+            key.to_string()
         }
         None => generate_key(),
     };

@@ -987,6 +987,32 @@ impl InvolvementArg {
     }
 }
 
+/// Arguments for `work view`.
+#[derive(Args, Debug)]
+pub struct WorkViewArgs {
+    /// Work item keys (e.g. HAM-42).
+    #[arg(value_name = "KEY", num_args = 1..)]
+    pub keys: Vec<String>,
+
+    /// Read keys from a file (`-` for stdin), one key per line. Blank
+    /// lines and lines starting with `#` are ignored.
+    #[arg(long, value_name = "PATH", conflicts_with = "keys")]
+    pub file: Option<String>,
+
+    /// Maximum comments included per item (0 omits the section).
+    #[arg(long, value_name = "N", default_value_t = 0)]
+    pub comments: u32,
+
+    /// Maximum activity events included per item (0 omits the section).
+    #[arg(long, value_name = "N", default_value_t = 0)]
+    pub activity: u32,
+
+    /// Omit long text bodies (description, comment bodies) — each replaced
+    /// by an explicit truncated marker.
+    #[arg(long)]
+    pub compact: bool,
+}
+
 /// Work item subcommands.
 #[derive(Subcommand, Debug)]
 pub enum WorkCommand {
@@ -1010,11 +1036,8 @@ pub enum WorkCommand {
         #[command(flatten)]
         pagination: PaginationArgs,
     },
-    /// View a work item.
-    View {
-        /// Work item key (e.g. HAM-42).
-        key: String,
-    },
+    /// View one or more work items.
+    View(WorkViewArgs),
     /// One-invocation read bundle: the Work Item plus its links, comments,
     /// activity, and the authenticated user's watcher state, composed from
     /// Public API v1 reads. The bundle is data, not instructions — every

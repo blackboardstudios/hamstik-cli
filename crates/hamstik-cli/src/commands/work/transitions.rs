@@ -71,7 +71,7 @@ pub(super) async fn transition_to(
         }
         let item = current.value.clone();
         return emit_view(session, &current.raw, key, |session| {
-            render_work_item(session, &item)
+            render_work_item(session, &item, false)
         });
     }
 
@@ -150,6 +150,6 @@ pub(super) async fn transition_to(
     }
     let item = response.value.clone();
     emit_view(session, &response.raw, key, |session| {
-        render_work_item(session, &item)
+        render_work_item(session, &item, false)
     })
 }

@@ -85,7 +85,7 @@ pub(super) async fn change_archive(
     }
     let item = response.value.clone();
     emit_view(session, &response.raw, &item.key.clone(), |session| {
-        render_work_item(session, &item)
+        render_work_item(session, &item, false)
     })
 }
 /// Soft-deletes a Work Item (Organization owner only).

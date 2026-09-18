@@ -160,6 +160,6 @@ pub(super) async fn label(session: &mut Session<'_>, args: &WorkLabelArgs) -> Re
     }
     let item = response.value.clone();
     emit_view(session, &response.raw, &item.key.clone(), |session| {
-        render_work_item(session, &item)
+        render_work_item(session, &item, false)
     })
 }

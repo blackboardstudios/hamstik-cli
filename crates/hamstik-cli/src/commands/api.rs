@@ -271,7 +271,7 @@ async fn run_request(session: &mut Session<'_>, args: &RequestArgs) -> Result<()
             Some(key) => {
                 hamstik_api_client::validate_key(key)
                     .map_err(|err| CliError::usage(err.to_string()))?;
-                key.clone()
+                key.to_string()
             }
             None => Uuid::new_v4().to_string(),
         })

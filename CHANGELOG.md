@@ -12,6 +12,11 @@ before upgrading.
 
 ### Added
 
+- `hamstik work view` now accepts multiple keys and a `--file` flag for batch
+  lookups. A single key keeps the existing human-readable output; multiple keys
+  emit a JSON envelope with per-item results and a failure count. Comments and
+  activity depth are controlled with `--comments` and `--activity`. (CLI-XX)
+
 - `hamstik init` bootstraps the working directory by creating a `.hamstik.toml`
   file populated from the current resolved context (organization, project) and
   prints tailored first-run guidance. It fails if the file already exists and

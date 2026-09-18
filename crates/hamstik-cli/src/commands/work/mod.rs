@@ -43,7 +43,7 @@ pub async fn run(session: &mut Session<'_>, args: &WorkArgs) -> Result<(), CliEr
             saved,
             pagination,
         } => list::search(session, query, file, saved, pagination).await,
-        WorkCommand::View { key } => view::view(session, key).await,
+        WorkCommand::View(args) => view::view(session, args).await,
         WorkCommand::Context(args) => super::work_context::run(session, args).await,
         WorkCommand::Create(create_args) => view::create(session, create_args).await,
         WorkCommand::Edit(edit_args) => view::edit(session, edit_args).await,
