@@ -268,6 +268,128 @@ async fn work_start_verifies_transition_and_sends_if_match() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn work_close_verifies_transition_and_sends_if_match() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("ETag", "\"rev-7\"")
+                .set_body_json(work_item_json("in_progress", 7)),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1/transitions",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "currentStatus": "in_progress",
+            "transitions": [{"targetStatus": "done"}]
+        })))
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1/transitions",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("ETag", "\"rev-8\"")
+                .set_body_json(work_item_json("done", 8)),
+        )
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    let output = base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "work",
+            "close",
+            "HAM-1",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(body["status"], "done");
+
+    let post = server
+        .received_requests()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|r| r.method.as_str() == "POST")
+        .unwrap();
+    assert_eq!(
+        post.headers.get("if-match").unwrap().to_str().unwrap(),
+        "\"rev-7\""
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn work_await_returns_immediately_when_condition_already_met() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("ETag", "\"rev-5\"")
+                .set_body_json(work_item_json("done", 5)),
+        )
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    let output = base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "work",
+            "await",
+            "HAM-1",
+            "--status",
+            "done",
+            "--timeout",
+            "30s",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(body["status"], "done");
+
+    // The condition holds on the first observation, so `work await` must not
+    // poll again: exactly one read, no backoff sleep.
+    let reads = server
+        .received_requests()
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|r| {
+            r.method.as_str() == "GET"
+                && r.url.path() == "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1"
+        })
+        .count();
+    assert_eq!(
+        reads, 1,
+        "an already-met condition must cost exactly one read"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn work_transition_rejects_disallowed_target() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
