@@ -44,13 +44,8 @@ jobs:
         run: |
           python3 scripts/generate_docs.py \
             --binary target/release/hamstik \
-            --out docs/reference
-          if ! git diff --quiet -- docs/; then
-            git diff -- docs/ | head -200
-            echo "::error::generated documentation is stale; run scripts/generate_docs.py and commit" >&2
-            exit 1
-          fi
-          echo "generated documentation is up to date"
+            --out docs/reference \
+            --check
 
   # Advisory + license gate for the committed lockfile. Dependabot bumps
   # versions; this gate catches known RUSTSEC advisories and license/source

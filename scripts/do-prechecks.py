@@ -8,6 +8,7 @@ and Git diff hygiene checks:
     cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
     cargo test --locked --workspace
     cargo build --locked --workspace --release
+    scripts/generate_docs.py --binary target/release/hamstik --out docs/reference --check
     cargo deny --locked check
     git diff --check
     git diff --cached --check
@@ -51,6 +52,9 @@ except ModuleNotFoundError:
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+RELEASE_BINARY = (
+    "target/release/hamstik.exe" if os.name == "nt" else "target/release/hamstik"
+)
 
 ANSI_ESCAPE_PATTERN = re.compile(
     r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))"
@@ -94,8 +98,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Run the repository's quality gates in fail-fast order: format, "
-            "lint, tests, release build, dependency policy, and Git diff hygiene. "
-            "Stop immediately when a check fails."
+            "lint, tests, release build, generated docs, dependency policy, and "
+            "Git diff hygiene. Stop immediately when a check fails."
         )
     )
     parser.add_argument(
@@ -109,14 +113,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-build",
         action="store_true",
-        help="Skip the release build (useful for quick edit-verify loops).",
+        help=(
+            "Skip the release build and generated-docs check "
+            "(useful for quick edit-verify loops)."
+        ),
     )
     parser.add_argument(
         "--only",
         default=None,
         help=(
             "Comma-separated subset of checks to run "
-            "(format, clippy, tests, release, deny, whitespace). "
+            "(format, clippy, tests, release, docs, deny, whitespace). "
             "'advisories' is accepted as a backwards-compatible alias for 'deny'."
         ),
     )
@@ -180,6 +187,24 @@ def checks_for(*, skip_deny: bool, skip_build: bool, only: str | None) -> list[C
             require_tools=("cargo",),
         ),
         Check(
+            key="docs",
+            name="Generated docs",
+            command=(
+                sys.executable,
+                "scripts/generate_docs.py",
+                "--binary",
+                RELEASE_BINARY,
+                "--out",
+                "docs/reference",
+                "--check",
+            ),
+            detail=(
+                "Regenerate the command reference and man pages in a temporary "
+                "directory and reject drift from the checked-in artifacts."
+            ),
+            require_files=("scripts/generate_docs.py",),
+        ),
+        Check(
             key="deny",
             name="Dependency policy",
             command=("cargo", "deny", "--locked", "check"),
@@ -212,7 +237,9 @@ def checks_for(*, skip_deny: bool, skip_build: bool, only: str | None) -> list[C
     ]
 
     if skip_build:
-        checks = [check for check in checks if check.key != "release"]
+        checks = [
+            check for check in checks if check.key not in {"release", "docs"}
+        ]
     if skip_deny:
         checks = [check for check in checks if check.key != "deny"]
 

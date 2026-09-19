@@ -12,6 +12,8 @@ Usage:
 
     python3 scripts/generate_docs.py --binary target/release/hamstik \
         --out docs/reference
+    python3 scripts/generate_docs.py --binary target/release/hamstik \
+        --out docs/reference --check
 
 Artifacts:
 
@@ -28,6 +30,7 @@ import argparse
 import json
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROFF_ESCAPES = str.maketrans({"-": r"\-", "\\": r"\\"})
@@ -172,29 +175,11 @@ def render_manpage(command: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def main(argv: list[str] | None = None) -> int:
-    import argparse
+def generate_docs(binary: Path, reference_dir: Path) -> int:
+    """Generate all reference and man-page artifacts."""
 
-    parser = argparse.ArgumentParser(
-        description="Regenerate command-reference and man-page artifacts."
-    )
-    parser.add_argument(
-        "--binary", type=Path, default=Path("target/release/hamstik"),
-        help="path to the hamstik binary (default: target/release/hamstik)",
-    )
-    parser.add_argument(
-        "--out", type=Path, default=Path("docs/reference"),
-        help="output root (default: docs/reference; man pages land in docs/man)",
-    )
-    options = parser.parse_args(argv)
-
-    if not options.binary.is_file():
-        fail(f"binary not found: {options.binary}; build it first (cargo build --release)")
-
-    document = run_manifest(options.binary)
-    reference_dir = options.out
+    document = run_manifest(binary)
     man_dir = reference_dir.parent / "man"
-    reference_dir = reference_dir
     reference_dir.mkdir(parents=True, exist_ok=True)
     man_dir.mkdir(parents=True, exist_ok=True)
 
@@ -211,7 +196,104 @@ def main(argv: list[str] | None = None) -> int:
     (reference_dir / "manifest.json").write_text(
         json.dumps(document, indent=1, sort_keys=False) + "\n", encoding="utf-8"
     )
-    print(f"generated {count} reference pages and man pages in {reference_dir} / {man_dir}")
+    return count
+
+
+def files_under(root: Path) -> dict[Path, bytes]:
+    """Return the relative paths and contents of every file below a directory."""
+
+    if not root.is_dir():
+        return {}
+    return {
+        path.relative_to(root): path.read_bytes()
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
+def check_docs(binary: Path, reference_dir: Path) -> int:
+    """Verify checked-in artifacts without modifying the working tree."""
+
+    with tempfile.TemporaryDirectory(prefix="hamstik-docs-") as temporary_dir:
+        temporary_reference = Path(temporary_dir) / "reference"
+        count = generate_docs(binary, temporary_reference)
+
+        differences: list[str] = []
+        for label, expected_root, actual_root in (
+            ("reference", temporary_reference, reference_dir),
+            ("man", temporary_reference.parent / "man", reference_dir.parent / "man"),
+        ):
+            expected = files_under(expected_root)
+            actual = files_under(actual_root)
+
+            for path in sorted(expected.keys() - actual.keys()):
+                differences.append(f"missing {label} artifact: {path}")
+            for path in sorted(actual.keys() - expected.keys()):
+                differences.append(f"unexpected {label} artifact: {path}")
+            for path in sorted(expected.keys() & actual.keys()):
+                if expected[path] != actual[path]:
+                    differences.append(f"stale {label} artifact: {path}")
+
+    if differences:
+        print("generated documentation is stale:", file=sys.stderr)
+        for difference in differences[:20]:
+            print(f"  - {difference}", file=sys.stderr)
+        if len(differences) > 20:
+            print(
+                f"  - ... and {len(differences) - 20} more difference(s)",
+                file=sys.stderr,
+            )
+        print(
+            "run `python3 scripts/generate_docs.py --binary "
+            "target/release/hamstik --out docs/reference` and commit the "
+            "resulting docs/ changes",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(
+        f"generated documentation is up to date ({count} command pages checked)"
+    )
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Regenerate command-reference and man-page artifacts."
+    )
+    parser.add_argument(
+        "--binary",
+        type=Path,
+        default=Path("target/release/hamstik"),
+        help="path to the hamstik binary (default: target/release/hamstik)",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("docs/reference"),
+        help="output root (default: docs/reference; man pages land in docs/man)",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="fail if checked-in artifacts differ, without modifying them",
+    )
+    options = parser.parse_args(argv)
+
+    if not options.binary.is_file():
+        fail(
+            f"binary not found: {options.binary}; "
+            "build it first (cargo build --release)"
+        )
+
+    if options.check:
+        return check_docs(options.binary, options.out)
+
+    count = generate_docs(options.binary, options.out)
+    print(
+        f"generated {count} reference pages and man pages in "
+        f"{options.out} / {options.out.parent / 'man'}"
+    )
     return 0
 
 

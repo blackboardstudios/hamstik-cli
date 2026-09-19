@@ -38,12 +38,16 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace
 cargo build --workspace --release
+python3 scripts/generate_docs.py \
+  --binary target/release/hamstik \
+  --out docs/reference \
+  --check
 ```
 
-The optional helper `scripts/do-prechecks.py` runs the same gates in fail-fast order
-plus `cargo deny check` and `git diff --check`. It needs Python 3 and the `rich`
-package (`python3 -m pip install rich`); it is a convenience wrapper, not a build
-requirement.
+The optional helper `scripts/do-prechecks.py` runs the same gates in fail-fast order,
+including the generated-documentation drift check, plus `cargo deny check` and
+`git diff --check`. It needs Python 3 and the `rich` package
+(`python3 -m pip install rich`); it is a convenience wrapper, not a build requirement.
 
 ## Tests
 
