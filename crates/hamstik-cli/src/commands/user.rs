@@ -16,7 +16,7 @@ use crate::error::CliError;
 
 use super::org::render_lines;
 use super::work::sort::apply_sort;
-use super::{emit_json, emit_table, emit_view, follow_policy};
+use super::{check_columns, emit_json, emit_view, follow_policy, render_list};
 
 /// Runs the `user` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &UserArgs) -> Result<(), CliError> {
@@ -184,7 +184,11 @@ async fn work(session: &mut Session<'_>, args: &UserWorkArgs) -> Result<(), CliE
         .and_then(Value::as_array)
         .map(|items| items.iter().map(work_row_from_raw).collect())
         .unwrap_or_default();
-    emit_table(
+    check_columns(
+        &["KEY", "PROJECT", "TITLE", "STATUS", "ASSIGNEE", "REPORTER"],
+        &session.output_options(),
+    )?;
+    render_list(
         session,
         &json_value,
         &["KEY", "PROJECT", "TITLE", "STATUS", "ASSIGNEE", "REPORTER"],
@@ -272,7 +276,19 @@ async fn activity(
         .and_then(Value::as_array)
         .map(|items| items.iter().map(activity_row_from_raw).collect())
         .unwrap_or_default();
-    emit_table(
+    check_columns(
+        &[
+            "ID",
+            "ACTION",
+            "ACTOR",
+            "ORG",
+            "PROJECT",
+            "WORK ITEM",
+            "CREATED",
+        ],
+        &session.output_options(),
+    )?;
+    render_list(
         session,
         &json_value,
         &[

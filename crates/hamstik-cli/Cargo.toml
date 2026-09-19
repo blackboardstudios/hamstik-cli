@@ -42,6 +42,14 @@ uuid = { workspace = true }
 humantime = { workspace = true }
 zip = { workspace = true }
 
+# JSON query support for --jq (embedded Rust implementation of jq filter language).
+# Only the jq/JSON standard library is enabled; the multi-format readers and
+# writers are unnecessary because the CLI already owns JSON serialization.
+jaq-all = { version = "0.3", default-features = false, features = ["std-all"] }
+
+# Byte string handling for jaq integration.
+bytes = { workspace = true }
+
 # Credential store backends. `keyring` ships NO default features: with no
 # backend feature enabled it silently resolves to its in-process mock store,
 # where writes "succeed" but vanish when the process exits. Each supported

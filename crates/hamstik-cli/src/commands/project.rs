@@ -18,7 +18,9 @@ use crate::input::resolve_text;
 
 use super::dryrun;
 use super::org::render_lines;
-use super::{emit_json, emit_table, emit_view, ensure_profile_for_default, follow_policy};
+use super::{
+    check_columns, emit_json, emit_view, ensure_profile_for_default, follow_policy, render_list,
+};
 
 /// Runs the `project` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &ProjectArgs) -> Result<(), CliError> {
@@ -126,7 +128,11 @@ async fn list(
                 .collect()
         })
         .unwrap_or_default();
-    emit_table(
+    check_columns(
+        &["KEY", "NAME", "COLOR", "STATE"],
+        &session.output_options(),
+    )?;
+    render_list(
         session,
         &json_value,
         &["KEY", "NAME", "COLOR", "STATE"],
@@ -523,7 +529,11 @@ async fn activity(
         .and_then(Value::as_array)
         .map(|items| items.iter().map(activity_row_from_raw).collect())
         .unwrap_or_default();
-    emit_table(
+    check_columns(
+        &["ID", "ACTION", "ACTOR", "WORK ITEM", "DETAIL", "CREATED"],
+        &session.output_options(),
+    )?;
+    render_list(
         session,
         &json_value,
         &["ID", "ACTION", "ACTOR", "WORK ITEM", "DETAIL", "CREATED"],

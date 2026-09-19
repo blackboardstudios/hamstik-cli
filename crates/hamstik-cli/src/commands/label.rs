@@ -15,7 +15,7 @@ use crate::args::{LabelArgs, LabelCommand};
 use crate::error::CliError;
 
 use super::dryrun;
-use super::{emit_table, emit_view, follow_policy};
+use super::{check_columns, emit_view, follow_policy, render_list};
 
 /// Runs the `label` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &LabelArgs) -> Result<(), CliError> {
@@ -89,7 +89,8 @@ async fn list(
             .map(|label| label_row(session, label))
             .collect();
         let json_value = serde_json::json!({ "items": page.raw_items, "page": page.page });
-        emit_table(session, &json_value, &["ID", "NAME", "COLOR"], &rows)
+        check_columns(&["ID", "NAME", "COLOR"], &session.output_options())?;
+        render_list(session, &json_value, &["ID", "NAME", "COLOR"], &rows)
     } else {
         let response = api
             .list_labels(
@@ -108,7 +109,8 @@ async fn list(
             .iter()
             .map(|label| label_row(session, label))
             .collect();
-        emit_table(session, &response.raw, &["ID", "NAME", "COLOR"], &rows)
+        check_columns(&["ID", "NAME", "COLOR"], &session.output_options())?;
+        render_list(session, &response.raw, &["ID", "NAME", "COLOR"], &rows)
     }
 }
 

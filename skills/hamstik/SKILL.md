@@ -87,8 +87,15 @@ on unrelated profile defaults for a mutation.
 ## Use automation-safe output
 
 - Prefer `--json --no-input` for reads and structured automation.
+- For line-oriented collection pipelines, use `--jsonl --no-input` to receive
+  one server-shaped JSON resource per line, or `--tsv --no-input` for escaped
+  tab-separated table rows. Use `--columns NAME...` to select/reorder human or
+  TSV columns and `--no-header` when a TSV consumer does not want the header.
+- Use `--jq EXPR` with `--json`, `--jsonl`, or `--tsv` to filter the full
+  server-shaped collection. In TSV mode, return an array for each desired row;
+  its elements become cells. Do not combine `--jq` with `--columns`.
 - Use `--quiet --no-input` when only a newly created or changed resource identifier is
-  needed. `--json` and `--quiet` are mutually exclusive.
+  needed. `--json`, `--jsonl`, `--tsv`, and `--quiet` are mutually exclusive.
 - Parse stdout only. Normal command diagnostics and structured errors go to stderr.
 - `doctor --json` is the exception: its diagnostic report remains on stdout even when
   the process exits nonzero.

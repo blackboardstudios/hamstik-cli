@@ -25,7 +25,7 @@ use crate::environment::Environment;
 use crate::error::CliError;
 use crate::exit::SUCCESS;
 use crate::input::Prompt;
-use crate::output::{Mode, Output};
+use crate::output::{Mode, Output, OutputOptions};
 
 /// Builds API clients behind a seam so tests can inject fakes.
 pub trait ApiFactory: Send + Sync {
@@ -389,6 +389,27 @@ impl Session<'_> {
     pub fn json(&self) -> bool {
         self.out.is_json()
     }
+
+    /// Whether JSON Lines output is active.
+    #[must_use]
+    pub fn jsonl(&self) -> bool {
+        self.global.jsonl
+    }
+
+    /// Whether TSV output is active.
+    #[must_use]
+    pub fn tsv(&self) -> bool {
+        self.global.tsv
+    }
+
+    /// Output-mode options derived from global flags (columns, jq, etc.).
+    #[must_use]
+    pub fn output_options(&self) -> OutputOptions {
+        OutputOptions {
+            columns: self.global.columns.clone(),
+            no_header: self.global.no_header,
+        }
+    }
 }
 
 fn map_credential_error(err: CredentialError) -> CliError {
@@ -420,6 +441,10 @@ pub async fn run(cli: Cli, services: Services<'_>) -> i32 {
     let global = cli.global.clone();
     let mode = if global.json {
         Mode::Json
+    } else if global.jsonl {
+        Mode::JsonLines
+    } else if global.tsv {
+        Mode::Tsv
     } else if global.quiet {
         Mode::Quiet
     } else {
@@ -427,13 +452,39 @@ pub async fn run(cli: Cli, services: Services<'_>) -> i32 {
     };
     let mut out = Output::new(mode, global.verbose, stdout, stderr);
 
-    if global.json && global.quiet {
-        let err = CliError::usage("cannot combine --json and --quiet");
+    // Reject mutually exclusive output modes before any network call.
+    if global.json && global.jsonl {
+        let err = CliError::usage("cannot combine --json and --jsonl");
+        let _ = out.error(&err);
+        return err.exit_code();
+    }
+    if global.json && global.tsv {
+        let err = CliError::usage("cannot combine --json and --tsv");
+        let _ = out.error(&err);
+        return err.exit_code();
+    }
+    if global.jsonl && global.tsv {
+        let err = CliError::usage("cannot combine --jsonl and --tsv");
+        let _ = out.error(&err);
+        return err.exit_code();
+    }
+    if (global.json || global.jsonl || global.tsv) && global.quiet {
+        let err = CliError::usage("cannot combine a structured output mode with --quiet");
         let _ = out.error(&err);
         return err.exit_code();
     }
     if global.quiet && global.verbose {
         let err = CliError::usage("cannot combine --quiet and --verbose");
+        let _ = out.error(&err);
+        return err.exit_code();
+    }
+    if global.jq.is_some() && !mode.is_structured() {
+        let err = CliError::usage("--jq requires --json, --jsonl, or --tsv");
+        let _ = out.error(&err);
+        return err.exit_code();
+    }
+    if global.jq.is_some() && global.columns.is_some() {
+        let err = CliError::usage("cannot combine --jq and --columns");
         let _ = out.error(&err);
         return err.exit_code();
     }
@@ -550,7 +601,12 @@ mod tests {
             org: None,
             project: None,
             json: false,
+            jsonl: false,
+            tsv: false,
             quiet: false,
+            jq: None,
+            columns: None,
+            no_header: false,
             verbose: false,
             no_color: false,
             no_input: false,

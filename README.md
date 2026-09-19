@@ -429,6 +429,14 @@ For automation:
 - `--json` writes a single valid JSON success document to stdout; structured
   command failures go to stderr. `doctor` is the deliberate exception: its
   diagnostic report stays on stdout even when its exit code is nonzero;
+- collection commands support `--jsonl` for one compact, server-shaped resource
+  per line and `--tsv` for escaped tab-separated table rows. TSV includes a
+  header by default; `--no-header` suppresses it;
+- `--columns NAME...` selects and orders human/TSV list columns by their printed
+  header names. `--jq EXPR` filters the full collection envelope in `--json`,
+  `--jsonl`, or `--tsv` mode; combine it with `--jsonl` for one jq result per
+  line or return arrays from the filter to define TSV cells. `--jq` and
+  `--columns` cannot be combined;
 - `--quiet` emits only the essential identifier or result;
 - `--no-input` disables prompts and `--no-retry` disables safe automatic
   retries;
@@ -453,7 +461,7 @@ For automation:
   no direction, so the CLI applies it to the result it fetched: order a whole
   collection with `--all`, because without `--all` only the single page that was
   returned is reordered;
-- `--json` and `--quiet` are mutually exclusive.
+- `--json`, `--jsonl`, `--tsv`, and `--quiet` are mutually exclusive.
 
 Stable process exit codes are:
 
@@ -486,9 +494,10 @@ The following surfaces are covered by compatibility contract tests
   above;
 - stdout/stderr separation (success content on stdout, failures on stderr
   with empty stdout), `--quiet` identifier output, `--no-input` deterministic
-  failure, and the `--json`/`--quiet` mutual exclusion;
+  failure, and the structured-output/`--quiet` mutual exclusion;
 - the collection envelope (`items` + `page.limit`/`hasMore`/`nextCursor`),
-  the `--all` aggregate shape, and sparse `--fields` forwarding;
+  the `--all` aggregate shape, JSON Lines resource stream, TSV escaping and
+  column order, jq result shaping, and sparse `--fields` forwarding;
 - the `--dry-run` preview envelope (`previewVersion: 1` with `operation`,
   `request.method`/`pathTemplate`/`path`/`headers`, `resolved`, `body`,
   `notes`) for mutation commands;

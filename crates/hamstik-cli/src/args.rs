@@ -53,9 +53,29 @@ pub struct GlobalOptions {
     #[arg(long, global = true)]
     pub json: bool,
 
+    /// Emit JSON Lines (one JSON object per line, NDJSON).
+    #[arg(long, global = true, conflicts_with_all = ["json", "tsv"])]
+    pub jsonl: bool,
+
+    /// Emit tab-separated values.
+    #[arg(long, global = true, conflicts_with_all = ["json", "jsonl"])]
+    pub tsv: bool,
+
     /// Emit only essential identifiers.
     #[arg(long, global = true)]
     pub quiet: bool,
+
+    /// Apply a jq filter expression to structured output (requires --json, --jsonl, or --tsv).
+    #[arg(long, global = true, value_name = "EXPR", value_parser = clap::builder::NonEmptyStringValueParser::new())]
+    pub jq: Option<String>,
+
+    /// Restrict list output to these columns (header names), in order.
+    #[arg(long, global = true, value_name = "NAME", value_parser = clap::builder::NonEmptyStringValueParser::new(), num_args = 1..)]
+    pub columns: Option<Vec<String>>,
+
+    /// Suppress the header row in list output (TSV and human table modes).
+    #[arg(long, global = true)]
+    pub no_header: bool,
 
     /// Show diagnostic details on stderr.
     #[arg(long, global = true)]

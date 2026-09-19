@@ -14,7 +14,7 @@ use crate::error::CliError;
 use crate::input::read_token;
 
 use super::credential;
-use super::{emit_json, emit_table, emit_view};
+use super::{check_columns, emit_json, emit_view, render_list};
 
 /// Runs the `auth` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &AuthArgs) -> Result<(), CliError> {
@@ -342,16 +342,17 @@ fn list(session: &mut Session<'_>) -> Result<(), CliError> {
         }));
     }
 
-    if session.json() {
-        emit_json(session, &json!({ "profiles": items }))
-    } else {
-        emit_table(
-            session,
-            &json!(null),
-            &["", "NAME", "HOST", "EMAIL", "ORG"],
-            &rows,
-        )
-    }
+    let json_value = json!({ "profiles": items });
+    check_columns(
+        &["", "NAME", "HOST", "EMAIL", "ORG"],
+        &session.output_options(),
+    )?;
+    render_list(
+        session,
+        &json_value,
+        &["", "NAME", "HOST", "EMAIL", "ORG"],
+        &rows,
+    )
 }
 
 fn switch(session: &mut Session<'_>, name: &str) -> Result<(), CliError> {

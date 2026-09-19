@@ -16,7 +16,7 @@ use crate::error::CliError;
 
 use super::dryrun;
 use super::org::render_lines;
-use super::{emit_table, emit_view, follow_policy};
+use super::{check_columns, emit_view, follow_policy, render_list};
 
 /// Runs the `sprint` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &SprintArgs) -> Result<(), CliError> {
@@ -152,7 +152,11 @@ async fn list(
         .map_err(CliError::from_client)?;
         let rows: Vec<Vec<String>> = page.items.iter().map(sprint_row).collect();
         let json_value = json!({ "items": page.raw_items, "page": page.page });
-        emit_table(
+        check_columns(
+            &["ID", "NAME", "STATE", "START", "END", "TARGET"],
+            &session.output_options(),
+        )?;
+        render_list(
             session,
             &json_value,
             &["ID", "NAME", "STATE", "START", "END", "TARGET"],
@@ -171,7 +175,11 @@ async fn list(
             .await
             .map_err(CliError::from_client)?;
         let rows: Vec<Vec<String>> = response.value.items.iter().map(sprint_row).collect();
-        emit_table(
+        check_columns(
+            &["ID", "NAME", "STATE", "START", "END", "TARGET"],
+            &session.output_options(),
+        )?;
+        render_list(
             session,
             &response.raw,
             &["ID", "NAME", "STATE", "START", "END", "TARGET"],

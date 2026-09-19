@@ -9,7 +9,8 @@ yanked = "deny"
 version = 2
 # The workspace is Apache-2.0; dependencies must be compatible with
 # distributing this CLI under Apache-2.0. MPL-2.0 is file-level copyleft that
-# is Apache-2.0 compatible per the MPL's own compatibility guidance.
+# is Apache-2.0 compatible per the MPL's own compatibility guidance; Zlib is a
+# permissive license used by foldhash through the embedded jq implementation.
 allow = [
     "Apache-2.0",
     "MIT",
@@ -19,6 +20,7 @@ allow = [
     "Unicode-3.0",
     "CDLA-Permissive-2.0",
     "MPL-2.0",
+    "Zlib",
 ]
 # Trust the Rust ecosystem confidence store so copyleft-ambiguous crates with
 # unlisted licenses are caught loudly instead of silently allowed.

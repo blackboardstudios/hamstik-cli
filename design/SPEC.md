@@ -944,7 +944,12 @@ At minimum:
 --project
 
 --json
+--jsonl
+--tsv
 --quiet
+--jq
+--columns
+--no-header
 --verbose
 --no-color
 --no-input
@@ -967,6 +972,20 @@ human
 ```text
 machine
 ```
+
+Collection commands additionally support explicit line-oriented modes:
+
+```text
+--jsonl   one compact, server-shaped resource per line
+--tsv     the command's documented table columns as tab-separated cells
+```
+
+`--json`, `--jsonl`, `--tsv`, and `--quiet` are mutually exclusive. `--jq`
+requires a structured mode (`--json`, `--jsonl`, or `--tsv`) and filters the
+server-shaped collection before it is rendered. `--columns` selects and orders
+human/TSV table columns by header name; `--no-header` suppresses the human or
+TSV header. `--jq` and `--columns` are mutually exclusive because the filter,
+not the command table, defines the filtered result's shape.
 
 Do not infer JSON merely because stdout is redirected.
 
@@ -1122,6 +1141,13 @@ may map to:
 
 Human default prints a table.
 
+Human and TSV tables use the command's documented column order. `--columns`
+accepts those header names case-insensitively and preserves the requested
+order; an unknown name is an error. `--no-header` removes both the human table
+header/separator and the TSV header row. TSV cells escape backslash, tab, LF,
+and CR so each resource remains exactly one physical line, and never include
+terminal color sequences.
+
 JSON default returns the API-style collection:
 
 ```json
@@ -1152,6 +1178,18 @@ the CLI follows all pages and SHOULD return:
 or another explicitly versioned all-results shape.
 
 Choose one shape and test it as a compatibility contract.
+
+`--jsonl` removes the collection envelope and writes each raw API resource as
+one compact JSON value per line. It does not turn human table cells into JSON
+strings, so field names, JSON types, and nested values remain server-shaped.
+
+`--jq <EXPR>` is evaluated against the same full collection value that
+`--json` would emit. For `--json`, zero filter results render as `null`, one as
+that value, and multiple results as one JSON array so stdout remains one valid
+JSON document. For `--jsonl`, each filter result is one line. For `--tsv`, each
+filter result is one row: arrays become multiple cells and other values become
+one cell; nested arrays and objects use compact JSON in that cell. jq-shaped
+TSV has no generated header.
 
 ---
 

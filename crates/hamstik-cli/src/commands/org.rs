@@ -17,7 +17,7 @@ use crate::error::CliError;
 use super::ensure_profile_for_default;
 use super::work::apply_filters as apply_work_filters;
 use super::work::sort::apply_sort;
-use super::{emit_json, emit_table, emit_view, follow_policy};
+use super::{check_columns, emit_json, emit_view, follow_policy, render_list};
 
 /// Runs the `org` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &OrgArgs) -> Result<(), CliError> {
@@ -71,7 +71,11 @@ async fn list(session: &mut Session<'_>, pagination: &PaginationArgs) -> Result<
         (rows, response.raw)
     };
 
-    emit_table(
+    check_columns(
+        &["SLUG", "NAME", "PLAN", "STATE"],
+        &session.output_options(),
+    )?;
+    render_list(
         session,
         &json_value,
         &["SLUG", "NAME", "PLAN", "STATE"],
@@ -220,7 +224,11 @@ async fn members(
                 .collect()
         })
         .unwrap_or_default();
-    emit_table(
+    check_columns(
+        &["PUBLIC ID", "NAME", "USERNAME"],
+        &session.output_options(),
+    )?;
+    render_list(
         session,
         &json_value,
         &["PUBLIC ID", "NAME", "USERNAME"],
@@ -318,7 +326,11 @@ async fn work(session: &mut Session<'_>, args: &OrgWorkListArgs) -> Result<(), C
                 .collect()
         })
         .unwrap_or_default();
-    emit_table(
+    check_columns(
+        &["KEY", "PROJECT", "TITLE", "STATUS", "ASSIGNEE", "COLOR"],
+        &session.output_options(),
+    )?;
+    render_list(
         session,
         &json_value,
         &["KEY", "PROJECT", "TITLE", "STATUS", "ASSIGNEE", "COLOR"],

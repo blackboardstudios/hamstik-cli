@@ -10,6 +10,7 @@ use crate::app::{Selection, Session};
 use crate::args::{AgentCommand, Command, PaginationArgs};
 use crate::config::{Profile, profile_auto_name, unique_profile_name};
 use crate::error::CliError;
+use crate::output::{self, OutputOptions};
 
 pub mod agent_skill;
 pub mod api;
@@ -242,28 +243,47 @@ pub(crate) fn emit_json(session: &mut Session<'_>, value: &Value) -> Result<(), 
     session.out.json(value).map_err(CliError::general)
 }
 
-/// Renders a list: JSON body verbatim, or a table (first column in quiet mode).
+/// Applies `--jq` filtering when requested and renders a list collection.
+pub(crate) fn render_list(
+    session: &mut Session<'_>,
+    json_value: &Value,
+    headers: &[&str],
+    rows: &[Vec<String>],
+) -> Result<(), CliError> {
+    let options = session.output_options();
+    let jq = session
+        .global
+        .jq
+        .as_deref()
+        .map(|expr| output::jq_outputs(json_value, expr))
+        .transpose()
+        .map_err(|error| CliError::general(format!("--jq filter error: {error}")))?;
+    session
+        .out
+        .render_list(json_value, jq.as_deref(), headers, rows, &options)
+        .map_err(CliError::general)
+}
+
+/// Renders a list through the shared output-mode implementation.
+///
+/// This compatibility wrapper keeps nested list commands on the same JSONL,
+/// TSV, jq, and column-selection contract as commands migrated to call
+/// [`render_list`] directly.
 pub(crate) fn emit_table(
     session: &mut Session<'_>,
     json_value: &Value,
     headers: &[&str],
     rows: &[Vec<String>],
 ) -> Result<(), CliError> {
-    if session.json() {
-        emit_json(session, json_value)?;
-    } else if session.out.is_quiet() {
-        for row in rows {
-            if let Some(cell) = row.first() {
-                session.out.line(cell).map_err(CliError::general)?;
-            }
-        }
-    } else {
-        session
-            .out
-            .table(headers, rows)
-            .map_err(CliError::general)?;
-    }
-    Ok(())
+    check_columns(headers, &session.output_options())?;
+    render_list(session, json_value, headers, rows)
+}
+
+/// Validates that every column listed in `options.columns` exists in `headers`.
+pub(crate) fn check_columns(headers: &[&str], options: &OutputOptions) -> Result<(), CliError> {
+    output::validate_columns(&options.columns, headers)
+        .map(|_| ())
+        .map_err(CliError::general)
 }
 
 /// Renders a single resource: JSON body verbatim, quiet identifier, or detail.

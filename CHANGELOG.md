@@ -26,6 +26,14 @@ before upgrading.
 
 ### Added
 
+- Line-oriented collection output for shell pipelines: `--jsonl` emits one
+  compact, server-shaped resource per line; `--tsv` emits escaped table rows;
+  `--columns NAME...` selects and orders human/TSV columns; and `--no-header`
+  suppresses table headers. `--jq EXPR` embeds jq-compatible filtering for
+  `--json`, `--jsonl`, and `--tsv` without requiring an external jq binary.
+  Structured modes are mutually exclusive with each other and with `--quiet`,
+  and invalid filters or column names fail explicitly.
+
 - Typed server report commands (CLI-63): `hamstik project report <type>` wraps
   `GET /projects/{key}/reports/{type}` (for example `velocity`,
   `cumulative-flow`, `ageing-wip`, `epic-progress`) and `hamstik sprint report

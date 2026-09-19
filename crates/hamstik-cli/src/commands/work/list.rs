@@ -12,7 +12,7 @@ use crate::args::{MyWorkArgs, WorkListArgs};
 use crate::error::CliError;
 
 use super::sort::apply_sort;
-use super::{emit_table, follow_policy};
+use crate::commands::{check_columns, follow_policy, render_list};
 fn my_work_query(args: &MyWorkArgs) -> ListWorkItemsQuery {
     ListWorkItemsQuery {
         limit: args.pagination.page_size(),
@@ -163,7 +163,11 @@ fn render_context_work_items(session: &mut Session<'_>, value: &Value) -> Result
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    emit_table(
+    check_columns(
+        &["KEY", "PROJECT", "TITLE", "STATUS", "ASSIGNEE"],
+        &session.output_options(),
+    )?;
+    render_list(
         session,
         value,
         &["KEY", "PROJECT", "TITLE", "STATUS", "ASSIGNEE"],
@@ -229,7 +233,11 @@ pub(super) async fn list(session: &mut Session<'_>, args: &WorkListArgs) -> Resu
         apply_sort(&mut json_value, sort);
     }
     let rows = summary_rows(&json_value);
-    emit_table(
+    check_columns(
+        &["KEY", "TITLE", "STATUS", "TYPE", "PRIORITY", "ASSIGNEE"],
+        &session.output_options(),
+    )?;
+    render_list(
         session,
         &json_value,
         &["KEY", "TITLE", "STATUS", "TYPE", "PRIORITY", "ASSIGNEE"],
