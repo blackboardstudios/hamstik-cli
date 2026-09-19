@@ -12,6 +12,18 @@ before upgrading.
 
 ### Added
 
+- Date and time flags accept human-friendly local expressions. `--since`,
+  `--updated-after`, `--due-before`, `--due-after`, `--due-date`, and sprint
+  `--start-date`/`--end-date` now take forms such as `7d`, `2w`, `1mo`, `+3h`,
+  `today`, `yesterday`, `tomorrow`, `2026-09-01`, or `2026-09-01 14:30` in
+  addition to RFC 3339. Anything without an explicit UTC offset is read in the
+  host's local time zone (a bare date is local midnight, a clock time that
+  happens twice takes the earliest instant, and one the clock skipped moves past
+  the shift), `mo`/`y` offsets use calendar arithmetic clamped to the end of the
+  month, and every resolved value is sent to the Public API as canonical
+  RFC 3339, reported by `--verbose`, and shown in a `--dry-run` preview body.
+  Invalid expressions fail locally with a usage error before any request;
+  `--json` output still carries canonical timestamps only.
 - The `editor` configuration setting is honored: `hamstik config set editor
   <command>` is the editor `--description-editor`/`--body-editor` authoring
   launches when neither `$VISUAL` nor `$EDITOR` is set, so a stored default

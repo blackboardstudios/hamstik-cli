@@ -48,11 +48,11 @@ Choices: `true`, `false`
 
 ### `--due-before`
 
-Only items due strictly before this RFC 3339 timestamp
+Only items due strictly before this time. Accepts RFC 3339, `YYYY\-MM\-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone
 
 ### `--due-after`
 
-Only items due strictly after this RFC 3339 timestamp
+Only items due strictly after this time. Accepts RFC 3339, `YYYY\-MM\-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone
 
 ### `--sort`
 

@@ -29,6 +29,8 @@ use hamstik_api_client::ListWorkItemsQuery;
 use crate::app::Session;
 use crate::args::{WorkArgs, WorkCommand};
 use crate::error::CliError;
+use crate::output::Output;
+use crate::time_arg;
 
 // Re-exported for the submodules (`super::` from their point of view).
 pub(crate) use super::bulk_preflight;
@@ -67,7 +69,7 @@ pub async fn run(session: &mut Session<'_>, args: &WorkArgs) -> Result<(), CliEr
             key,
             since,
             pagination,
-        } => activity::activity(session, key, since.as_deref(), pagination).await,
+        } => activity::activity(session, key, since.as_ref(), pagination).await,
         WorkCommand::Archive {
             key,
             force,
@@ -88,6 +90,21 @@ pub async fn run(session: &mut Session<'_>, args: &WorkArgs) -> Result<(), CliEr
         WorkCommand::Bulk(bulk_args) => bulk::bulk(session, bulk_args).await,
     }
 }
+/// Reports the resolved instant of the shared date filters on `--verbose`.
+///
+/// Shared by the list commands that flatten [`crate::args::WorkFilters`] so the
+/// diagnostic never drifts between them.
+pub(crate) fn report_filter_dates(out: &mut Output, filters: &crate::args::WorkFilters) {
+    time_arg::report_resolved(
+        out,
+        &[
+            ("--updated-after", filters.updated_after.as_ref()),
+            ("--due-before", filters.due_before.as_ref()),
+            ("--due-after", filters.due_after.as_ref()),
+        ],
+    );
+}
+
 /// Applies the shared Work Item filters to a query.
 pub(crate) fn apply_filters(query: &mut ListWorkItemsQuery, filters: &crate::args::WorkFilters) {
     query.q = filters.search.clone();
@@ -113,10 +130,10 @@ pub(crate) fn apply_filters(query: &mut ListWorkItemsQuery, filters: &crate::arg
     query.label_name = filters.label_name.clone();
     query.parent = filters.parent.clone();
     query.top_level = filters.top_level;
-    query.updated_after = filters.updated_after.clone();
+    query.updated_after = filters.updated_after.map(|d| d.to_string());
     query.overdue = filters.overdue;
-    query.due_before = filters.due_before.clone();
-    query.due_after = filters.due_after.clone();
+    query.due_before = filters.due_before.map(|d| d.to_string());
+    query.due_after = filters.due_after.map(|d| d.to_string());
     query.sort = filters.sort.map(|s| s.as_str().to_string());
     query.archived = filters.archived;
     query.fields = filters.fields.clone();

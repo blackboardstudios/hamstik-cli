@@ -10,6 +10,7 @@ use hamstik_api_client::{ListWorkItemsQuery, PageItems, SqueakQlSearchRequest, f
 use crate::app::Session;
 use crate::args::{MyWorkArgs, WorkListArgs};
 use crate::error::CliError;
+use crate::time_arg;
 
 use super::sort::apply_sort;
 use crate::commands::{check_columns, follow_policy, render_list};
@@ -37,8 +38,8 @@ fn my_work_query(args: &MyWorkArgs) -> ListWorkItemsQuery {
         label: args.label.clone(),
         label_name: args.label_name.clone(),
         overdue: args.overdue,
-        due_before: args.due_before.clone(),
-        due_after: args.due_after.clone(),
+        due_before: args.due_before.map(|d| d.to_string()),
+        due_after: args.due_after.map(|d| d.to_string()),
         sort: args.sort.map(|value| value.as_str().to_string()),
         archived: args.archived,
         fields: args.fields.clone(),
@@ -48,6 +49,13 @@ fn my_work_query(args: &MyWorkArgs) -> ListWorkItemsQuery {
 
 pub(super) async fn mine(session: &mut Session<'_>, args: &MyWorkArgs) -> Result<(), CliError> {
     let selection = session.selection()?;
+    time_arg::report_resolved(
+        &mut session.out,
+        &[
+            ("--due-before", args.due_before.as_ref()),
+            ("--due-after", args.due_after.as_ref()),
+        ],
+    );
     let api = session.api(&selection)?;
     let base = my_work_query(args);
     let mut json_value = if args.pagination.all {
@@ -195,6 +203,7 @@ fn build_query(args: &WorkListArgs) -> ListWorkItemsQuery {
 
 pub(super) async fn list(session: &mut Session<'_>, args: &WorkListArgs) -> Result<(), CliError> {
     let selection = session.selection()?;
+    super::report_filter_dates(&mut session.out, &args.filters);
     let org = session.require_org(&selection)?;
     let project = session.require_project(&selection)?;
     let api = session.api(&selection)?;

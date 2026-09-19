@@ -12,7 +12,7 @@ Work item key
 .SH OPTIONS
 .TP
 .B --since
-Only events strictly after this RFC 3339 timestamp
+Only events strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone
 .TP
 .B --limit
 Maximum total items to emit, counted across pages (distinct from the server page size). Without `--all` at most one page is returned, holding at most this many items; a page is never requested larger than the endpoint allows (200 items, or 100 on organization, project, sprint, label, and link endpoints). With `--all` successive pages are followed until this cap or the end of the collection. A cap that cuts through a server page ends the run with `page.nextCursor: null`, because the Public API has no cursor for a position partway through a page

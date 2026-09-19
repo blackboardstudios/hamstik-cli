@@ -197,6 +197,16 @@ hamstik --json --no-input --org <ORG> --project <KEY> work edit <ITEM-KEY> \
   --priority high
 ```
 
+Date-like flags (`--due-date`, `--start-date`, and the `--updated-after` filter) accept
+RFC 3339, a plain `YYYY-MM-DD` calendar date, the keywords `today`, `yesterday`, and
+`tomorrow`, or a relative offset such as `30m`, `7d`, `2w`, `+3h`, `1mo`, or `1y`. The CLI
+converts the value into an RFC 3339 UTC instant before sending it, and an RFC 3339 UTC
+value passes through unchanged. Input written without a UTC offset is read in the host's
+local time zone (a bare date means local midnight); a local time that happens twice
+resolves to its earliest instant and one that never happened moves past the clock shift.
+Invalid input fails locally with exit 2 before any request is sent. Prefer these
+expressions over pre-computed timestamps when the user states a relative deadline.
+
 Plain edits fetch the current ETag before mutation. On exit 6, re-read the resource,
 explain the conflict, and reapply only an authorized merged change. Never add `--force`
 unless the user explicitly accepts last-write-wins (`If-Match: *`).

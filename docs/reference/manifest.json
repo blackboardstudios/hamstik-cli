@@ -727,7 +727,7 @@
      "long": "--top-level"
     },
     {
-     "help": "Only items updated at/after this RFC 3339 timestamp",
+     "help": "Only items updated at or after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--updated-after"
     },
@@ -741,12 +741,12 @@
      "long": "--overdue"
     },
     {
-     "help": "Only items due strictly before this RFC 3339 timestamp",
+     "help": "Only items due strictly before this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--due-before"
     },
     {
-     "help": "Only items due strictly after this RFC 3339 timestamp",
+     "help": "Only items due strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--due-after"
     },
@@ -1173,7 +1173,7 @@
      "long": "--project"
     },
     {
-     "help": "Only events strictly after this RFC 3339 timestamp",
+     "help": "Only events strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--since"
     },
@@ -1940,12 +1940,12 @@
      "long": "--name"
     },
     {
-     "help": "Planned start date (RFC 3339)",
+     "help": "Planned start date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--start-date"
     },
     {
-     "help": "Planned end date (RFC 3339)",
+     "help": "Planned end date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--end-date"
     },
@@ -2416,7 +2416,7 @@
      "long": "--top-level"
     },
     {
-     "help": "Only items updated at/after this RFC 3339 timestamp",
+     "help": "Only items updated at or after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--updated-after"
     },
@@ -2430,12 +2430,12 @@
      "long": "--overdue"
     },
     {
-     "help": "Only items due strictly before this RFC 3339 timestamp",
+     "help": "Only items due strictly before this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--due-before"
     },
     {
-     "help": "Only items due strictly after this RFC 3339 timestamp",
+     "help": "Only items due strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--due-after"
     },
@@ -2601,12 +2601,12 @@
      "long": "--overdue"
     },
     {
-     "help": "Only items due strictly before this RFC 3339 timestamp",
+     "help": "Only items due strictly before this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--due-before"
     },
     {
-     "help": "Only items due strictly after this RFC 3339 timestamp",
+     "help": "Only items due strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--due-after"
     },
@@ -2942,7 +2942,7 @@
      "long": "--story-points"
     },
     {
-     "help": "Due date (RFC 3339)",
+     "help": "Due date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--due-date"
     },
@@ -3053,7 +3053,7 @@
      "long": "--story-points"
     },
     {
-     "help": "New due date (RFC 3339)",
+     "help": "New due date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--due-date"
     },
@@ -4048,7 +4048,7 @@
      "valueName": "KEY"
     },
     {
-     "help": "Only events strictly after this RFC 3339 timestamp",
+     "help": "Only events strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--since"
     },
@@ -4523,7 +4523,7 @@
      "long": "--top-level"
     },
     {
-     "help": "Only items updated after this RFC 3339 timestamp",
+     "help": "Only items updated after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--updated-after"
     },
@@ -4537,12 +4537,12 @@
      "long": "--overdue"
     },
     {
-     "help": "Only items due strictly before this RFC 3339 timestamp",
+     "help": "Only items due strictly before this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--due-before"
     },
     {
-     "help": "Only items due strictly after this RFC 3339 timestamp",
+     "help": "Only items due strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--due-after"
     },
@@ -4637,7 +4637,7 @@
      "valueName": "PUBLIC_ID"
     },
     {
-     "help": "Only events strictly after this RFC 3339 timestamp",
+     "help": "Only events strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
      "kind": "option",
      "long": "--since"
     },

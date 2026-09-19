@@ -9,6 +9,7 @@
 
 use std::path::PathBuf;
 
+use crate::time_arg::TimeArg;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 /// Top-level CLI definition.
@@ -725,9 +726,11 @@ pub enum ProjectCommand {
         /// Project key (overrides context).
         #[arg(long)]
         project: Option<String>,
-        /// Only events strictly after this RFC 3339 timestamp.
-        #[arg(long, value_name = "RFC3339")]
-        since: Option<String>,
+        /// Only events strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+        /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+        /// is read in the host's local time zone.
+        #[arg(long, value_name = "DATE")]
+        since: Option<TimeArg>,
         /// Pagination options.
         #[command(flatten)]
         pagination: PaginationArgs,
@@ -984,12 +987,16 @@ pub enum SprintCommand {
         /// Sprint name.
         #[arg(long)]
         name: Option<String>,
-        /// Planned start date (RFC 3339).
-        #[arg(long = "start-date", value_name = "RFC3339")]
-        start_date: Option<String>,
-        /// Planned end date (RFC 3339).
-        #[arg(long = "end-date", value_name = "RFC3339")]
-        end_date: Option<String>,
+        /// Planned start date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+        /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+        /// is read in the host's local time zone.
+        #[arg(long = "start-date", value_name = "DATE")]
+        start_date: Option<TimeArg>,
+        /// Planned end date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+        /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+        /// is read in the host's local time zone.
+        #[arg(long = "end-date", value_name = "DATE")]
+        end_date: Option<TimeArg>,
         /// Sprint goal.
         #[arg(long, value_name = "TEXT")]
         goal: Option<String>,
@@ -1214,9 +1221,11 @@ pub enum UserCommand {
     Activity {
         /// The user's public ID (usr_...).
         public_id: String,
-        /// Only events strictly after this RFC 3339 timestamp.
-        #[arg(long, value_name = "RFC3339")]
-        since: Option<String>,
+        /// Only events strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+        /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+        /// is read in the host's local time zone.
+        #[arg(long, value_name = "DATE")]
+        since: Option<TimeArg>,
         /// Pagination options.
         #[command(flatten)]
         pagination: PaginationArgs,
@@ -1290,18 +1299,24 @@ pub struct UserWorkArgs {
         default_missing_value = "true"
     )]
     pub top_level: Option<bool>,
-    /// Only items updated after this RFC 3339 timestamp.
-    #[arg(long = "updated-after", value_name = "RFC3339")]
-    pub updated_after: Option<String>,
+    /// Only items updated after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+    /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+    /// is read in the host's local time zone.
+    #[arg(long = "updated-after", value_name = "DATE")]
+    pub updated_after: Option<TimeArg>,
     /// Filter to overdue/on-track Work Items.
     #[arg(long, value_name = "true|false")]
     pub overdue: Option<bool>,
-    /// Only items due strictly before this RFC 3339 timestamp.
-    #[arg(long = "due-before", value_name = "RFC3339")]
-    pub due_before: Option<String>,
-    /// Only items due strictly after this RFC 3339 timestamp.
-    #[arg(long = "due-after", value_name = "RFC3339")]
-    pub due_after: Option<String>,
+    /// Only items due strictly before this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+    /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+    /// is read in the host's local time zone.
+    #[arg(long = "due-before", value_name = "DATE")]
+    pub due_before: Option<TimeArg>,
+    /// Only items due strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+    /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+    /// is read in the host's local time zone.
+    #[arg(long = "due-after", value_name = "DATE")]
+    pub due_after: Option<TimeArg>,
     /// Result ordering: updated, dueDate, priority, or rank, optionally with
     /// a :asc/:desc direction (for example `--sort dueDate:desc`).
     #[arg(long, value_name = "KEY[:DIR]", value_parser = SortValueParser)]
@@ -1461,9 +1476,11 @@ pub enum WorkCommand {
     Activity {
         /// Work item key.
         key: String,
-        /// Only events strictly after this RFC 3339 timestamp.
-        #[arg(long, value_name = "RFC3339")]
-        since: Option<String>,
+        /// Only events strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+        /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+        /// is read in the host's local time zone.
+        #[arg(long, value_name = "DATE")]
+        since: Option<TimeArg>,
         /// Pagination options.
         #[command(flatten)]
         pagination: PaginationArgs,
@@ -1537,12 +1554,16 @@ pub struct MyWorkArgs {
     /// Filter to overdue/on-track Work Items.
     #[arg(long, value_name = "true|false")]
     pub overdue: Option<bool>,
-    /// Only items due strictly before this RFC 3339 timestamp.
-    #[arg(long = "due-before", value_name = "RFC3339")]
-    pub due_before: Option<String>,
-    /// Only items due strictly after this RFC 3339 timestamp.
-    #[arg(long = "due-after", value_name = "RFC3339")]
-    pub due_after: Option<String>,
+    /// Only items due strictly before this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+    /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+    /// is read in the host's local time zone.
+    #[arg(long = "due-before", value_name = "DATE")]
+    pub due_before: Option<TimeArg>,
+    /// Only items due strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+    /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+    /// is read in the host's local time zone.
+    #[arg(long = "due-after", value_name = "DATE")]
+    pub due_after: Option<TimeArg>,
     /// Result ordering: updated, dueDate, priority, or rank, optionally with
     /// a :asc/:desc direction (for example `--sort dueDate:desc`).
     #[arg(long, value_name = "KEY[:DIR]", value_parser = SortValueParser)]
@@ -1618,18 +1639,24 @@ pub struct WorkFilters {
         default_missing_value = "true"
     )]
     pub top_level: Option<bool>,
-    /// Only items updated at/after this RFC 3339 timestamp.
-    #[arg(long = "updated-after", value_name = "RFC3339")]
-    pub updated_after: Option<String>,
+    /// Only items updated at or after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+    /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+    /// is read in the host's local time zone.
+    #[arg(long = "updated-after", value_name = "DATE")]
+    pub updated_after: Option<TimeArg>,
     /// Only overdue items (true) or only on-track items (false).
     #[arg(long, value_name = "true|false")]
     pub overdue: Option<bool>,
-    /// Only items due strictly before this RFC 3339 timestamp.
-    #[arg(long = "due-before", value_name = "RFC3339")]
-    pub due_before: Option<String>,
-    /// Only items due strictly after this RFC 3339 timestamp.
-    #[arg(long = "due-after", value_name = "RFC3339")]
-    pub due_after: Option<String>,
+    /// Only items due strictly before this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+    /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+    /// is read in the host's local time zone.
+    #[arg(long = "due-before", value_name = "DATE")]
+    pub due_before: Option<TimeArg>,
+    /// Only items due strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+    /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+    /// is read in the host's local time zone.
+    #[arg(long = "due-after", value_name = "DATE")]
+    pub due_after: Option<TimeArg>,
     /// Result ordering: updated, dueDate, priority, or rank, optionally with
     /// a :asc/:desc direction (for example `--sort dueDate:desc`).
     #[arg(long, value_name = "KEY[:DIR]", value_parser = SortValueParser)]
@@ -1712,9 +1739,11 @@ pub struct WorkCreateArgs {
     /// Story point estimate.
     #[arg(long = "story-points", value_name = "N")]
     pub story_points: Option<i64>,
-    /// Due date (RFC 3339).
+    /// Due date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+    /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+    /// is read in the host's local time zone.
     #[arg(long = "due-date", value_name = "DATE")]
-    pub due_date: Option<String>,
+    pub due_date: Option<TimeArg>,
     /// Explicit idempotency key.
     #[arg(long = "idempotency-key", value_name = "KEY")]
     pub idempotency_key: Option<String>,
@@ -1774,8 +1803,10 @@ pub struct WorkEditArgs {
         value_name = "DATE",
         conflicts_with = "clear_due_date"
     )]
-    /// New due date (RFC 3339).
-    pub due_date: Option<String>,
+    /// New due date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+    /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+    /// is read in the host's local time zone.
+    pub due_date: Option<TimeArg>,
     /// Clear the description.
     #[arg(long = "clear-description")]
     pub clear_description: bool,

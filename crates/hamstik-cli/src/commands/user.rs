@@ -13,6 +13,7 @@ use hamstik_api_client::{
 use crate::app::Session;
 use crate::args::{UserArgs, UserCommand, UserWorkArgs};
 use crate::error::CliError;
+use crate::time_arg::{self, TimeArg};
 
 use super::org::render_lines;
 use super::work::sort::apply_sort;
@@ -27,7 +28,7 @@ pub async fn run(session: &mut Session<'_>, args: &UserArgs) -> Result<(), CliEr
             public_id,
             since,
             pagination,
-        } => activity(session, public_id, since.as_deref(), pagination).await,
+        } => activity(session, public_id, since.as_ref(), pagination).await,
         UserCommand::Avatar {
             public_id,
             output,
@@ -104,6 +105,14 @@ async fn view(session: &mut Session<'_>, public_id: &str) -> Result<(), CliError
 
 async fn work(session: &mut Session<'_>, args: &UserWorkArgs) -> Result<(), CliError> {
     let selection = session.selection()?;
+    time_arg::report_resolved(
+        &mut session.out,
+        &[
+            ("--updated-after", args.updated_after.as_ref()),
+            ("--due-before", args.due_before.as_ref()),
+            ("--due-after", args.due_after.as_ref()),
+        ],
+    );
     let api = session.api(&selection)?;
     let target = resolve_target(session, &args.public_id).await?;
     let base = ListWorkItemsQuery {
@@ -138,10 +147,10 @@ async fn work(session: &mut Session<'_>, args: &UserWorkArgs) -> Result<(), CliE
         label_name: args.label_name.clone(),
         parent: args.parent.clone(),
         top_level: args.top_level,
-        updated_after: args.updated_after.clone(),
+        updated_after: args.updated_after.map(|v| v.to_string()),
         overdue: args.overdue,
-        due_before: args.due_before.clone(),
-        due_after: args.due_after.clone(),
+        due_before: args.due_before.map(|v| v.to_string()),
+        due_after: args.due_after.map(|v| v.to_string()),
         sort: args.sort.map(|value| value.as_str().to_string()),
         archived: args.archived,
         fields: args.fields.clone(),
@@ -231,16 +240,17 @@ fn work_row_from_raw(raw: &Value) -> Vec<String> {
 async fn activity(
     session: &mut Session<'_>,
     public_id: &str,
-    since: Option<&str>,
+    since: Option<&TimeArg>,
     pagination: &crate::args::PaginationArgs,
 ) -> Result<(), CliError> {
     let selection = session.selection()?;
     let api = session.api(&selection)?;
     let target = resolve_target(session, public_id).await?;
+    time_arg::report_resolved(&mut session.out, &[("--since", since)]);
     let base = ActivityOptions {
         limit: pagination.page_size(),
         cursor: pagination.cursor.clone(),
-        since: since.map(str::to_string),
+        since: since.map(|d| d.to_string()),
     };
     let json_value: Value = if pagination.all {
         let fetch_api = api.clone();

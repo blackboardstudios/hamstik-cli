@@ -25,6 +25,7 @@ pub mod palette;
 pub mod terminal;
 
 pub mod commands;
+pub mod time_arg;
 
 pub use error::{CliError, ErrorKind};
 pub use exit::SUCCESS;

@@ -8,6 +8,7 @@ use hamstik_api_client::UpdateWorkItemRequest;
 use crate::app::Session;
 use crate::args::WorkEditArgs;
 use crate::error::CliError;
+use crate::time_arg;
 
 use super::common::read_long_text;
 use super::dryrun;
@@ -15,6 +16,7 @@ use super::emit_view;
 
 pub(super) async fn edit(session: &mut Session<'_>, args: &WorkEditArgs) -> Result<(), CliError> {
     let selection = session.selection()?;
+    time_arg::report_resolved(&mut session.out, &[("--due-date", args.due_date.as_ref())]);
     let org = session.require_org(&selection)?;
     let project = session.require_project(&selection)?;
     let api = session.api(&selection)?;
@@ -62,7 +64,7 @@ pub(super) async fn edit(session: &mut Session<'_>, args: &WorkEditArgs) -> Resu
         sprint_id: tri(args.clear_sprint, args.sprint.clone()),
         parent_id: tri(args.clear_parent, args.parent.clone()),
         story_points: tri(args.clear_story_points, args.story_points),
-        due_date: tri(args.clear_due_date, args.due_date.clone()),
+        due_date: tri(args.clear_due_date, args.due_date.map(|d| d.to_string())),
     };
     if body.is_empty() {
         return Err(CliError::usage("no changes specified"));

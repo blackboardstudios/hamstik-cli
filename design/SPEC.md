@@ -993,6 +993,45 @@ The Public API does not expose dashboard creation, update, or deletion, so the
 CLI MUST NOT imply those commands exist. Advanced Reporting error responses
 retain their server error code and request ID like every other typed command.
 
+## Date and Time Input
+
+Date and time valued options (`--since`, `--updated-after`, `--due-before`,
+`--due-after`, `--due-date`, sprint `--start-date`/`--end-date`) accept the
+canonical contract form and convenient local shorthands:
+
+```text
+2026-09-01T14:30:00Z            RFC 3339, unchanged by this feature
+2026-09-01T14:30:00.250+02:00   RFC 3339 with offset and fraction
+2026-09-01                      calendar date, local midnight
+today | yesterday | tomorrow    that local calendar day, starting at midnight
+2026-09-01 14:30[:ss[.fff]]     local date and time (T or a space)
+7d | 2w | 12h | 45m | 90s       relative offset backwards from now
++3h | +1mo | -2d               explicit direction (`+` forward, `-` back)
+1mo | 1y                       calendar month/year offset
+```
+
+Rules:
+
+- The CLI resolves the expression to one absolute instant locally and sends the
+  server the canonical RFC 3339 form the contract expects; it never sends a
+  shorthand. `--json` output continues to carry canonical timestamps only.
+- One timezone rule applies to every timezone-less input — a bare date, a civil
+  date and time, the keyword days, and month/year arithmetic: the host's local
+  time zone. RFC 3339 input keeps its own offset.
+- An ambiguous local time (clock fall-back) resolves to the earliest matching
+  instant; a nonexistent local time (a clock spring-forward skipped it) moves
+  forward past the gap, so `02:30` on a day whose clock jumps 02:00 to 03:00
+  resolves to `03:30` on the far side.
+- Sub-month relative offsets are exact durations; `mo`/`y` use calendar
+  arithmetic clamped to the end of the target month. Relative offsets are
+  applied to the current instant truncated to whole seconds.
+- An unparseable expression fails locally as a usage error before any request.
+- Every resolved value is reported on `--verbose` (and appears in a `--dry-run`
+  preview body for mutations).
+- This is input convenience only. It defines no ALM semantics: server-computed
+  filters such as `--overdue` remain pass-through values, and no client-side
+  "overdue"/"due soon" interpretation is introduced.
+
 ---
 
 # 37. Global Options
@@ -1154,7 +1193,7 @@ hamstik work list
 --label-name <NAME>...
 --parent <KEY>
 --top-level
---updated-after <RFC3339>
+--updated-after <DATE>              (RFC 3339 or a local shorthand, see §36)
 
 --limit <N>
 --cursor <CURSOR>        (alias: --since-cursor)
@@ -1582,7 +1621,8 @@ Do not combine `--quiet` with `--json` ambiguously; either reject the combinatio
 - request method/path;
 - retry decisions;
 - request ID;
-- timing.
+- timing;
+- the instant a date/time option resolved to.
 
 It MUST NEVER show:
 

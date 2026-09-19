@@ -13,6 +13,7 @@ use hamstik_api_client::{
 use crate::app::Session;
 use crate::args::{ReportPageArgs, SprintArgs, SprintCommand};
 use crate::error::CliError;
+use crate::time_arg::{self, TimeArg};
 
 use super::dryrun;
 use super::org::render_lines;
@@ -38,8 +39,8 @@ pub async fn run(session: &mut Session<'_>, args: &SprintArgs) -> Result<(), Cli
             create(
                 session,
                 name,
-                start_date.as_deref(),
-                end_date.as_deref(),
+                start_date.as_ref(),
+                end_date.as_ref(),
                 goal.as_deref(),
                 *target_points,
                 project.as_deref(),
@@ -304,14 +305,18 @@ fn idem_key(flag: Option<&str>) -> Result<String, CliError> {
 async fn create(
     session: &mut Session<'_>,
     name: &Option<String>,
-    start_date: Option<&str>,
-    end_date: Option<&str>,
+    start_date: Option<&TimeArg>,
+    end_date: Option<&TimeArg>,
     goal: Option<&str>,
     target_points: Option<i64>,
     project_flag: Option<&str>,
     idempotency_key: Option<&str>,
 ) -> Result<(), CliError> {
     let selection = session.selection()?;
+    time_arg::report_resolved(
+        &mut session.out,
+        &[("--start-date", start_date), ("--end-date", end_date)],
+    );
     let org = session.require_org(&selection)?;
     let project = require_project(session, project_flag)?;
 
@@ -329,8 +334,8 @@ async fn create(
 
     let body = CreateSprintRequest {
         name,
-        start_date: start_date.map(|v| v.to_string()).map(Some),
-        end_date: end_date.map(|d| d.to_string()).map(Some),
+        start_date: start_date.map(|v| Some(v.to_string())),
+        end_date: end_date.map(|d| Some(d.to_string())),
         goal: goal.map(str::to_string),
         target_points,
     };

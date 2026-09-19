@@ -9,23 +9,25 @@ use hamstik_api_client::{ActivityOptions, PageItems, follow_with};
 
 use crate::app::Session;
 use crate::error::CliError;
+use crate::time_arg::{self, TimeArg};
 
 use super::emit_table;
 use super::follow_policy;
 pub(super) async fn activity(
     session: &mut Session<'_>,
     key: &str,
-    since: Option<&str>,
+    since: Option<&TimeArg>,
     pagination: &crate::args::PaginationArgs,
 ) -> Result<(), CliError> {
     let selection = session.selection()?;
     let org = session.require_org(&selection)?;
     let project = session.require_project(&selection)?;
     let api = session.api(&selection)?;
+    time_arg::report_resolved(&mut session.out, &[("--since", since)]);
     let opts = ActivityOptions {
         limit: pagination.page_size(),
         cursor: pagination.cursor.clone(),
-        since: since.map(str::to_string),
+        since: since.map(|d| d.to_string()),
     };
     let json_value: Value = if pagination.all {
         let fetch_api = api.clone();

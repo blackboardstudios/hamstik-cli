@@ -15,6 +15,7 @@ use crate::app::Session;
 use crate::args::{PaginationArgs, ProjectArgs, ProjectCommand, ProjectReportArgs};
 use crate::error::CliError;
 use crate::input::resolve_text;
+use crate::time_arg::{self, TimeArg};
 
 use super::dryrun;
 use super::org::render_lines;
@@ -46,7 +47,7 @@ pub async fn run(session: &mut Session<'_>, args: &ProjectArgs) -> Result<(), Cl
             project,
             since,
             pagination,
-        } => activity(session, project.as_deref(), since.as_deref(), pagination).await,
+        } => activity(session, project.as_deref(), since.as_ref(), pagination).await,
         ProjectCommand::Report(args) => report(session, args).await,
         ProjectCommand::Use { key } => use_project(session, key).await,
     }
@@ -475,7 +476,7 @@ async fn change_archive(
 async fn activity(
     session: &mut Session<'_>,
     project_flag: Option<&str>,
-    since: Option<&str>,
+    since: Option<&TimeArg>,
     pagination: &PaginationArgs,
 ) -> Result<(), CliError> {
     let selection = session.selection()?;
@@ -485,10 +486,11 @@ async fn activity(
         None => session.require_project(&selection)?,
     };
     let api = session.api(&selection)?;
+    time_arg::report_resolved(&mut session.out, &[("--since", since)]);
     let opts = ActivityOptions {
         limit: pagination.directory_page_size(),
         cursor: pagination.cursor.clone(),
-        since: since.map(str::to_string),
+        since: since.map(|d| d.to_string()),
     };
     let json_value: Value = if pagination.all {
         let fetch_api = api.clone();

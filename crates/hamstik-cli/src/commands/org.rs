@@ -238,6 +238,7 @@ async fn members(
 
 async fn work(session: &mut Session<'_>, args: &OrgWorkListArgs) -> Result<(), CliError> {
     let selection = session.selection()?;
+    super::work::report_filter_dates(&mut session.out, &args.filters);
     let org = session.require_org(&selection)?;
     let api = session.api(&selection)?;
     let mut query = ListWorkItemsQuery {

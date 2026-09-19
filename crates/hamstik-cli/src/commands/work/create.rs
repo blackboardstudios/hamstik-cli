@@ -8,6 +8,7 @@ use hamstik_api_client::CreateWorkItemRequest;
 use crate::app::Session;
 use crate::args::WorkCreateArgs;
 use crate::error::CliError;
+use crate::time_arg;
 use serde_json::json;
 
 use super::common::{assignee_fields, idem_key, read_long_text};
@@ -19,6 +20,7 @@ pub(super) async fn create(
     args: &WorkCreateArgs,
 ) -> Result<(), CliError> {
     let selection = session.selection()?;
+    time_arg::report_resolved(&mut session.out, &[("--due-date", args.due_date.as_ref())]);
     let org = session.require_org(&selection)?;
     let project = session.require_project(&selection)?;
 
@@ -57,7 +59,7 @@ pub(super) async fn create(
         sprint_id: args.sprint.clone(),
         parent_id: args.parent.clone(),
         story_points: args.story_points,
-        due_date: args.due_date.clone(),
+        due_date: args.due_date.map(|d| d.to_string()),
     };
     let idempotency = idem_key(args.idempotency_key.clone())?;
 
