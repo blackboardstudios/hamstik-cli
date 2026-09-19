@@ -148,10 +148,9 @@ before upgrading.
   Work Item it created (delete, archive fallback) without masking the primary
   failure. All created resources carry a run-unique `acc-<unix-ts>-<pid>`
   marker; labels and sprints (undocumented delete routes) are the only
-  residue. Runbook: `crates/hamstik-cli/tests/live_acceptance/README.md`;
-  a manual `workflow_dispatch` job (`.github/workflows/live-acceptance.yml`)
-  runs it against a configured test deployment when repository
-  variables/secrets opt in.
+  residue. Runbook: `crates/hamstik-cli/tests/live_acceptance/README.md`.
+  Normal CI compiles but does not execute the ignored live suite; it is run
+  explicitly when a dedicated test deployment and credentials are available.
 - Doctor support bundle (CLI-6): `hamstik doctor --bundle <path>` produces a
   versioned ZIP bundle (`bundleVersion: 1`) containing a redacted
   `doctor-report.json`, `context-explain.json`, `cli-info.json`,

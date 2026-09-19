@@ -108,7 +108,7 @@ sequential and shares one throwaway config dir. Add
 ## CI
 
 CI compiles the suite on every push but never runs it (the env vars are
-absent). `.github/workflows/live-acceptance.yml` adds a **manual**
-(`workflow_dispatch`) job that runs the suite against a configured test
-deployment when repository variables/secrets opt in — see that file's header
-for the exact configuration contract.
+absent). No live-test workflow is checked in because this repository does not
+have a dedicated acceptance deployment or credentials configured. Run the
+suite explicitly with the command above; add a secrets-gated manual workflow
+only when that infrastructure exists and is actively maintained.
