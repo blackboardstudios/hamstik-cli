@@ -86,6 +86,22 @@ before upgrading.
   prints tailored first-run guidance. It fails if the file already exists and
   supports `--json` for machine-readable output. (CLI-68)
 
+- Append-only local audit log for state-changing CLI operations. Each
+  successful mutation appends exactly one JSON line — `{ when, command,
+  target, revisionBefore, revisionAfter, requestId }` (revisions are `null`
+  where the Public API has none) — to
+  `$XDG_STATE_HOME/hamstik/audit.log`, default
+  `~/.local/state/hamstik/audit.log`, with the platform-appropriate equivalent
+  on macOS and Windows. `HAMSTIK_AUDIT_LOG` pins the location. The log is
+  best-effort: an I/O failure warns on stderr but never fails the mutation, and
+  the server-side audit record stays authoritative. Opt out with
+  `hamstik config set audit_log false` (`settings.audit_log = false`), which
+  `hamstik doctor` reports; `hamstik doctor` also reports the effective path.
+  Only identifiers are recorded — never credentials, headers, request or
+  response bodies, titles, or descriptions. The CLI never rotates the file; it
+  grows by one short line per mutation and may be truncated or deleted at any
+  time. (CLI-70)
+
 ## [0.1.3] - 2026-09-17
 
 ### Added

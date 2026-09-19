@@ -177,6 +177,24 @@ pub(super) async fn bulk(session: &mut Session<'_>, args: &WorkBulkArgs) -> Resu
             .out
             .warn("note: request replayed (idempotent duplicate)");
     }
+    let command_name = match &args.command {
+        WorkBulkCommand::Create { .. } => "work.bulk.create",
+        WorkBulkCommand::Update { .. } => "work.bulk.update",
+        WorkBulkCommand::Transition { .. } => "work.bulk.transition",
+    };
+    // A batch has no single target: record the batch size, which is all the
+    // record can state without touching operation payloads.
+    let target = match response.raw.get("results").and_then(Value::as_array) {
+        Some(results) => format!("bulk:{} operations", results.len()),
+        None => "bulk".to_string(),
+    };
+    crate::audit::record(
+        &session.config,
+        &mut session.out,
+        command_name,
+        &target,
+        response.request_id.as_deref(),
+    );
     render_bulk(session, &response.raw, concurrency_mode)
 }
 

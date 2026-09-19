@@ -8,6 +8,7 @@
 
 pub mod app;
 pub mod args;
+pub mod audit;
 pub mod banner;
 pub mod build_info;
 pub mod config;

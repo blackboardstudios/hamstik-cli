@@ -248,6 +248,13 @@ fn save(
         },
     );
     store.save(&file)?;
+    crate::audit::record(
+        &session.config,
+        &mut session.out,
+        "squeakql.save",
+        name,
+        None,
+    );
     if session.json() {
         return emit_json(session, &json!({ "saved": true, "name": name }));
     }
@@ -266,6 +273,13 @@ fn delete(session: &mut Session<'_>, name: &str) -> Result<(), CliError> {
         return Err(CliError::usage(format!("no saved query named {name}")));
     }
     store.save(&file)?;
+    crate::audit::record(
+        &session.config,
+        &mut session.out,
+        "squeakql.delete",
+        name,
+        None,
+    );
     if session.json() {
         return emit_json(session, &json!({ "deleted": true, "name": name }));
     }

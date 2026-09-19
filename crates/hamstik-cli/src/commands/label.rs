@@ -184,6 +184,13 @@ async fn create(
             .warn("note: request replayed (idempotent duplicate)");
     }
     let label = response.value.clone();
+    crate::audit::record(
+        &session.config,
+        &mut session.out,
+        "label.create",
+        &label.id.clone(),
+        response.request_id.as_deref(),
+    );
     emit_view(session, &response.raw, &label.id.clone(), |session| {
         session
             .out

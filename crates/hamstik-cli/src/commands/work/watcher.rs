@@ -92,6 +92,13 @@ pub(super) async fn watcher(
                     .out
                     .warn("note: request replayed (idempotent duplicate)");
             }
+            crate::audit::record(
+                &session.config,
+                &mut session.out,
+                &format!("work.watcher.{}", action.as_str()),
+                key,
+                response.request_id.as_deref(),
+            );
             response
         }
     };

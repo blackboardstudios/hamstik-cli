@@ -89,6 +89,15 @@ pub(super) async fn create(
             .warn("note: request replayed (idempotent duplicate)");
     }
     let item = response.value.clone();
+    crate::audit::record_with_revisions(
+        &session.config,
+        &mut session.out,
+        "work.create",
+        &item.key.clone(),
+        None,
+        Some(item.revision),
+        response.request_id.as_deref(),
+    );
     emit_view(session, &response.raw, &item.key.clone(), |session| {
         super::view::render_work_item(session, &item, false)
     })

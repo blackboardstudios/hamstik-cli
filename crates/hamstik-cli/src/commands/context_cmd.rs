@@ -426,7 +426,13 @@ async fn set(
         document.project = Some(project.to_string());
     }
     context::save(&path, &document)?;
-
+    crate::audit::record(
+        &session.config,
+        &mut session.out,
+        "context.set",
+        &path.display().to_string(),
+        None,
+    );
     emit_view(
         session,
         &json!({ "contextFile": path, "organization": document.organization, "project": document.project }),
@@ -463,6 +469,13 @@ fn clear(session: &mut Session<'_>) -> Result<(), CliError> {
     };
     context::save(&path, &document)?;
     let display = path.display().to_string();
+    crate::audit::record(
+        &session.config,
+        &mut session.out,
+        "context.clear",
+        &display,
+        None,
+    );
     emit_view(
         session,
         &json!({ "cleared": true, "contextFile": display }),
@@ -493,6 +506,13 @@ fn init(session: &mut Session<'_>) -> Result<(), CliError> {
     };
     context::save(&path, &document)?;
     let display = path.display().to_string();
+    crate::audit::record(
+        &session.config,
+        &mut session.out,
+        "context.init",
+        &display,
+        None,
+    );
     emit_view(
         session,
         &json!({

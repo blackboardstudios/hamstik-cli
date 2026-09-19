@@ -14,6 +14,8 @@ use tempfile::TempDir;
 fn local(dir: &TempDir) -> Command {
     let mut cmd = Command::cargo_bin("hamstik").expect("hamstik binary");
     cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
+    // Keep test mutations out of the developer's real audit log.
+    cmd.env("HAMSTIK_AUDIT_LOG", dir.path().join("audit.log"));
     cmd.env_remove("HAMSTIK_PROFILE");
     cmd.env_remove("HAMSTIK_ORG");
     cmd.env_remove("HAMSTIK_PROJECT");

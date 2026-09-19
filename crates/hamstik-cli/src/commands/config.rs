@@ -17,6 +17,7 @@ const VALID_KEYS: &[&str] = &[
     "pager",
     "output",
     "git_branch_template",
+    "audit_log",
 ];
 
 /// Runs the selected `config` subcommand.
@@ -59,6 +60,9 @@ async fn cmd_list(session: &mut Session<'_>) -> Result<(), CliError> {
         }
         if let Some(git_branch_template) = &settings.git_branch_template {
             items.push(("git_branch_template", git_branch_template));
+        }
+        if let Some(audit_log) = settings.audit_log {
+            items.push(("audit_log", if audit_log { "true" } else { "false" }));
         }
     }
 
@@ -120,6 +124,10 @@ async fn cmd_get(session: &mut Session<'_>, key: &str) -> Result<(), CliError> {
             .settings
             .as_ref()
             .and_then(|s| s.git_branch_template.as_deref()),
+        "audit_log" => match config.settings.as_ref().and_then(|s| s.audit_log) {
+            Some(value) => Some(if value { "true" } else { "false" }),
+            None => None,
+        },
         _ => {
             return Err(CliError::config(format!(
                 "unknown configuration key: {key}"
@@ -179,12 +187,14 @@ async fn cmd_set(session: &mut Session<'_>, key: &str, value: &str) -> Result<()
                 "pager" => settings.pager = Some(value.to_string()),
                 "output" => settings.output = Some(value.to_string()),
                 "git_branch_template" => settings.git_branch_template = Some(value.to_string()),
+                "audit_log" => settings.audit_log = Some(parse_bool(value)?),
                 _ => unreachable!(),
             }
         }
     }
 
     session.config.save(&config)?;
+    crate::audit::record(&session.config, &mut session.out, "config.set", key, None);
     if session.json() {
         emit_json(
             session,
@@ -233,6 +243,7 @@ async fn cmd_unset(session: &mut Session<'_>, key: &str) -> Result<(), CliError>
                     "pager" => settings.pager = None,
                     "output" => settings.output = None,
                     "git_branch_template" => settings.git_branch_template = None,
+                    "audit_log" => settings.audit_log = None,
                     _ => unreachable!(),
                 }
                 true
@@ -244,6 +255,7 @@ async fn cmd_unset(session: &mut Session<'_>, key: &str) -> Result<(), CliError>
 
     if changed {
         session.config.save(&config)?;
+        crate::audit::record(&session.config, &mut session.out, "config.unset", key, None);
         if session.json() {
             emit_json(session, &serde_json::json!({"key": key, "unset": true}))?;
         } else {
@@ -261,6 +273,17 @@ async fn cmd_unset(session: &mut Session<'_>, key: &str) -> Result<(), CliError>
             .map_err(CliError::general)?;
     }
     Ok(())
+}
+
+/// Parses the only values a boolean setting accepts.
+fn parse_bool(value: &str) -> Result<bool, CliError> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "true" => Ok(true),
+        "false" => Ok(false),
+        _ => Err(CliError::config(format!(
+            "audit_log must be true or false (got {value})"
+        ))),
+    }
 }
 
 fn validate_key(key: &str) -> Result<(), CliError> {

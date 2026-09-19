@@ -134,6 +134,13 @@ async fn use_org(session: &mut Session<'_>, slug: &str) -> Result<(), CliError> 
         .ok_or_else(|| CliError::config(format!("no such profile: {profile_name}")))?;
     profile.default_organization = Some(org.slug);
     session.config.save(&config)?;
+    crate::audit::record(
+        &session.config,
+        &mut session.out,
+        "org.use",
+        &profile_name,
+        None,
+    );
 
     if session.json() {
         emit_json(

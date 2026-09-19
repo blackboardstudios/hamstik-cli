@@ -59,6 +59,12 @@ pub struct ConfigSettings {
     /// Git branch name template used by context-aware commands.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub git_branch_template: Option<String>,
+    /// When `false` the CLI skips the append-only mutation audit log
+    /// (`audit.log` in the platform data-local directory). Defaults to
+    /// `true`. Audit records contain the command, target identifier, and
+    /// server request id — never credentials or request bodies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub audit_log: Option<bool>,
 }
 
 /// On-disk configuration document.

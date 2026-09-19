@@ -378,6 +378,12 @@ hamstik --json --no-input api openapi    # live Public API contract
   or healthy.
 - The final `summary` line (human) / `summary` object (JSON) totals
   pass/warn/fail/skipped checks.
+- The `local.audit_log` check reports the effective local mutation audit log.
+  Every successful mutation appends one append-only JSON line there with the
+  command, target, revision before/after when known, and the server request id —
+  never a token, header, or request body. It is a local convenience, not the
+  authoritative record; `hamstik config set audit_log false` opts out, and an
+  unwritable log only warns.
 
 On failure, use `--verbose` when additional safe diagnostics are needed. Report the
 stable API error code, HTTP status when present, and request ID; never include a token,

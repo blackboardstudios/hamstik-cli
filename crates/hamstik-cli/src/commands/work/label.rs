@@ -80,16 +80,17 @@ pub(super) async fn label(session: &mut Session<'_>, args: &WorkLabelArgs) -> Re
         label.clone()
     };
 
-    let if_match = if force {
-        "*".to_string()
+    let (if_match, revision_before) = if force {
+        ("*".to_string(), None)
     } else {
         let current = api
             .get_work_item(&org, &project, key)
             .await
             .map_err(CliError::from_client)?;
-        current.etag.ok_or_else(|| {
+        let etag = current.etag.ok_or_else(|| {
             CliError::protocol("server did not return an ETag; re-run with --force")
-        })?
+        })?;
+        (etag, Some(current.value.revision))
     };
 
     let idempotency = match idempotency_key {
@@ -158,6 +159,20 @@ pub(super) async fn label(session: &mut Session<'_>, args: &WorkLabelArgs) -> Re
             .out
             .warn("note: request replayed (idempotent duplicate)");
     }
+    let command_name = if command == "add" {
+        "work.label.add"
+    } else {
+        "work.label.remove"
+    };
+    crate::audit::record_with_revisions(
+        &session.config,
+        &mut session.out,
+        command_name,
+        key,
+        revision_before,
+        Some(response.value.revision),
+        response.request_id.as_deref(),
+    );
     let item = response.value.clone();
     emit_view(session, &response.raw, &item.key.clone(), |session| {
         render_work_item(session, &item, false)

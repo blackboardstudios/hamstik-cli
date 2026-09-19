@@ -149,6 +149,13 @@ pub(super) async fn attachment(
                     .out
                     .warn("note: request replayed (idempotent duplicate)");
             }
+            crate::audit::record(
+                &session.config,
+                &mut session.out,
+                "work.attachment.upload",
+                key,
+                response.request_id.as_deref(),
+            );
             let attachment_id = response.value.id.clone();
             emit_view(session, &response.raw, &attachment_id.clone(), |session| {
                 render_attachment(session, &response.value)
@@ -239,9 +246,17 @@ pub(super) async fn attachment(
             }
 
             let api = session.api(&selection)?;
-            api.delete_attachment(&org, &project, key, attachment_id)
+            let response = api
+                .delete_attachment(&org, &project, key, attachment_id)
                 .await
                 .map_err(CliError::from_client)?;
+            crate::audit::record(
+                &session.config,
+                &mut session.out,
+                "work.attachment.delete",
+                key,
+                response.request_id.as_deref(),
+            );
             if session.json() {
                 emit_json(
                     session,

@@ -112,6 +112,13 @@ pub(super) async fn link(session: &mut Session<'_>, args: &WorkLinkArgs) -> Resu
                     .out
                     .warn("note: request replayed (idempotent duplicate)");
             }
+            crate::audit::record(
+                &session.config,
+                &mut session.out,
+                "work.link.add",
+                key,
+                response.request_id.as_deref(),
+            );
             let link = response.value.clone();
             emit_view(session, &response.raw, &link.id.clone(), |session| {
                 render_link(session, &link)
@@ -161,6 +168,13 @@ pub(super) async fn link(session: &mut Session<'_>, args: &WorkLinkArgs) -> Resu
                     .out
                     .warn("note: request replayed (idempotent duplicate)");
             }
+            crate::audit::record(
+                &session.config,
+                &mut session.out,
+                "work.link.delete",
+                key,
+                response.request_id.as_deref(),
+            );
             if session.json() {
                 emit_json(session, &json!({ "deleted": true, "linkId": link_id }))
             } else {

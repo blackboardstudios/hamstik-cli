@@ -31,6 +31,13 @@ pub fn run(session: &mut Session<'_>) -> Result<(), CliError> {
     };
     context::save(&path, &document)?;
     let display = path.display().to_string();
+    crate::audit::record(
+        &session.config,
+        &mut session.out,
+        "init.run",
+        &display,
+        None,
+    );
 
     if session.json() {
         return emit_json(

@@ -148,6 +148,15 @@ pub(super) async fn transition_to(
             .out
             .warn("note: request replayed (idempotent duplicate)");
     }
+    crate::audit::record_with_revisions(
+        &session.config,
+        &mut session.out,
+        "work.transition",
+        key,
+        Some(current.value.revision),
+        Some(response.value.revision),
+        response.request_id.as_deref(),
+    );
     let item = response.value.clone();
     emit_view(session, &response.raw, key, |session| {
         render_work_item(session, &item, false)

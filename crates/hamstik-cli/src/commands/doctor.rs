@@ -630,6 +630,40 @@ fn diagnose_local_state(session: &Session<'_>, report: &mut Report) -> LocalStat
         ),
     ));
 
+    match crate::audit::path() {
+        Some(path) if crate::audit::enabled(&session.config) => {
+            let detail = match std::fs::metadata(&path) {
+                Ok(metadata) => format!(
+                    "{} holds mutation audit records ({} bytes so far)",
+                    path.display(),
+                    metadata.len()
+                ),
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => format!(
+                    "{} holds mutation audit records (created on the first mutation)",
+                    path.display()
+                ),
+                Err(err) => format!(
+                    "{} could not be inspected ({err}); audit records are written best-effort",
+                    path.display()
+                ),
+            };
+            report.push(Check::pass("local.audit_log", "audit log", true, detail));
+        }
+        Some(path) => report.push(Check::skipped(
+            "local.audit_log",
+            "audit log",
+            format!(
+                "disabled by settings.audit_log = false; {} is not written",
+                path.display()
+            ),
+        )),
+        None => report.push(Check::skipped(
+            "local.audit_log",
+            "audit log",
+            "no per-user state directory could be determined on this platform",
+        )),
+    }
+
     match Host::parse(&resolution.host) {
         Ok(host) => {
             report.push(Check::pass(

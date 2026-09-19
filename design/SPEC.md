@@ -1984,6 +1984,33 @@ credential invalid
 
 without echoing it.
 
+## Local Mutation Audit Log
+
+Every successful mutation additionally appends one JSON line to a per-user,
+append-only local audit log:
+
+```json
+{"when":"...","command":"work.edit","target":"HAM-42","revisionBefore":7,"revisionAfter":8,"requestId":"..."}
+```
+
+Rules:
+
+- exactly one record per successful mutation, never for reads or dry-runs;
+- identifiers only — command path, target identifier, revision before/after when
+  known (`null` otherwise), and the server request id;
+- never a request/response body, work text, token, `Authorization` header, or
+  any value from the sensitive list above;
+- stored in the platform state directory (`$XDG_STATE_HOME/hamstik/audit.log`
+  by default, the per-user application-support/local-application-data location
+  on macOS/Windows), overridable with `HAMSTIK_AUDIT_LOG`; owner-only on Unix;
+- best effort: an unwritable log warns and never fails the mutation, and losing
+  the local trail is acceptable because the server-side audit record stays
+  authoritative;
+- opt-out is the `audit_log` setting (default enabled) and the effective path is
+  reported by `hamstik doctor`;
+- the CLI never rotates the log: one short line per mutation, and truncating or
+  deleting the file is always safe.
+
 ---
 
 # 84. Crash/Panic Policy

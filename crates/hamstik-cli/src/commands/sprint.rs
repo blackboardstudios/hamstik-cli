@@ -356,6 +356,15 @@ async fn create(
             .warn("note: request replayed (idempotent duplicate)");
     }
     let sprint = response.value.clone();
+    crate::audit::record_with_revisions(
+        &session.config,
+        &mut session.out,
+        "sprint.create",
+        &sprint.id.clone(),
+        None,
+        Some(sprint.revision),
+        response.request_id.as_deref(),
+    );
     emit_view(session, &response.raw, &sprint.id.clone(), |session| {
         render_sprint(session, &sprint)
     })
@@ -441,16 +450,17 @@ async fn transition(
         None
     };
 
-    let if_match = if force {
-        "*".to_string()
+    let (if_match, revision_before) = if force {
+        ("*".to_string(), None)
     } else {
         let current = api
             .get_sprint(&org, &project, id)
             .await
             .map_err(CliError::from_client)?;
-        current.etag.ok_or_else(|| {
+        let etag = current.etag.ok_or_else(|| {
             CliError::protocol("server did not return an ETag; re-run with --force")
-        })?
+        })?;
+        (etag, Some(current.value.revision))
     };
 
     let body = TransitionSprintRequest {
@@ -523,6 +533,15 @@ async fn transition(
             .out
             .warn("note: request replayed (idempotent duplicate)");
     }
+    crate::audit::record_with_revisions(
+        &session.config,
+        &mut session.out,
+        "sprint.transition",
+        id,
+        revision_before,
+        Some(response.value.revision),
+        response.request_id.as_deref(),
+    );
     let sprint = response.value.clone();
     emit_view(session, &response.raw, id, |session| {
         render_sprint(session, &sprint)
@@ -543,16 +562,17 @@ async fn change_archive(
     let project = require_project(session, project_flag)?;
     let api = session.api(&selection)?;
 
-    let if_match = if force {
-        "*".to_string()
+    let (if_match, revision_before) = if force {
+        ("*".to_string(), None)
     } else {
         let current = api
             .get_sprint(&org, &project, id)
             .await
             .map_err(CliError::from_client)?;
-        current.etag.ok_or_else(|| {
+        let etag = current.etag.ok_or_else(|| {
             CliError::protocol("server did not return an ETag; re-run with --force")
-        })?
+        })?;
+        (etag, Some(current.value.revision))
     };
     let idempotency = match idempotency_key {
         Some(key) => {
@@ -604,6 +624,20 @@ async fn change_archive(
             .out
             .warn("note: request replayed (idempotent duplicate)");
     }
+    let command_name = if archived {
+        "sprint.archive"
+    } else {
+        "sprint.unarchive"
+    };
+    crate::audit::record_with_revisions(
+        &session.config,
+        &mut session.out,
+        command_name,
+        id,
+        revision_before,
+        Some(response.value.revision),
+        response.request_id.as_deref(),
+    );
     let sprint = response.value.clone();
     emit_view(session, &response.raw, id, |session| {
         render_sprint(session, &sprint)

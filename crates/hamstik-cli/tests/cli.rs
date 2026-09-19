@@ -59,6 +59,7 @@ async fn mount_doctor_openapi(server: &MockServer) {
 fn base(server: &MockServer, dir: &TempDir) -> Command {
     let mut cmd = Command::cargo_bin("hamstik").expect("hamstik binary");
     cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
+    cmd.env("HAMSTIK_AUDIT_LOG", dir.path().join("audit.log"));
     cmd.env("HAMSTIK_HOST", server.uri());
     cmd.env("HAMSTIK_TOKEN", "secret-token");
     cmd.env_remove("HAMSTIK_PROFILE");
@@ -800,6 +801,7 @@ const BANNER_FOOTER: &str = "© Blackboard Studios LLC";
 fn banner_command(dir: &TempDir) -> Command {
     let mut cmd = Command::cargo_bin("hamstik").expect("hamstik binary");
     cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
+    cmd.env("HAMSTIK_AUDIT_LOG", dir.path().join("audit.log"));
     for var in [
         "HAMSTIK_HOST",
         "HAMSTIK_TOKEN",
@@ -956,6 +958,7 @@ fn unrecognized_subcommand_has_no_banner() {
 fn config_command(dir: &TempDir) -> Command {
     let mut cmd = Command::cargo_bin("hamstik").expect("hamstik binary");
     cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
+    cmd.env("HAMSTIK_AUDIT_LOG", dir.path().join("audit.log"));
     for var in [
         "HAMSTIK_HOST",
         "HAMSTIK_TOKEN",
@@ -3561,6 +3564,7 @@ async fn structured_api_errors_preserve_fields_details_and_request_id() {
 fn retrying_command(server: &MockServer, dir: &TempDir) -> Command {
     let mut cmd = Command::cargo_bin("hamstik").expect("hamstik binary");
     cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
+    cmd.env("HAMSTIK_AUDIT_LOG", dir.path().join("audit.log"));
     cmd.env("HAMSTIK_HOST", server.uri());
     cmd.env("HAMSTIK_TOKEN", "secret-token");
     cmd.env_remove("HAMSTIK_PROFILE");

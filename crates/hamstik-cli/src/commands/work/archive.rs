@@ -28,16 +28,17 @@ pub(super) async fn change_archive(
     let project = session.require_project(&selection)?;
     let api = session.api(&selection)?;
 
-    let if_match = if force {
-        "*".to_string()
+    let (if_match, revision_before) = if force {
+        ("*".to_string(), None)
     } else {
         let current = api
             .get_work_item(&org, &project, key)
             .await
             .map_err(CliError::from_client)?;
-        current.etag.ok_or_else(|| {
+        let etag = current.etag.ok_or_else(|| {
             CliError::protocol("server did not return an ETag; re-run with --force")
-        })?
+        })?;
+        (etag, Some(current.value.revision))
     };
     let idempotency = idem_key_ref(idempotency_key)?;
 
@@ -83,6 +84,20 @@ pub(super) async fn change_archive(
             .out
             .warn("note: request replayed (idempotent duplicate)");
     }
+    let command_name = if archived {
+        "work.archive"
+    } else {
+        "work.unarchive"
+    };
+    crate::audit::record_with_revisions(
+        &session.config,
+        &mut session.out,
+        command_name,
+        key,
+        revision_before,
+        Some(response.value.revision),
+        response.request_id.as_deref(),
+    );
     let item = response.value.clone();
     emit_view(session, &response.raw, &item.key.clone(), |session| {
         render_work_item(session, &item, false)
@@ -102,16 +117,17 @@ pub(super) async fn delete(
     let project = session.require_project(&selection)?;
     let api = session.api(&selection)?;
 
-    let if_match = if force {
-        "*".to_string()
+    let (if_match, revision_before) = if force {
+        ("*".to_string(), None)
     } else {
         let current = api
             .get_work_item(&org, &project, key)
             .await
             .map_err(CliError::from_client)?;
-        current.etag.ok_or_else(|| {
+        let etag = current.etag.ok_or_else(|| {
             CliError::protocol("server did not return an ETag; re-run with --force")
-        })?
+        })?;
+        (etag, Some(current.value.revision))
     };
     let idempotency = idem_key_ref(idempotency_key)?;
 
@@ -146,6 +162,15 @@ pub(super) async fn delete(
             .out
             .warn("note: request replayed (idempotent duplicate)");
     }
+    crate::audit::record_with_revisions(
+        &session.config,
+        &mut session.out,
+        "work.delete",
+        key,
+        revision_before,
+        None,
+        response.request_id.as_deref(),
+    );
     if session.json() {
         emit_json(
             session,

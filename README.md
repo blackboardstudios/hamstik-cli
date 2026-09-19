@@ -589,17 +589,18 @@ separately from the global configuration file.
 
 1. global configuration readability;
 2. local context discovery, parsing, and source resolution;
-3. profile and credential-source resolution;
-4. credential-store configuration and accessibility when used;
-5. host validation and proxy-environment detection;
-6. network reachability and TLS validation;
-7. the unauthenticated `/api/v1/openapi.json` route;
-8. Public API v1 compatibility;
-9. PAT authentication through `/api/v1/me`;
-10. PAT expiration (expired / imminently expiring within 14 days / healthy);
-11. scope readiness for the credential's granted scopes;
-12. selected Organization and Project accessibility;
-13. terminal color and emoji rendering.
+3. the local mutation audit log (effective path, size, or opt-out);
+4. profile and credential-source resolution;
+5. credential-store configuration and accessibility when used;
+6. host validation and proxy-environment detection;
+7. network reachability and TLS validation;
+8. the unauthenticated `/api/v1/openapi.json` route;
+9. Public API v1 compatibility;
+10. PAT authentication through `/api/v1/me`;
+11. PAT expiration (expired / imminently expiring within 14 days / healthy);
+12. scope readiness for the credential's granted scopes;
+13. selected Organization and Project accessibility;
+14. terminal color and emoji rendering.
 
 Human output uses `ok`, `WARN`, `FAIL`, and `skip` markers and includes
 concrete remediation hints, a final `summary: N passed, N warned, N failed,
@@ -629,6 +630,71 @@ bundles and air-gapped environments.
 
 Support-bundle guidance: prefer `doctor --json --local-only`; the JSON report
 contains no secrets, tokens, or proxy values by construction.
+
+## Local mutation audit log
+
+Every mutation the CLI performs leaves a local trail. Each successful
+state-changing command appends exactly one JSON line to an append-only audit
+log, so `what ran, when, on what, and which server request it corresponded to`
+can be reviewed without network access:
+
+```json
+{"when":"2026-01-02T09:12:44Z","command":"work.transition","target":"HAM-42","revisionBefore":7,"revisionAfter":8,"requestId":"0f2c9b1e"}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `when` | RFC 3339 timestamp taken when the record was written |
+| `command` | Command path, e.g. `work.create`, `project.archive`, `api.request`, `config.set` |
+| `target` | The identifier acted on (Work Item key, Project key, Sprint id, comment id, config key, context file) |
+| `revisionBefore` | Revision the CLI saw before the mutation, `null` when it had none (creates, `--force`, ungoverned mutations) |
+| `revisionAfter` | Revision reported by the server afterwards, `null` when the operation returns none (deletes, bulk, passthrough) |
+| `requestId` | Server request id, for correlating with the authoritative server-side audit record |
+
+Location (the state directory, not the config directory):
+
+- Linux: `$XDG_STATE_HOME/hamstik/audit.log`, default `~/.local/state/hamstik/audit.log`
+- macOS: `~/Library/Application Support/hamstik/audit.log`
+- Windows: `%LOCALAPPDATA%\hamstik\audit.log`
+
+`HAMSTIK_AUDIT_LOG` pins the path (tests, containers, automation), and
+`hamstik doctor` always prints the effective location. On Unix the file is
+created owner-only (`0600`).
+
+### What is never recorded
+
+Credentials of any kind, `Authorization` headers, environment token values,
+request or response bodies, and work content such as titles and descriptions.
+Records carry identifiers only. Raw passthrough mutations
+(`hamstik api request POST …`) are recorded as `api.request` with the method and
+path — never the body, headers, or query string. The record is deliberately narrow because the
+server-side audit record stays the authoritative account of who did what; this
+log answers "what did this CLI ask for, from this machine".
+
+### Rotation, size, and opt-out
+
+The CLI never rotates, compresses, or trims the log: it is a plain text file of
+one short line per mutation (roughly 200 bytes each) and grows only as fast as
+you mutate. Deleting or truncating it at any time is safe and affects nothing
+else. Treat it like shell history.
+
+To stop writing it, set the documented opt-out:
+
+```bash
+hamstik config set audit_log false
+```
+
+The default is enabled. While disabled, `hamstik doctor` reports the audit log
+as skipped and names the path it is not writing.
+
+### Failure behavior
+
+Audit logging is best-effort and never blocks work: if the record cannot be
+written, the CLI prints `audit log write failed (...)` on stderr and the
+mutation itself still completes with its normal exit code. A missing audit line
+therefore means the request never succeeded (or logging is off) — the tradeoff
+is intentional, and it is why the server-side audit record remains the record of
+reference.
 
 ## Bulk operations and preflight
 

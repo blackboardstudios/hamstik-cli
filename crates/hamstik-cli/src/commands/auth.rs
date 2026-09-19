@@ -103,6 +103,8 @@ async fn login(session: &mut Session<'_>, with_token: bool) -> Result<(), CliErr
         // in the OS store.
         return Err(login_rollback(session, &account, err));
     }
+    // The profile name only: tokens never reach the audit log.
+    crate::audit::record(&session.config, &mut session.out, "auth.login", &name, None);
 
     if session.json() {
         emit_json(
@@ -365,6 +367,7 @@ fn switch(session: &mut Session<'_>, name: &str) -> Result<(), CliError> {
     }
     config.active_profile = Some(name.to_string());
     session.config.save(&config)?;
+    crate::audit::record(&session.config, &mut session.out, "auth.switch", name, None);
     emit_view(
         session,
         &json!({ "activeProfile": name }),
@@ -408,6 +411,13 @@ fn logout(session: &mut Session<'_>) -> Result<(), CliError> {
     // Read first so a second logout says "already logged out" instead of
     // claiming a removal that never happened.
     let had_credential = remove_credential(session, &account)?;
+    crate::audit::record(
+        &session.config,
+        &mut session.out,
+        "auth.logout",
+        &name,
+        None,
+    );
 
     if session.json() {
         return emit_json(
@@ -481,6 +491,13 @@ fn forget(session: &mut Session<'_>, requested: Option<&str>) -> Result<(), CliE
     };
 
     session.config.save(&config)?;
+    crate::audit::record(
+        &session.config,
+        &mut session.out,
+        "auth.forget",
+        &name,
+        None,
+    );
 
     if let Some(problem) = &store_problem {
         session.out.warn(&format!(

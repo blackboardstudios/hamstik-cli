@@ -167,6 +167,13 @@ pub(super) async fn comment(session: &mut Session<'_>, args: &CommentArgs) -> Re
                     .out
                     .warn("note: request replayed (idempotent duplicate)");
             }
+            crate::audit::record(
+                &session.config,
+                &mut session.out,
+                "work.comment.add",
+                key,
+                response.request_id.as_deref(),
+            );
             let comment_id = response.value.id.clone();
             emit_view(session, &response.raw, &comment_id.clone(), |session| {
                 render_comment(session, &response.raw)
@@ -239,6 +246,13 @@ pub(super) async fn comment(session: &mut Session<'_>, args: &CommentArgs) -> Re
                     .out
                     .warn("note: request replayed (idempotent duplicate)");
             }
+            crate::audit::record(
+                &session.config,
+                &mut session.out,
+                "work.comment.edit",
+                key,
+                response.request_id.as_deref(),
+            );
             emit_view(session, &response.raw, comment_id, |session| {
                 render_comment(session, &response.raw)
             })
@@ -273,9 +287,17 @@ pub(super) async fn comment(session: &mut Session<'_>, args: &CommentArgs) -> Re
             }
 
             let api = session.api(&selection)?;
-            api.delete_comment(&org, &project, key, comment_id)
+            let response = api
+                .delete_comment(&org, &project, key, comment_id)
                 .await
                 .map_err(CliError::from_client)?;
+            crate::audit::record(
+                &session.config,
+                &mut session.out,
+                "work.comment.delete",
+                key,
+                response.request_id.as_deref(),
+            );
             if session.json() {
                 emit_json(
                     session,

@@ -340,6 +340,19 @@ async fn run_request(session: &mut Session<'_>, args: &RequestArgs) -> Result<()
             .warn("note: request replayed (idempotent duplicate)");
     }
 
+    // The passthrough can reach any Public API mutation, so audited requests
+    // are recorded like the typed commands. Only the method and path are
+    // recorded; bodies, headers, and query parameters never enter the log.
+    if !matches!(method.as_str(), "GET" | "HEAD") {
+        crate::audit::record(
+            &session.config,
+            &mut session.out,
+            "api.request",
+            &format!("{method} /api/v1/{}", segments.join("/")),
+            response.request_id.as_deref(),
+        );
+    }
+
     if session.json() {
         let mut envelope = json!({
             "method": method,

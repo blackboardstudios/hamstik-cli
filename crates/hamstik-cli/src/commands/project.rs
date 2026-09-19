@@ -258,6 +258,15 @@ async fn create(
             .warn("note: request replayed (idempotent duplicate)");
     }
     let project = response.value.clone();
+    crate::audit::record_with_revisions(
+        &session.config,
+        &mut session.out,
+        "project.create",
+        &project.key.clone(),
+        None,
+        Some(project.revision),
+        response.request_id.as_deref(),
+    );
     emit_view(session, &response.raw, &project.key.clone(), |session| {
         render_project(session, &project)
     })
@@ -299,16 +308,17 @@ async fn edit(
         return Err(CliError::usage("no changes specified"));
     }
 
-    let if_match = if args.force {
-        "*".to_string()
+    let (if_match, revision_before) = if args.force {
+        ("*".to_string(), None)
     } else {
         let current = api
             .get_project(&org, &args.key)
             .await
             .map_err(CliError::from_client)?;
-        current.etag.ok_or_else(|| {
+        let etag = current.etag.ok_or_else(|| {
             CliError::protocol("server did not return an ETag; re-run with --force")
-        })?
+        })?;
+        (etag, Some(current.value.revision))
     };
     let idempotency = match &args.idempotency_key {
         Some(key) => {
@@ -347,6 +357,15 @@ async fn edit(
             .out
             .warn("note: request replayed (idempotent duplicate)");
     }
+    crate::audit::record_with_revisions(
+        &session.config,
+        &mut session.out,
+        "project.edit",
+        &args.key,
+        revision_before,
+        Some(response.value.revision),
+        response.request_id.as_deref(),
+    );
     let project = response.value.clone();
     emit_view(session, &response.raw, &project.key.clone(), |session| {
         render_project(session, &project)
@@ -365,16 +384,17 @@ async fn change_archive(
     let org = session.require_org(&selection)?;
     let api = session.api(&selection)?;
 
-    let if_match = if force {
-        "*".to_string()
+    let (if_match, revision_before) = if force {
+        ("*".to_string(), None)
     } else {
         let current = api
             .get_project(&org, key)
             .await
             .map_err(CliError::from_client)?;
-        current.etag.ok_or_else(|| {
+        let etag = current.etag.ok_or_else(|| {
             CliError::protocol("server did not return an ETag; re-run with --force")
-        })?
+        })?;
+        (etag, Some(current.value.revision))
     };
     let idempotency = match idempotency_key {
         Some(key) => {
@@ -423,6 +443,20 @@ async fn change_archive(
             .out
             .warn("note: request replayed (idempotent duplicate)");
     }
+    let command_name = if archived {
+        "project.archive"
+    } else {
+        "project.unarchive"
+    };
+    crate::audit::record_with_revisions(
+        &session.config,
+        &mut session.out,
+        command_name,
+        key,
+        revision_before,
+        Some(response.value.revision),
+        response.request_id.as_deref(),
+    );
     let project = response.value.clone();
     emit_view(session, &response.raw, &project.key.clone(), |session| {
         render_project(session, &project)
@@ -552,6 +586,13 @@ async fn use_project(session: &mut Session<'_>, key: &str) -> Result<(), CliErro
         .ok_or_else(|| CliError::config(format!("no such profile: {profile_name}")))?;
     profile.default_project = Some(project.key);
     session.config.save(&config)?;
+    crate::audit::record(
+        &session.config,
+        &mut session.out,
+        "project.use",
+        &profile_name,
+        None,
+    );
 
     if session.json() {
         emit_json(

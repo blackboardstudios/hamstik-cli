@@ -68,16 +68,17 @@ pub(super) async fn edit(session: &mut Session<'_>, args: &WorkEditArgs) -> Resu
         return Err(CliError::usage("no changes specified"));
     }
 
-    let if_match = if args.force {
-        "*".to_string()
+    let (if_match, revision_before) = if args.force {
+        ("*".to_string(), None)
     } else {
         let current = api
             .get_work_item(&org, &project, &args.key)
             .await
             .map_err(CliError::from_client)?;
-        current.etag.ok_or_else(|| {
+        let etag = current.etag.ok_or_else(|| {
             CliError::protocol("server did not return an ETag; re-run with --force")
-        })?
+        })?;
+        (etag, Some(current.value.revision))
     };
 
     if session.global.dry_run {
@@ -108,6 +109,15 @@ pub(super) async fn edit(session: &mut Session<'_>, args: &WorkEditArgs) -> Resu
         .update_work_item(&org, &project, &args.key, &body, &if_match)
         .await
         .map_err(CliError::from_client)?;
+    crate::audit::record_with_revisions(
+        &session.config,
+        &mut session.out,
+        "work.edit",
+        &args.key,
+        revision_before,
+        Some(response.value.revision),
+        response.request_id.as_deref(),
+    );
     let item = response.value.clone();
     emit_view(session, &response.raw, &item.key.clone(), |session| {
         super::view::render_work_item(session, &item, false)
