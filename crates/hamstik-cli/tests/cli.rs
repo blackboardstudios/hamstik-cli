@@ -987,6 +987,50 @@ email = "two@example.com"
 "#;
 
 #[test]
+fn auth_list_machine_modes_name_every_column() {
+    let dir = TempDir::new().unwrap();
+    std::fs::write(dir.path().join("config.toml"), TWO_PROFILES).unwrap();
+
+    // `--tsv` is a documented machine surface: a named header per column, in
+    // the command's documented order, so no column is unreachable by name.
+    let output = config_command(&dir)
+        .args(["auth", "list", "--tsv"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap(),
+        "ACTIVE\tNAME\tHOST\tEMAIL\tORG\n\
+         *\tone\thttps://one.test\tone@example.com\t\n\
+         \ttwo\thttps://two.test\ttwo@example.com\t\n"
+    );
+
+    // The profile marker column is selectable and orderable by name.
+    let output = config_command(&dir)
+        .args(["auth", "list", "--tsv", "--columns", "NAME", "ACTIVE"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap(),
+        "NAME\tACTIVE\none\t*\ntwo\t\n"
+    );
+
+    // An unknown name lists every column, none of them blank.
+    config_command(&dir)
+        .args(["auth", "list", "--tsv", "--columns", "nope"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains(
+            "available: ACTIVE, NAME, HOST, EMAIL, ORG",
+        ));
+}
+
+#[test]
 fn auth_forget_removes_the_profile_and_repairs_the_active_one() {
     let dir = TempDir::new().unwrap();
     std::fs::write(dir.path().join("config.toml"), TWO_PROFILES).unwrap();

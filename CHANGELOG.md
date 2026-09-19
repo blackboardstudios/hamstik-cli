@@ -39,6 +39,9 @@ before upgrading.
   JSON line in `--jsonl`/`--tsv` mode, and `--jq` filters that document too.
   `--columns` and `--no-header` are table features: they apply to human and
   `--tsv` output and are a usage error with `--json`, `--jsonl`, or `--quiet`.
+  Every list table column now carries a header name so no TSV column is unnamed
+  and none is unreachable by `--columns`; the `auth list` profile marker column
+  is now `ACTIVE` (the `--json` field `active` is unchanged).
 
 - Typed server report commands (CLI-63): `hamstik project report <type>` wraps
   `GET /projects/{key}/reports/{type}` (for example `velocity`,

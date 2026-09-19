@@ -1050,7 +1050,9 @@ human/TSV table columns by header name and `--no-header` suppresses the human or
 TSV header; both are table features and are rejected with `--json`, `--jsonl`,
 and `--quiet`, where there is no table to project. `--jq` and `--columns` are
 mutually exclusive because the filter, not the command table, defines the
-filtered result's shape.
+filtered result's shape. `--columns NAME...` takes multiple values, so it is
+written after the subcommand (`hamstik work list --columns KEY TITLE`); placed
+before the subcommand it would consume the command name.
 
 A single-resource command has no documented column set, so `--jsonl` and `--tsv`
 emit the resource as one compact JSON line: compact JSON contains no raw tab or
@@ -1210,9 +1212,10 @@ may map to:
 
 Human default prints a table.
 
-Human and TSV tables use the command's documented column order. `--columns`
-accepts those header names case-insensitively and preserves the requested
-order; an unknown name is a usage error that lists the valid names.
+Human and TSV tables use the command's documented column order. Every column of
+a list table carries a header name, so the TSV header never contains an unnamed
+column and every column is reachable by `--columns`. `--columns` accepts those
+header names case-insensitively and preserves the requested order; an unknown name is a usage error that lists the valid names.
 `--no-header` removes both the human table header/separator and the TSV header
 row. TSV cells escape backslash, tab, LF, and CR so each resource remains
 exactly one physical line, other control characters become U+FFFD, and cells

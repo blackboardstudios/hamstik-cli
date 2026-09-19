@@ -472,10 +472,17 @@ For automation:
   per line and `--tsv` for escaped tab-separated table rows. TSV includes a
   header by default; `--no-header` suppresses it. On a single-resource command
   both modes emit the resource as one compact JSON line, and `--jsonl` carries
-  no page envelope — read pagination from `--json`;
+  no page envelope — read pagination from `--json`. `--all` completes its
+  traversal in API order before writing stdout, so a run that fails halfway
+  emits no records and is resumed from a `page.nextCursor` read in `--json`
+  mode;
 - `--columns NAME...` (space-separated) selects and orders the human/TSV table
   columns by their printed header names; it applies to human and `--tsv` output
-  only, and an unknown name fails with the list of valid names;
+  only, and an unknown name fails with the list of valid names. Every table
+  column carries a header name, so none is unreachable. Because it takes
+  multiple values, write it after the subcommand
+  (`hamstik work list --columns KEY TITLE`); before the subcommand it would
+  consume the command name as a column name;
 - `--jq EXPR` filters the structured document of any command — the full
   collection envelope for list commands, the resource document otherwise — in
   `--json`, `--jsonl`, or `--tsv` mode. `--json` coalesces the filter results

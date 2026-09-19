@@ -309,6 +309,13 @@ fn resolve_status_token(
     ))
 }
 
+/// The `auth list` table columns, in their documented order.
+///
+/// The first column marks the selected profile with `*`. It carries a real
+/// header name (rather than a blank one) so `--tsv` never emits an unnamed
+/// column and `--columns ACTIVE` can select or reorder it like any other.
+const AUTH_LIST_COLUMNS: &[&str] = &["ACTIVE", "NAME", "HOST", "EMAIL", "ORG"];
+
 fn list(session: &mut Session<'_>) -> Result<(), CliError> {
     let config = session.config.load()?;
     let active = session
@@ -343,16 +350,8 @@ fn list(session: &mut Session<'_>) -> Result<(), CliError> {
     }
 
     let json_value = json!({ "profiles": items });
-    check_columns(
-        &["", "NAME", "HOST", "EMAIL", "ORG"],
-        &session.output_options(),
-    )?;
-    render_list(
-        session,
-        &json_value,
-        &["", "NAME", "HOST", "EMAIL", "ORG"],
-        &rows,
-    )
+    check_columns(AUTH_LIST_COLUMNS, &session.output_options())?;
+    render_list(session, &json_value, AUTH_LIST_COLUMNS, &rows)
 }
 
 fn switch(session: &mut Session<'_>, name: &str) -> Result<(), CliError> {
