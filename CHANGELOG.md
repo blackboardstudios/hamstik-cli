@@ -10,6 +10,8 @@ before upgrading.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-19
+
 ### Breaking
 
 - `--limit` on list commands is now the total number of items the command emits
@@ -32,7 +34,11 @@ before upgrading.
   suppresses table headers. `--jq EXPR` embeds jq-compatible filtering for
   `--json`, `--jsonl`, and `--tsv` without requiring an external jq binary.
   Structured modes are mutually exclusive with each other and with `--quiet`,
-  and invalid filters or column names fail explicitly.
+  and invalid filters or column names fail explicitly (exit 2) before any
+  network call. A single-resource command emits its document as one compact
+  JSON line in `--jsonl`/`--tsv` mode, and `--jq` filters that document too.
+  `--columns` and `--no-header` are table features: they apply to human and
+  `--tsv` output and are a usage error with `--json`, `--jsonl`, or `--quiet`.
 
 - Typed server report commands (CLI-63): `hamstik project report <type>` wraps
   `GET /projects/{key}/reports/{type}` (for example `velocity`,
@@ -51,16 +57,23 @@ before upgrading.
   Pagination is `--limit`/`--cursor` (`--since-cursor`) over the report's `items`
   collection; `--all` is not offered because a report's series and rollups are
   one document, not a paged collection.
-  The checked-in OpenAPI snapshot predates both report endpoints —
-  `scripts/update-openapi.sh --check` reported drift against the live document
-  — so it is refreshed in this change to the exact bytes that
-  `scripts/update-openapi.sh --update` installs (that check now passes). The
-  refresh only adds: 57 operations across 41 paths, up from 55 across 39, being
-  the two report operations plus their component schemas; no operation, schema,
-  `info`, `openapi`, or `servers` entry was removed or altered, so no documented
-  surface changes and `schema_parity` reports no incompatibility. Both
-  operations are registered in `openapi/api-parity.json` (client method, CLI
-  command, tests) as required by the contract tests.
+  The checked-in OpenAPI snapshot is refreshed to the live 67-operation,
+  48-path contract, and every operation is registered in
+  `openapi/api-parity.json` with its client method, CLI command, and tests.
+- First-class Advanced Reporting commands for all ten newly documented Public
+  API operations: `hamstik report list|view|create|edit|delete|run|selection-items`
+  and `hamstik dashboard list|view|run`. List commands support visibility and
+  standard cursor traversal. Report create/edit read the complete typed outer
+  `AdvancedReportInput` JSON document from a file or stdin; edit/delete fetch
+  and send the current ETag (with explicit `--force` support), generate and
+  reuse idempotency keys, support mutation previews, and write the local audit
+  record. Report/Dashboard runs fetch and submit the current revision
+  automatically, with optional Dashboard filter JSON, and selection-item reads
+  preserve the server's captured-result metadata. The CLI surfaces Premium,
+  App enablement, Advanced capability, membership, and PAT-scope decisions from
+  the server and never recomputes report datasets, dashboard widgets, or
+  selection facts. The OpenAPI snapshot, typed client, parity manifest, schema
+  guards, generated reference, README, and Agent Skill are synchronized.
 - Shell pipeline ergonomics for every list command (CLI-58): `--since-cursor
   <CURSOR>` is an accepted alias of `--cursor` and is now honored as the start of
   a traversal even when combined with `--all`, so a pipeline that crashed
@@ -203,6 +216,12 @@ before upgrading.
 
 ### Fixed
 
+- OpenAPI refresh tooling and documentation now use the canonical
+  `https://hamstik.com` API origin instead of the redirecting `www` host.
+- `hamstik doctor` now recognizes a selected profile with no stored credential
+  as the expected post-logout state. It reports credential-dependent checks as
+  skipped instead of failing with `AUTH_REQUIRED`; inaccessible stores and
+  invalid or rejected credentials still fail.
 - Network diagnostics are now classified from the concrete transport error
   source chain (DNS, connection, timeout, TLS) instead of pattern-matching
   the rendered error text, so a library rewording can no longer silently
@@ -611,7 +630,8 @@ API v1 (29 → 51 operations; all changes additive):
   users who need both states in one result must issue separate queries
   (`work`, `project`).
 
-[Unreleased]: https://github.com/blackboardstudios/hamstik-cli/commits/main
+[Unreleased]: https://github.com/blackboardstudios/hamstik-cli/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.2.0
 [0.1.3]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.3
 [0.1.2]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.2
 [0.1.1]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.1

@@ -250,6 +250,8 @@ hamstik auth
 hamstik context
 hamstik org
 hamstik project
+hamstik report
+hamstik dashboard
 hamstik work
 hamstik completion
 hamstik doctor
@@ -561,6 +563,46 @@ work-item
 The product still calls the domain object a **Work Item**.
 
 `work` is simply the ergonomic CLI command.
+
+---
+
+# 14A. Advanced Reporting Commands
+
+The CLI exposes the Public API v1 Advanced Reporting application through two
+Organization-scoped command families:
+
+```bash
+hamstik report list
+hamstik report view <id>
+hamstik report create --file report.json
+hamstik report edit <id> --file report.json
+hamstik report delete <id>
+hamstik report run <id>
+hamstik report selection-items <run-id> <cell-id>
+
+hamstik dashboard list
+hamstik dashboard view <id>
+hamstik dashboard run <id> [--filters-file filters.json]
+```
+
+These commands are capability-gated server features. The CLI MUST surface the
+server's plan, application-enablement, authorization, and PAT-scope errors; it
+must not try to predict or reproduce those rules locally.
+
+Advanced report definitions and dashboard-run filters are structured documents,
+not a growing collection of CLI flags. Creation and replacement therefore read
+the documented Public API request shape from JSON files (or `-` for stdin).
+The typed client validates the outer document shape while the server remains
+authoritative for reporting semantics and business validation.
+
+Report edits and deletes use the current resource ETag by default and MUST NOT
+silently overwrite revision conflicts. `--force` is the explicit optimistic-
+concurrency bypass. Report and dashboard runs read the current revision before
+evaluation, so users do not need to manage `expectedRevision` manually.
+
+List and selection-item commands use the CLI's standard cursor behavior and
+machine output. Human rendering presents server-returned data only; the CLI
+does not recompute datasets, selections, dashboard widgets, or aggregations.
 
 ---
 
@@ -1206,6 +1248,8 @@ The initial CLI does not need:
 - App administration;
 - Gitea management;
 - Audit Compliance management;
+- Advanced Dashboard creation or editing (the Public API currently exposes
+  dashboard reads and runs only);
 - offline editing;
 - local data synchronization.
 

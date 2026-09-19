@@ -940,6 +940,19 @@ fn activity_query(opts: &ActivityOptions) -> Vec<(String, String)> {
     out
 }
 
+fn advanced_query(opts: &ListAdvancedOptions) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    push_list(
+        &mut out,
+        &ListOptions {
+            limit: opts.limit,
+            cursor: opts.cursor.clone(),
+        },
+    );
+    push_scalar(&mut out, "visibility", &opts.visibility);
+    out
+}
+
 /// The complete, typed surface of the Hamstik Public API used by the CLI.
 ///
 /// Every method maps to exactly one endpoint; transport concerns (auth,
@@ -1432,6 +1445,79 @@ pub trait HamstikApi: Send + Sync {
         body: &BulkTransitionEnvelope,
         idempotency_key: &str,
     ) -> Result<ApiResponse<BulkResultList>, ClientError>;
+    /// `GET .../advanced-reports`: list authorized Advanced Reports.
+    async fn list_advanced_reports(
+        &self,
+        org_slug: &str,
+        opts: ListAdvancedOptions,
+    ) -> Result<ApiResponse<AdvancedReportList>, ClientError>;
+    /// `POST .../advanced-reports`: create an Advanced Report (idempotent).
+    async fn create_advanced_report(
+        &self,
+        org_slug: &str,
+        body: &CreateAdvancedReportRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<AdvancedReportDetail>, ClientError>;
+    /// `GET .../advanced-reports/{reportId}`: one Advanced Report and ETag.
+    async fn get_advanced_report(
+        &self,
+        org_slug: &str,
+        report_id: &str,
+    ) -> Result<ApiResponse<AdvancedReportDetail>, ClientError>;
+    /// `PATCH .../advanced-reports/{reportId}`: replace an Advanced Report.
+    async fn update_advanced_report(
+        &self,
+        org_slug: &str,
+        report_id: &str,
+        body: &UpdateAdvancedReportRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<AdvancedReportDetail>, ClientError>;
+    /// `DELETE .../advanced-reports/{reportId}`: delete an Advanced Report.
+    async fn delete_advanced_report(
+        &self,
+        org_slug: &str,
+        report_id: &str,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<()>, ClientError>;
+    /// Read-only `POST .../advanced-reports/{reportId}/runs`: evaluate a
+    /// saved report at an expected revision (no idempotency key).
+    async fn run_advanced_report(
+        &self,
+        org_slug: &str,
+        report_id: &str,
+        body: &AdvancedReportRunRequest,
+    ) -> Result<ApiResponse<AdvancedReportRunResult>, ClientError>;
+    /// `GET .../advanced-report-runs/{runId}/cells/{cellId}/items`: page
+    /// through the captured selection behind one result cell.
+    async fn list_advanced_selection_items(
+        &self,
+        org_slug: &str,
+        run_id: &str,
+        cell_id: &str,
+        opts: ListOptions,
+    ) -> Result<ApiResponse<AdvancedSelectionPage>, ClientError>;
+    /// `GET .../advanced-dashboards`: list authorized Advanced Dashboards.
+    async fn list_advanced_dashboards(
+        &self,
+        org_slug: &str,
+        opts: ListAdvancedOptions,
+    ) -> Result<ApiResponse<AdvancedDashboardList>, ClientError>;
+    /// `GET .../advanced-dashboards/{dashboardId}`: one Advanced Dashboard.
+    async fn get_advanced_dashboard(
+        &self,
+        org_slug: &str,
+        dashboard_id: &str,
+    ) -> Result<ApiResponse<AdvancedDashboardDetail>, ClientError>;
+    /// Read-only `POST .../advanced-dashboards/{dashboardId}/runs`: evaluate
+    /// a dashboard at an expected revision (no idempotency key).
+    async fn run_advanced_dashboard(
+        &self,
+        org_slug: &str,
+        dashboard_id: &str,
+        body: &AdvancedDashboardRunRequest,
+    ) -> Result<ApiResponse<AdvancedDashboardRunResult>, ClientError>;
 }
 
 #[async_trait]
@@ -3003,6 +3089,244 @@ impl HamstikApi for HamstikClient {
             ],
             query: Vec::new(),
             headers: vec![(header_idempotency_key(), idempotency_key.to_string())],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn list_advanced_reports(
+        &self,
+        org_slug: &str,
+        opts: ListAdvancedOptions,
+    ) -> Result<ApiResponse<AdvancedReportList>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "advanced-reports".to_string(),
+            ],
+            query: advanced_query(&opts),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn create_advanced_report(
+        &self,
+        org_slug: &str,
+        body: &CreateAdvancedReportRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<AdvancedReportDetail>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "advanced-reports".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![(header_idempotency_key(), idempotency_key.to_string())],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn get_advanced_report(
+        &self,
+        org_slug: &str,
+        report_id: &str,
+    ) -> Result<ApiResponse<AdvancedReportDetail>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "advanced-reports".to_string(),
+                report_id.to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn update_advanced_report(
+        &self,
+        org_slug: &str,
+        report_id: &str,
+        body: &UpdateAdvancedReportRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<AdvancedReportDetail>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::PATCH,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "advanced-reports".to_string(),
+                report_id.to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn delete_advanced_report(
+        &self,
+        org_slug: &str,
+        report_id: &str,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<()>, ClientError> {
+        self.send_void(RequestSpec {
+            method: Method::DELETE,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "advanced-reports".to_string(),
+                report_id.to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&serde_json::json!({})),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn run_advanced_report(
+        &self,
+        org_slug: &str,
+        report_id: &str,
+        body: &AdvancedReportRunRequest,
+    ) -> Result<ApiResponse<AdvancedReportRunResult>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "advanced-reports".to_string(),
+                report_id.to_string(),
+                "runs".to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn list_advanced_selection_items(
+        &self,
+        org_slug: &str,
+        run_id: &str,
+        cell_id: &str,
+        opts: ListOptions,
+    ) -> Result<ApiResponse<AdvancedSelectionPage>, ClientError> {
+        let mut query = Vec::new();
+        push_list(&mut query, &opts);
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "advanced-report-runs".to_string(),
+                run_id.to_string(),
+                "cells".to_string(),
+                cell_id.to_string(),
+                "items".to_string(),
+            ],
+            query,
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn list_advanced_dashboards(
+        &self,
+        org_slug: &str,
+        opts: ListAdvancedOptions,
+    ) -> Result<ApiResponse<AdvancedDashboardList>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "advanced-dashboards".to_string(),
+            ],
+            query: advanced_query(&opts),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn get_advanced_dashboard(
+        &self,
+        org_slug: &str,
+        dashboard_id: &str,
+    ) -> Result<ApiResponse<AdvancedDashboardDetail>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "advanced-dashboards".to_string(),
+                dashboard_id.to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn run_advanced_dashboard(
+        &self,
+        org_slug: &str,
+        dashboard_id: &str,
+        body: &AdvancedDashboardRunRequest,
+    ) -> Result<ApiResponse<AdvancedDashboardRunResult>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "advanced-dashboards".to_string(),
+                dashboard_id.to_string(),
+                "runs".to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
             body: Some(&payload),
             retryable: true,
         })

@@ -1,0 +1,19 @@
+.TH HAMSTIK 1 "HAMSTIK REPORT DELETE"
+.SH NAME
+hamstik report delete \- Delete an Advanced Report
+.SH SYNOPSIS
+.B hamstik report delete [OPTIONS]
+.SH DESCRIPTION
+Delete an Advanced Report
+.SH ARGUMENTS
+.TP
+.I ID
+Advanced Report UUID
+.SH OPTIONS
+.TP
+.B --force
+Bypass optimistic-concurrency protection (`If-Match: *`)
+Choices: true, false
+.TP
+.B --idempotency-key
+Explicit idempotency key

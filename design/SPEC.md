@@ -321,7 +321,26 @@ transitionWorkItem
 
 listComments
 createComment
+
+listAdvancedReports
+createAdvancedReport
+getAdvancedReport
+updateAdvancedReport
+deleteAdvancedReport
+runAdvancedReport
+listAdvancedSelectionItems
+
+listAdvancedDashboards
+getAdvancedDashboard
+runAdvancedDashboard
 ```
+
+Advanced Reporting operations use typed outer request/response models. Complex
+report definitions, datasets, widgets, analytics results, and filter documents
+remain server-shaped JSON fields inside those models. This preserves the exact
+Public API document and avoids duplicating server reporting logic while still
+giving the client a typed operation, resource identity, revision, pagination,
+and concurrency contract.
 
 ---
 
@@ -734,6 +753,12 @@ hamstik auth forget [profile]
 
 `auth logout` removes the local credential.
 
+Because logout intentionally retains profile metadata, `doctor` treats a
+selected profile whose credential entry is absent as logged out: credential
+source and authenticated dependent checks are skipped without making the
+diagnostic run fail. Credential-store access errors and supplied-but-invalid
+credentials remain failures.
+
 `auth forget` additionally removes the profile entry from the global config, and
 is the only auth command that edits config state beyond `login`/`switch`. It
 targets the named profile, or the selected profile when no name is given. Like
@@ -917,6 +942,8 @@ auth
 context
 org
 project
+report
+dashboard
 work
 doctor
 completion
@@ -930,6 +957,41 @@ api
 agent
 config
 ```
+
+Advanced Reporting grammar:
+
+```text
+hamstik report list [--visibility all|personal|organization] [PAGINATION]
+hamstik report view <id>
+hamstik report create --file <path|-> [--idempotency-key <key>]
+hamstik report edit <id> --file <path|-> [--force] [--idempotency-key <key>]
+hamstik report delete <id> [--force] [--idempotency-key <key>]
+hamstik report run <id>
+hamstik report selection-items <run-id> <cell-id> [PAGINATION]
+
+hamstik dashboard list [--visibility all|personal|organization] [PAGINATION]
+hamstik dashboard view <id>
+hamstik dashboard run <id> [--filters-file <path|->]
+```
+
+Both families require resolved Organization context. The CLI forwards
+capability, subscription, application enablement, membership, and token-scope
+decisions to the server. JSON input is capped at the normal text-input limit;
+`-` means stdin. Report create/edit input is the complete
+`AdvancedReportInput` object. Dashboard run input, when supplied, is only the
+`AdvancedDashboardFilters` object; the CLI adds `expectedRevision`.
+
+`report edit` and `report delete` GET the current report and send its exact
+ETag as `If-Match`; `--force` sends `If-Match: *`. The CLI generates one
+idempotency key per logical create/edit/delete and reuses it across retries.
+`report run` and `dashboard run` first GET the resource and send its current
+revision as `expectedRevision`. Runs are read-like evaluation operations: they
+send neither an idempotency key nor a mutation audit entry, and do not support
+`--dry-run`. The CLI never recomputes report or dashboard results.
+
+The Public API does not expose dashboard creation, update, or deletion, so the
+CLI MUST NOT imply those commands exist. Advanced Reporting error responses
+retain their server error code and request ID like every other typed command.
 
 ---
 
@@ -982,10 +1044,17 @@ Collection commands additionally support explicit line-oriented modes:
 
 `--json`, `--jsonl`, `--tsv`, and `--quiet` are mutually exclusive. `--jq`
 requires a structured mode (`--json`, `--jsonl`, or `--tsv`) and filters the
-server-shaped collection before it is rendered. `--columns` selects and orders
-human/TSV table columns by header name; `--no-header` suppresses the human or
-TSV header. `--jq` and `--columns` are mutually exclusive because the filter,
-not the command table, defines the filtered result's shape.
+structured document before it is rendered — the server-shaped collection for a
+list command, the resource document otherwise. `--columns` selects and orders
+human/TSV table columns by header name and `--no-header` suppresses the human or
+TSV header; both are table features and are rejected with `--json`, `--jsonl`,
+and `--quiet`, where there is no table to project. `--jq` and `--columns` are
+mutually exclusive because the filter, not the command table, defines the
+filtered result's shape.
+
+A single-resource command has no documented column set, so `--jsonl` and `--tsv`
+emit the resource as one compact JSON line: compact JSON contains no raw tab or
+newline, so the row stays one physical line in both modes.
 
 Do not infer JSON merely because stdout is redirected.
 
@@ -1143,10 +1212,14 @@ Human default prints a table.
 
 Human and TSV tables use the command's documented column order. `--columns`
 accepts those header names case-insensitively and preserves the requested
-order; an unknown name is an error. `--no-header` removes both the human table
-header/separator and the TSV header row. TSV cells escape backslash, tab, LF,
-and CR so each resource remains exactly one physical line, and never include
-terminal color sequences.
+order; an unknown name is a usage error that lists the valid names.
+`--no-header` removes both the human table header/separator and the TSV header
+row. TSV cells escape backslash, tab, LF, and CR so each resource remains
+exactly one physical line, other control characters become U+FFFD, and cells
+never include terminal color sequences. Because TSV is the command's table
+projection, an absent value keeps the table's own rendering (commonly `-`) and a
+cell the command never filled is the empty string; use `--json` or `--jsonl` for
+raw server nulls.
 
 JSON default returns the API-style collection:
 
@@ -1184,10 +1257,11 @@ one compact JSON value per line. It does not turn human table cells into JSON
 strings, so field names, JSON types, and nested values remain server-shaped.
 
 `--jq <EXPR>` is evaluated against the same full collection value that
-`--json` would emit. For `--json`, zero filter results render as `null`, one as
-that value, and multiple results as one JSON array so stdout remains one valid
-JSON document. For `--jsonl`, each filter result is one line. For `--tsv`, each
-filter result is one row: arrays become multiple cells and other values become
+`--json` would emit (the resource document for a single-resource command). For
+`--json`, zero filter results render as `null`, one as that value, and multiple
+results as one JSON array so stdout remains one valid JSON document. For
+`--jsonl`, each filter result is one line. For `--tsv`, each filter result is
+one row: arrays become multiple cells and other values become
 one cell; nested arrays and objects use compact JSON in that cell. jq-shaped
 TSV has no generated header.
 
@@ -1530,6 +1604,12 @@ It MUST NEVER show:
 9. `/api/v1/me`;
 10. Organization context;
 11. Project context.
+
+An absent credential for a selected retained profile is the normal logged-out
+state, not a failed diagnostic: report the credential source and authenticated
+dependent checks as skipped. A missing profile/token when no identity has ever
+been selected, an inaccessible credential store, and an invalid supplied
+credential remain failures.
 
 Human output:
 

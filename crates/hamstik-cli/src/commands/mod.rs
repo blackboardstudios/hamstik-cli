@@ -12,6 +12,8 @@ use crate::config::{Profile, profile_auto_name, unique_profile_name};
 use crate::error::CliError;
 use crate::output::{self, OutputOptions};
 
+pub mod advanced_dashboard;
+pub mod advanced_report;
 pub mod agent_skill;
 pub mod api;
 pub mod auth;
@@ -60,6 +62,8 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
         Command::Config(args) => config::run(session, args).await,
         Command::Org(args) => org::run(session, args).await,
         Command::Project(args) => project::run(session, args).await,
+        Command::Report(args) => advanced_report::run(session, args).await,
+        Command::Dashboard(args) => advanced_dashboard::run(session, args).await,
         Command::Sprint(args) => sprint::run(session, args).await,
         Command::Label(args) => label::run(session, args).await,
         Command::Work(args) => work::run(session, args).await,
@@ -144,6 +148,12 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
             | crate::args::ProjectCommand::Archive { .. }
             | crate::args::ProjectCommand::Unarchive { .. } => true,
         },
+        Command::Report(args) => matches!(
+            args.command,
+            crate::args::AdvancedReportCommand::Create { .. }
+                | crate::args::AdvancedReportCommand::Edit { .. }
+                | crate::args::AdvancedReportCommand::Delete { .. }
+        ),
         Command::Sprint(args) => match &args.command {
             crate::args::SprintCommand::List { .. }
             | crate::args::SprintCommand::View { .. }
@@ -243,7 +253,11 @@ pub(crate) fn emit_json(session: &mut Session<'_>, value: &Value) -> Result<(), 
     session.out.json(value).map_err(CliError::general)
 }
 
-/// Applies `--jq` filtering when requested and renders a list collection.
+/// Renders a list collection in the active output mode.
+///
+/// `--jq` filtering and `--columns` projection are applied by
+/// [`crate::output::Output::render_list`] so every collection command — and only
+/// the collection commands — share one contract for both.
 pub(crate) fn render_list(
     session: &mut Session<'_>,
     json_value: &Value,
@@ -251,16 +265,9 @@ pub(crate) fn render_list(
     rows: &[Vec<String>],
 ) -> Result<(), CliError> {
     let options = session.output_options();
-    let jq = session
-        .global
-        .jq
-        .as_deref()
-        .map(|expr| output::jq_outputs(json_value, expr))
-        .transpose()
-        .map_err(|error| CliError::general(format!("--jq filter error: {error}")))?;
     session
         .out
-        .render_list(json_value, jq.as_deref(), headers, rows, &options)
+        .render_list(json_value, headers, rows, &options)
         .map_err(CliError::general)
 }
 
@@ -280,10 +287,13 @@ pub(crate) fn emit_table(
 }
 
 /// Validates that every column listed in `options.columns` exists in `headers`.
+///
+/// An unknown column is invalid input (exit 2) and carries the list of valid
+/// names, so the caller can correct the request without reading the source.
 pub(crate) fn check_columns(headers: &[&str], options: &OutputOptions) -> Result<(), CliError> {
     output::validate_columns(&options.columns, headers)
         .map(|_| ())
-        .map_err(CliError::general)
+        .map_err(CliError::usage)
 }
 
 /// Renders a single resource: JSON body verbatim, quiet identifier, or detail.

@@ -1,10 +1,10 @@
 ---
 name: hamstik
-description: Use the official Hamstik CLI to inspect and manage Hamstik Organizations, Projects, Sprints, Work Items, comments, labels, links, attachments, users, and Public API v1 resources. Use for Hamstik work-tracking tasks; do not use it to call private Hamstik routes or reimplement API behavior.
+description: Use the official Hamstik CLI to inspect and manage Hamstik Organizations, Projects, Sprints, Work Items, Advanced Reports and Dashboards, comments, labels, links, attachments, users, and Public API v1 resources. Use for Hamstik work-tracking tasks; do not use it to call private Hamstik routes or reimplement API behavior.
 metadata:
   short-description: Manage Hamstik through its official CLI
-  skill-version: "0.2.0"
-  minimum-cli-version: "0.1.0"
+  skill-version: "0.3.0"
+  minimum-cli-version: "0.2.0"
 ---
 
 # Hamstik CLI
@@ -89,11 +89,15 @@ on unrelated profile defaults for a mutation.
 - Prefer `--json --no-input` for reads and structured automation.
 - For line-oriented collection pipelines, use `--jsonl --no-input` to receive
   one server-shaped JSON resource per line, or `--tsv --no-input` for escaped
-  tab-separated table rows. Use `--columns NAME...` to select/reorder human or
-  TSV columns and `--no-header` when a TSV consumer does not want the header.
-- Use `--jq EXPR` with `--json`, `--jsonl`, or `--tsv` to filter the full
-  server-shaped collection. In TSV mode, return an array for each desired row;
-  its elements become cells. Do not combine `--jq` with `--columns`.
+  tab-separated table rows. `--jsonl` carries no page envelope, so read
+  `page.nextCursor` from `--json`. Use `--columns NAME...` (space-separated) to
+  select/reorder human or TSV columns — a table feature that `--json`/`--jsonl`
+  rejects — and `--no-header` when a TSV consumer does not want the header.
+- Use `--jq EXPR` with `--json`, `--jsonl`, or `--tsv` to filter the command's
+  full server-shaped document. In `--json`, results are coalesced into one JSON
+  document; in `--jsonl` each result is one line; in TSV mode return an array
+  for each desired row and its elements become cells. Do not combine `--jq`
+  with `--columns`.
 - Use `--quiet --no-input` when only a newly created or changed resource identifier is
   needed. `--json`, `--jsonl`, `--tsv`, and `--quiet` are mutually exclusive.
 - Parse stdout only. Normal command diagnostics and structured errors go to stderr.
@@ -296,6 +300,34 @@ hamstik --json --no-input --org <ORG> --project <KEY> sprint report <SPRINT_ID>
   Pagination (`--limit`, `--cursor`/`--since-cursor`) applies to the report's
   `items` collection only and there is no `--all`; continue from
   `page.nextCursor` in the JSON.
+
+Advanced Reports and Dashboards are a separate Organization-scoped,
+capability-gated surface. Use the typed commands and preserve the server's
+plan/App/capability/scope errors; never infer entitlement or recompute results:
+
+```bash
+hamstik --json --no-input --org <ORG> report list --visibility all --all
+hamstik --json --no-input --org <ORG> report view <REPORT_ID>
+hamstik --json --no-input --org <ORG> report run <REPORT_ID>
+hamstik --json --no-input --org <ORG> dashboard list --visibility all --all
+hamstik --json --no-input --org <ORG> dashboard run <DASHBOARD_ID>
+```
+
+- Advanced Report definitions are complete Public API JSON documents. Create
+  with `report create --file <REPORT.json>` and replace with `report edit
+  <REPORT_ID> --file <REPORT.json>`; `-` reads stdin. Do not invent a reduced
+  schema or turn server report semantics into client-side flags.
+- `report edit` and `report delete` fetch and use the current ETag. On
+  `REVISION_CONFLICT`, re-read and reconcile; never add `--force` by default.
+- `report run` and `dashboard run` fetch the resource revision and submit
+  `expectedRevision` automatically. A Dashboard filter override is an
+  `AdvancedDashboardFilters` JSON document passed with `--filters-file`; it is
+  not a full run request.
+- Use `report selection-items <RUN_ID> <CELL_ID> --all --json` to page through
+  the captured Work Items behind a result cell. These are captured facts from
+  the server result, not a population the CLI may recalculate.
+- Dashboard create/edit/delete commands do not exist because the Public API
+  currently exposes only Dashboard list, view, and run.
 
 ## Work from a referenced Work Item
 

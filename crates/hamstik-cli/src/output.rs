@@ -57,6 +57,9 @@ pub struct OutputOptions {
 pub struct Output {
     mode: Mode,
     verbose: bool,
+    /// Compiled-on-demand `--jq` expression, applied to every structured
+    /// document this sink emits (single resources and collections alike).
+    jq: Option<String>,
     out: Box<dyn Write>,
     err: Box<dyn Write>,
 }
@@ -68,9 +71,17 @@ impl Output {
         Self {
             mode,
             verbose,
+            jq: None,
             out,
             err,
         }
+    }
+
+    /// Installs the `--jq` filter expression evaluated against structured
+    /// output. Callers must only install it in a structured mode; a filter that
+    /// is never installed leaves machine output byte-identical to the API.
+    pub fn set_jq(&mut self, expr: Option<String>) {
+        self.jq = expr;
     }
 
     /// The active output mode.
@@ -85,28 +96,55 @@ impl Output {
         self.mode == Mode::Json
     }
 
+    /// True when the mode emits machine-readable structured data on stdout,
+    /// so no command may fall back to human prose.
+    #[must_use]
+    pub fn is_structured(&self) -> bool {
+        self.mode.is_structured()
+    }
+
     /// True when only essential identifiers should be printed.
     #[must_use]
     pub fn is_quiet(&self) -> bool {
         self.mode == Mode::Quiet
     }
 
-    /// True when JSON Lines (one JSON object per line) should be emitted.
-    #[must_use]
-    pub fn is_jsonl(&self) -> bool {
-        self.mode == Mode::JsonLines
-    }
-
-    /// True when TSV (tab-separated values) should be emitted.
-    #[must_use]
-    pub fn is_tsv(&self) -> bool {
-        self.mode == Mode::Tsv
-    }
-
-    /// Writes a pretty-printed JSON value to stdout.
+    /// Writes a structured document to stdout for the active mode.
+    ///
+    /// * `--json` — one pretty-printed JSON document.
+    /// * `--jsonl` / `--tsv` — the same document as one compact JSON line. A
+    ///   single resource has no documented column set, so it is one TSV cell;
+    ///   compact JSON never contains a raw tab or newline, so the row stays
+    ///   one physical line.
+    ///
+    /// When a `--jq` expression is installed it is applied first, so no
+    /// structured command can silently ignore the filter.
     pub fn json(&mut self, value: &Value) -> io::Result<()> {
-        let rendered = serde_json::to_string_pretty(value).map_err(io::Error::other)?;
+        if let Some(expr) = self.jq.clone() {
+            let outputs = jq_outputs(value, &expr).map_err(jq_io_error)?;
+            return self.emit_jq_outputs(&outputs);
+        }
+        self.write_json_document(value)
+    }
+
+    /// Writes one JSON document without applying `--jq`.
+    fn write_json_document(&mut self, value: &Value) -> io::Result<()> {
+        let rendered = if matches!(self.mode, Mode::JsonLines | Mode::Tsv) {
+            serde_json::to_string(value)
+        } else {
+            serde_json::to_string_pretty(value)
+        }
+        .map_err(io::Error::other)?;
         writeln!(self.out, "{rendered}")
+    }
+
+    /// Renders the results of an applied `--jq` filter for the active mode.
+    fn emit_jq_outputs(&mut self, outputs: &[Value]) -> io::Result<()> {
+        match self.mode {
+            Mode::JsonLines => self.jsonl_records(outputs),
+            Mode::Tsv => self.emit_jq_tsv(outputs),
+            _ => self.write_json_document(&jq_single_value(outputs)),
+        }
     }
 
     /// Writes a human content line to stdout.
@@ -191,8 +229,10 @@ impl Output {
     /// by `--columns`. Every cell is escaped so a record is always exactly one
     /// line: `\`, tab, LF, and CR are backslash-escaped, any other control
     /// character becomes U+FFFD, and terminal color swatches are stripped
-    /// because machine output must never contain escape sequences. An empty
-    /// field means the value was null or absent.
+    /// because machine output must never contain escape sequences. TSV is the
+    /// command's table projection, so an absent value keeps the table's own
+    /// rendering (commonly `-`) and a cell the command never filled is the
+    /// empty string; use `--json`/`--jsonl` for raw server nulls.
     pub fn emit_tsv(
         &mut self,
         rows: &[Vec<String>],
@@ -211,10 +251,11 @@ impl Output {
             }
         }
         for row in rows {
+            // Positions are stable: a short row yields an empty cell rather
+            // than shifting its remaining values into earlier columns.
             let cells: Vec<String> = indices
                 .iter()
-                .filter_map(|&i| row.get(i))
-                .map(|cell| tsv_cell(cell).into_owned())
+                .map(|&i| tsv_cell(&column_at(row, i)).into_owned())
                 .collect();
             writeln!(self.out, "{}", cells.join("\t"))?;
         }
@@ -243,9 +284,9 @@ impl Output {
 
     /// Render a list collection according to the active mode and `options`.
     ///
-    /// `jq` holds the outputs of an applied `--jq` filter (see
-    /// [`crate::output::jq_outputs`]); it is `None` when no filter was given and
-    /// is only reachable in the machine modes that accept `--jq`.
+    /// An installed `--jq` filter (see [`crate::output::Output::set_jq`]) takes
+    /// over the machine modes: the filter, not the command table, defines the
+    /// emitted shape.
     ///
     /// * Human     — padded table, `--columns` projection, no header with
     ///   `--no-header`.
@@ -257,11 +298,16 @@ impl Output {
     pub fn render_list(
         &mut self,
         json_value: &Value,
-        jq: Option<&[Value]>,
         headers: &[&str],
         rows: &[Vec<String>],
         options: &OutputOptions,
     ) -> io::Result<()> {
+        if let Some(expr) = self.jq.clone() {
+            // The filter is evaluated against the same full collection value
+            // `--json` would emit, in every structured mode.
+            let outputs = jq_outputs(json_value, &expr).map_err(jq_io_error)?;
+            return self.emit_jq_outputs(&outputs);
+        }
         match self.mode {
             Mode::Human => {
                 let (filtered_headers, filtered_rows) =
@@ -272,10 +318,7 @@ impl Output {
                     self.table(&filtered_headers, &filtered_rows)
                 }
             }
-            Mode::Json => match jq {
-                Some(outputs) => self.json(&jq_single_value(outputs)),
-                None => self.json(json_value),
-            },
+            Mode::Json => self.write_json_document(json_value),
             Mode::Quiet => {
                 for row in rows {
                     if let Some(cell) = row.first() {
@@ -284,16 +327,15 @@ impl Output {
                 }
                 Ok(())
             }
-            Mode::JsonLines => match jq {
-                Some(outputs) => self.jsonl_records(outputs),
-                None => self.emit_jsonl(json_value),
-            },
-            Mode::Tsv => match jq {
-                Some(outputs) => self.emit_jq_tsv(outputs),
-                None => self.emit_tsv(rows, headers, options),
-            },
+            Mode::JsonLines => self.emit_jsonl(json_value),
+            Mode::Tsv => self.emit_tsv(rows, headers, options),
         }
     }
+}
+
+/// Maps a jq diagnostics string onto the I/O error shape the callers render.
+fn jq_io_error(message: String) -> io::Error {
+    io::Error::other(format!("--jq filter error: {message}"))
 }
 
 /// The collection array inside a list envelope, if the value holds one.
@@ -416,7 +458,15 @@ pub fn validate_columns(
             .position(|h| h.eq_ignore_ascii_case(name))
             .ok_or_else(|| {
                 let available = available.join(", ");
-                format!("unknown column {name:?}; available: {available}")
+                // Column names may contain spaces, so the separator is a space
+                // (or a repeated `--columns`); call that out for the common
+                // comma-typed attempt instead of only listing the names.
+                let separator_hint = if name.contains(',') {
+                    " separate columns with a space or repeat --columns;"
+                } else {
+                    ""
+                };
+                format!("unknown column {name:?};{separator_hint} available: {available}")
             })?;
         indices.push(idx);
     }
@@ -426,6 +476,12 @@ pub fn validate_columns(
 /// Every column index, in the command's documented order.
 fn all_columns(headers: &[&str]) -> Vec<usize> {
     (0..headers.len()).collect()
+}
+
+/// Selects one column, mapping a missing/short cell to the empty string so a
+/// row never shifts its remaining cells into earlier columns.
+fn column_at(values: &[String], index: usize) -> String {
+    values.get(index).cloned().unwrap_or_default()
 }
 
 fn resolve_columns(requested: &Option<Vec<String>>, headers: &[&str]) -> io::Result<Vec<usize>> {
@@ -445,33 +501,42 @@ fn apply_column_options<'a>(
         .collect();
     let filtered_rows: Vec<Vec<String>> = rows
         .iter()
-        .map(|row| {
-            indices
-                .iter()
-                .filter_map(|&i| row.get(i).cloned())
-                .collect()
-        })
+        .map(|row| indices.iter().map(|&i| column_at(row, i)).collect())
         .collect();
     Ok((filtered_headers, filtered_rows))
 }
 
-/// Applies a jq filter expression and returns each value it emits.
+/// Compiles a `--jq` expression without running it.
 ///
-/// The filter is compiled once per invocation; parse errors are reported with
-/// source location so the caller can surface an actionable message. Runtime
-/// errors are returned as well; a failed filter must never silently produce a
-/// partial result.
-pub fn jq_outputs(value: &Value, filter_expr: &str) -> Result<Vec<Value>, String> {
+/// Called during startup so an invalid expression is a usage error before any
+/// network call, rather than after a partial command has already run.
+pub fn validate_jq(filter_expr: &str) -> Result<(), String> {
+    compile_jq(filter_expr).map(|_| ())
+}
+
+fn compile_jq(filter_expr: &str) -> Result<jaq_all::data::Filter, String> {
     use jaq_all::{data, load};
 
-    let filter = jaq_all::compile_with(filter_expr, jaq_all::defs(), data::base_funs(), &[])
-        .map_err(|reports| {
+    jaq_all::compile_with(filter_expr, jaq_all::defs(), data::base_funs(), &[]).map_err(
+        |reports: Vec<load::FileReports>| {
             reports
                 .iter()
                 .map(|r| format!("{}", load::FileReportsDisp::new(r)))
                 .collect::<Vec<_>>()
                 .join("; ")
-        })?;
+        },
+    )
+}
+
+/// Applies a jq filter expression and returns each value it emits.
+///
+/// Parse errors are reported with source location so the caller can surface an
+/// actionable message. Runtime errors are returned as well; a failed filter
+/// must never silently produce a partial result.
+pub fn jq_outputs(value: &Value, filter_expr: &str) -> Result<Vec<Value>, String> {
+    use jaq_all::data;
+
+    let filter = compile_jq(filter_expr)?;
 
     // Convert serde_json::Value -> jaq_json::Val for filter execution.
     let val_input = value_to_jaq(value);

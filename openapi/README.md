@@ -9,7 +9,7 @@ testing.
 The authoritative runtime contract is always the live server document at:
 
 ```text
-https://www.hamstik.com/api/v1/openapi.json
+https://hamstik.com/api/v1/openapi.json
 ```
 
 Do not treat this snapshot as more authoritative than the server implementation. Additive

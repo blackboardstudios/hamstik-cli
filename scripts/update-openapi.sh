@@ -16,7 +16,7 @@ esac
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repository_root=$(CDPATH= cd -- "$script_dir/.." && pwd)
 snapshot="$repository_root/openapi/hamstik-v1.json"
-live_url="https://www.hamstik.com/api/v1/openapi.json"
+live_url="https://hamstik.com/api/v1/openapi.json"
 download=$(mktemp "${TMPDIR:-/tmp}/hamstik-openapi.XXXXXX")
 trap 'rm -f -- "$download"' EXIT HUP INT TERM
 

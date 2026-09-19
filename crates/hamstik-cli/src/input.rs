@@ -14,6 +14,7 @@
 use std::io::{self, BufRead, Read, Write};
 
 use secrecy::SecretString;
+use serde::de::DeserializeOwned;
 
 /// The largest token accepted from stdin or a prompt (4 KiB).
 pub const MAX_TOKEN_BYTES: usize = 4 * 1024;
@@ -160,6 +161,30 @@ pub fn resolve_text(
         Some(path) => read_capped(std::fs::File::open(path)?, MAX_TEXT_BYTES).map(Some),
         None => Ok(None),
     }
+}
+
+/// Reads and decodes one JSON document from a path or stdin (`-`).
+///
+/// The same 1 MiB cap as other structured/text inputs applies. JSON syntax and
+/// typed-shape failures are returned with their source so callers can present
+/// an actionable usage error without echoing the document.
+pub fn resolve_json<T: DeserializeOwned>(file: &str, stdin: &mut dyn Read) -> Result<T, String> {
+    let (source, text) = if file == "-" {
+        (
+            "stdin".to_string(),
+            read_capped(stdin, MAX_TEXT_BYTES)
+                .map_err(|err| format!("cannot read JSON from stdin: {err}"))?,
+        )
+    } else {
+        let handle = std::fs::File::open(file)
+            .map_err(|err| format!("cannot open JSON file {file}: {err}"))?;
+        (
+            file.to_string(),
+            read_capped(handle, MAX_TEXT_BYTES)
+                .map_err(|err| format!("cannot read JSON file {file}: {err}"))?,
+        )
+    };
+    serde_json::from_str(&text).map_err(|err| format!("invalid JSON in {source}: {err}"))
 }
 
 #[cfg(test)]

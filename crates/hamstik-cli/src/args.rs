@@ -119,6 +119,10 @@ pub enum Command {
     Org(OrgArgs),
     /// Work with projects.
     Project(ProjectArgs),
+    /// Work with saved Advanced Reports.
+    Report(AdvancedReportArgs),
+    /// View and run Advanced Dashboards.
+    Dashboard(AdvancedDashboardArgs),
     /// Work with sprints.
     Sprint(SprintArgs),
     /// Work with labels.
@@ -145,6 +149,117 @@ pub enum Command {
     Commands(CommandsArgs),
     /// Print the CLI version.
     Version,
+}
+
+/// Arguments for the `report` command group.
+#[derive(Args, Debug)]
+pub struct AdvancedReportArgs {
+    /// Advanced Report subcommand to run.
+    #[command(subcommand)]
+    pub command: AdvancedReportCommand,
+}
+
+/// Advanced Report subcommands.
+#[derive(Subcommand, Debug)]
+pub enum AdvancedReportCommand {
+    /// List Advanced Reports visible to the current user.
+    List {
+        /// Visibility to include.
+        #[arg(long, default_value = "all", value_parser = ["all", "personal", "organization"])]
+        visibility: String,
+        /// Pagination options.
+        #[command(flatten)]
+        pagination: PaginationArgs,
+    },
+    /// View one Advanced Report by UUID.
+    View {
+        /// Advanced Report UUID.
+        id: String,
+    },
+    /// Create an Advanced Report from a complete JSON definition.
+    Create {
+        /// JSON file containing an AdvancedReportInput (`-` for stdin).
+        #[arg(long, value_name = "PATH")]
+        file: String,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Replace an Advanced Report from a complete JSON definition.
+    Edit {
+        /// Advanced Report UUID.
+        id: String,
+        /// JSON file containing an AdvancedReportInput (`-` for stdin).
+        #[arg(long, value_name = "PATH")]
+        file: String,
+        /// Bypass optimistic-concurrency protection (`If-Match: *`).
+        #[arg(long)]
+        force: bool,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Delete an Advanced Report.
+    Delete {
+        /// Advanced Report UUID.
+        id: String,
+        /// Bypass optimistic-concurrency protection (`If-Match: *`).
+        #[arg(long)]
+        force: bool,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Evaluate an Advanced Report at its current revision.
+    Run {
+        /// Advanced Report UUID.
+        id: String,
+    },
+    /// List Work Items captured by one report-run result cell.
+    SelectionItems {
+        /// Advanced Report run UUID.
+        run_id: String,
+        /// Result cell UUID.
+        cell_id: String,
+        /// Pagination options.
+        #[command(flatten)]
+        pagination: PaginationArgs,
+    },
+}
+
+/// Arguments for the `dashboard` command group.
+#[derive(Args, Debug)]
+pub struct AdvancedDashboardArgs {
+    /// Advanced Dashboard subcommand to run.
+    #[command(subcommand)]
+    pub command: AdvancedDashboardCommand,
+}
+
+/// Advanced Dashboard subcommands.
+#[derive(Subcommand, Debug)]
+pub enum AdvancedDashboardCommand {
+    /// List Advanced Dashboards visible to the current user.
+    List {
+        /// Visibility to include.
+        #[arg(long, default_value = "all", value_parser = ["all", "personal", "organization"])]
+        visibility: String,
+        /// Pagination options.
+        #[command(flatten)]
+        pagination: PaginationArgs,
+    },
+    /// View one Advanced Dashboard by UUID.
+    View {
+        /// Advanced Dashboard UUID.
+        id: String,
+    },
+    /// Evaluate an Advanced Dashboard at its current revision.
+    Run {
+        /// Advanced Dashboard UUID.
+        id: String,
+        /// Optional JSON file containing AdvancedDashboardFilters (`-` for stdin).
+        #[arg(long = "filters-file", value_name = "PATH")]
+        filters_file: Option<String>,
+    },
 }
 
 /// Arguments for the `squeakql` command group.

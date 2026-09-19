@@ -805,6 +805,96 @@
         "cli"
       ],
       "status": "Complete"
+    },
+    {
+      "operationId": "listAdvancedReports",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports",
+      "client": "list_advanced_reports",
+      "cli": ["report list"],
+      "tests": ["advanced_reporting"],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createAdvancedReport",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports",
+      "client": "create_advanced_report",
+      "cli": ["report create"],
+      "tests": ["advanced_reporting"],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getAdvancedReport",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports/{reportId}",
+      "client": "get_advanced_report",
+      "cli": ["report view", "report edit", "report delete", "report run"],
+      "tests": ["advanced_reporting"],
+      "status": "Complete"
+    },
+    {
+      "operationId": "updateAdvancedReport",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports/{reportId}",
+      "client": "update_advanced_report",
+      "cli": ["report edit"],
+      "tests": ["advanced_reporting"],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteAdvancedReport",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports/{reportId}",
+      "client": "delete_advanced_report",
+      "cli": ["report delete"],
+      "tests": ["advanced_reporting"],
+      "status": "Complete"
+    },
+    {
+      "operationId": "runAdvancedReport",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports/{reportId}/runs",
+      "client": "run_advanced_report",
+      "cli": ["report run"],
+      "tests": ["advanced_reporting"],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listAdvancedSelectionItems",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-report-runs/{runId}/cells/{cellId}/items",
+      "client": "list_advanced_selection_items",
+      "cli": ["report selection-items"],
+      "tests": ["advanced_reporting"],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listAdvancedDashboards",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-dashboards",
+      "client": "list_advanced_dashboards",
+      "cli": ["dashboard list"],
+      "tests": ["advanced_reporting"],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getAdvancedDashboard",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-dashboards/{dashboardId}",
+      "client": "get_advanced_dashboard",
+      "cli": ["dashboard view", "dashboard run"],
+      "tests": ["advanced_reporting"],
+      "status": "Complete"
+    },
+    {
+      "operationId": "runAdvancedDashboard",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-dashboards/{dashboardId}/runs",
+      "client": "run_advanced_dashboard",
+      "cli": ["dashboard run"],
+      "tests": ["advanced_reporting"],
+      "status": "Complete"
     }
   ]
 }

@@ -1464,6 +1464,388 @@
    ]
   },
   {
+   "about": "Work with saved Advanced Reports",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik report",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List Advanced Reports visible to the current user",
+   "aliases": [],
+   "arguments": [
+    {
+     "choices": [
+      "all",
+      "personal",
+      "organization"
+     ],
+     "default": "all",
+     "help": "Visibility to include",
+     "kind": "option",
+     "long": "--visibility"
+    },
+    {
+     "help": "Maximum total items to emit, counted across pages (distinct from the server page size). Without `--all` at most one page is returned, holding at most this many items; a page is never requested larger than the endpoint allows (200 items, or 100 on organization, project, sprint, label, and link endpoints). With `--all` successive pages are followed until this cap or the end of the collection. A cap that cuts through a server page ends the run with `page.nextCursor: null`, because the Public API has no cursor for a position partway through a page",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque cursor returned by a preceding page; the result starts after it. `--since-cursor` is the pipeline-checkpoint spelling of the same option: resume an interrupted stream from the `page.nextCursor` a previous run reported. Cursors are opaque and are always forwarded verbatim",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik report list",
+   "hasSubcommands": false,
+   "options": [
+    "--visibility",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "View one Advanced Report by UUID",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Advanced Report UUID",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik report view",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Create an Advanced Report from a complete JSON definition",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "JSON file containing an AdvancedReportInput (`-` for stdin)",
+     "kind": "option",
+     "long": "--file"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik report create",
+   "hasSubcommands": false,
+   "options": [
+    "--file",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Replace an Advanced Report from a complete JSON definition",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Advanced Report UUID",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "JSON file containing an AdvancedReportInput (`-` for stdin)",
+     "kind": "option",
+     "long": "--file"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass optimistic-concurrency protection (`If-Match: *`)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik report edit",
+   "hasSubcommands": false,
+   "options": [
+    "--file",
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Delete an Advanced Report",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Advanced Report UUID",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass optimistic-concurrency protection (`If-Match: *`)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik report delete",
+   "hasSubcommands": false,
+   "options": [
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Evaluate an Advanced Report at its current revision",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Advanced Report UUID",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik report run",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "List Work Items captured by one report-run result cell",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Advanced Report run UUID",
+     "kind": "positional",
+     "name": "run_id",
+     "valueName": "RUN_ID"
+    },
+    {
+     "help": "Result cell UUID",
+     "kind": "positional",
+     "name": "cell_id",
+     "valueName": "CELL_ID"
+    },
+    {
+     "help": "Maximum total items to emit, counted across pages (distinct from the server page size). Without `--all` at most one page is returned, holding at most this many items; a page is never requested larger than the endpoint allows (200 items, or 100 on organization, project, sprint, label, and link endpoints). With `--all` successive pages are followed until this cap or the end of the collection. A cap that cuts through a server page ends the run with `page.nextCursor: null`, because the Public API has no cursor for a position partway through a page",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque cursor returned by a preceding page; the result starts after it. `--since-cursor` is the pipeline-checkpoint spelling of the same option: resume an interrupted stream from the `page.nextCursor` a previous run reported. Cursors are opaque and are always forwarded verbatim",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik report selection-items",
+   "hasSubcommands": false,
+   "options": [
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": [
+    "run_id",
+    "cell_id"
+   ]
+  },
+  {
+   "about": "View and run Advanced Dashboards",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik dashboard",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List Advanced Dashboards visible to the current user",
+   "aliases": [],
+   "arguments": [
+    {
+     "choices": [
+      "all",
+      "personal",
+      "organization"
+     ],
+     "default": "all",
+     "help": "Visibility to include",
+     "kind": "option",
+     "long": "--visibility"
+    },
+    {
+     "help": "Maximum total items to emit, counted across pages (distinct from the server page size). Without `--all` at most one page is returned, holding at most this many items; a page is never requested larger than the endpoint allows (200 items, or 100 on organization, project, sprint, label, and link endpoints). With `--all` successive pages are followed until this cap or the end of the collection. A cap that cuts through a server page ends the run with `page.nextCursor: null`, because the Public API has no cursor for a position partway through a page",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque cursor returned by a preceding page; the result starts after it. `--since-cursor` is the pipeline-checkpoint spelling of the same option: resume an interrupted stream from the `page.nextCursor` a previous run reported. Cursors are opaque and are always forwarded verbatim",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik dashboard list",
+   "hasSubcommands": false,
+   "options": [
+    "--visibility",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "View one Advanced Dashboard by UUID",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Advanced Dashboard UUID",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik dashboard view",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Evaluate an Advanced Dashboard at its current revision",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Advanced Dashboard UUID",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "Optional JSON file containing AdvancedDashboardFilters (`-` for stdin)",
+     "kind": "option",
+     "long": "--filters-file"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik dashboard run",
+   "hasSubcommands": false,
+   "options": [
+    "--filters-file"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
    "about": "Work with sprints",
    "aliases": [],
    "arguments": [],

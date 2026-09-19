@@ -511,7 +511,7 @@ pub async fn run(
         (None, _, _) => report.push(Check::skipped(
             "api.authentication",
             "authentication",
-            "no usable credential source",
+            "no usable credential source; no authenticated request was attempted",
         )),
         (Some(_), false, _) => report.push(Check::skipped(
             "api.authentication",
@@ -863,15 +863,14 @@ fn resolve_credentials(
         true,
         "persistent store is accessible",
     ));
-    report.fail(
+    report.push(Check::skipped(
         "credential.source",
         "credential source",
-        CliError::auth(format!(
-            "no stored credential for profile {:?}",
+        format!(
+            "profile {:?} is logged out (no stored credential); run `hamstik auth login` to enable authenticated checks",
             selection.profile.as_deref().unwrap_or_default()
-        )),
-        "Run `hamstik auth login` for the selected profile.",
-    );
+        ),
+    ));
     None
 }
 
@@ -1255,12 +1254,12 @@ async fn diagnose_context_resources(
         report.push(context_skipped(
             "context.organization",
             "organization",
-            format!("{org} selected but authentication did not succeed"),
+            format!("{org} selected but no authenticated session is available"),
         ));
         report.push(context_skipped(
             "context.project",
             "project",
-            "Organization could not be validated",
+            "Organization cannot be validated without authentication",
         ));
         return;
     }
@@ -1883,7 +1882,7 @@ mod tests {
     use super::*;
     use crate::app::{ApiFactory, ClientRequest, PublicClientRequest};
     use crate::context::{ResolvedField, Source};
-    use crate::credentials::CredentialError;
+    use crate::credentials::{CredentialError, MemoryCredentialStore};
     use crate::environment::MapEnvironment;
     use crate::input::Prompt;
     use std::io;
@@ -1977,6 +1976,31 @@ mod tests {
     }
 
     #[test]
+    fn logged_out_profile_is_a_non_failing_skipped_state() {
+        let mut report = Report::new();
+        let secret = resolve_credentials(
+            &MapEnvironment::new(),
+            &MemoryCredentialStore::new(),
+            &selection(),
+            true,
+            &mut report,
+        );
+
+        assert!(secret.is_none());
+        assert_eq!(report.exit_code, exit::SUCCESS);
+        assert!(
+            report.checks.iter().any(|check| {
+                check.id == "credential.store" && check.status == CheckStatus::Pass
+            })
+        );
+        assert!(report.checks.iter().any(|check| {
+            check.id == "credential.source"
+                && check.status == CheckStatus::Skipped
+                && check.detail.contains("is logged out")
+        }));
+    }
+
+    #[test]
     fn invalid_environment_token_produces_one_source_failure() {
         let env = MapEnvironment::new().with_var("HAMSTIK_TOKEN", " ");
         let mut report = Report::new();
@@ -1999,7 +2023,7 @@ mod tests {
             serde_json::from_str(include_str!("../../../../openapi/hamstik-v1.json")).unwrap();
         let compatibility = check_api_compatibility(&document).unwrap();
         assert_eq!(compatibility.additive_operations, 0);
-        assert!(compatibility.detail.contains("57 required operations"));
+        assert!(compatibility.detail.contains("67 required operations"));
     }
 
     #[test]

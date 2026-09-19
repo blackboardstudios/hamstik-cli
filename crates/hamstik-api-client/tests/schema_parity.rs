@@ -299,6 +299,8 @@ fn contract_still_documents_protected_wire_behaviors() {
         "transitionProjectSprint",
         "createWorkItemLabelAssignment",
         "deleteWorkItemLabelAssignment",
+        "updateAdvancedReport",
+        "deleteAdvancedReport",
     ] {
         let Some(operation) = operations.get(operation_id).copied() else {
             continue;
@@ -340,6 +342,9 @@ fn contract_still_documents_protected_wire_behaviors() {
         "archiveProject",
         "unarchiveProject",
         "transitionProjectSprint",
+        "createAdvancedReport",
+        "updateAdvancedReport",
+        "deleteAdvancedReport",
     ] {
         let Some(operation) = operations.get(operation_id).copied() else {
             continue;
@@ -354,6 +359,61 @@ fn contract_still_documents_protected_wire_behaviors() {
             "{operation_id} lost its Idempotency-Key header parameter"
         );
     }
+
+    // Advanced Reporting evaluations are read-like POSTs: the current
+    // revision is required in the JSON body and no idempotency header is
+    // documented. The CLI therefore GETs the current resource first and does
+    // not misclassify a run as a mutation.
+    for operation_id in ["runAdvancedReport", "runAdvancedDashboard"] {
+        let operation = operations
+            .get(operation_id)
+            .copied()
+            .unwrap_or_else(|| panic!("{operation_id} missing"));
+        let parameters = operation["parameters"].as_array().expect("parameters");
+        assert!(
+            parameters
+                .iter()
+                .all(|parameter| parameter["name"] != "Idempotency-Key"),
+            "{operation_id} unexpectedly gained an Idempotency-Key"
+        );
+        let schema = operation
+            .pointer("/requestBody/content/application~1json/schema/$ref")
+            .and_then(Value::as_str)
+            .expect("run request schema ref");
+        let request = resolve(document, schema.trim_start_matches('#'), operation_id);
+        assert!(
+            request["required"].as_array().is_some_and(
+                |required| required.contains(&Value::String("expectedRevision".into()))
+            ),
+            "{operation_id} must require expectedRevision"
+        );
+    }
+
+    for operation_id in ["listAdvancedReports", "listAdvancedDashboards"] {
+        let operation = operations
+            .get(operation_id)
+            .copied()
+            .unwrap_or_else(|| panic!("{operation_id} missing"));
+        let visibility = operation["parameters"]
+            .as_array()
+            .expect("parameters")
+            .iter()
+            .find(|parameter| parameter["name"] == "visibility")
+            .expect("visibility parameter");
+        assert_eq!(
+            visibility["schema"]["enum"],
+            json_array(&["all", "personal", "organization"])
+        );
+    }
+
+    assert_eq!(
+        schemas["AdvancedReportInput"]["additionalProperties"],
+        false
+    );
+    assert_eq!(
+        schemas["AdvancedDashboardRunRequest"]["additionalProperties"],
+        false
+    );
 
     // Multipart upload content type on attachment creation.
     let upload = operations

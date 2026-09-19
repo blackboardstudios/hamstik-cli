@@ -35,6 +35,17 @@ pub struct ListOptions {
     pub cursor: Option<String>,
 }
 
+/// Query options shared by the Advanced Report and Dashboard directories.
+#[derive(Debug, Clone, Default)]
+pub struct ListAdvancedOptions {
+    /// Maximum items per page (server-capped at 100).
+    pub limit: Option<u32>,
+    /// Opaque continuation cursor from a previous page's `nextCursor`.
+    pub cursor: Option<String>,
+    /// Visibility selector (`all`, `personal`, or `organization`).
+    pub visibility: Option<String>,
+}
+
 /// Query options for `GET .../projects` (which also filters by archive state).
 #[derive(Debug, Clone, Default)]
 pub struct ListProjectsOptions {
@@ -1816,6 +1827,290 @@ pub struct SprintReportFeedEntry {
     /// For a carryover, where the item went.
     #[serde(default)]
     pub destination: Option<SprintReportDestination>,
+}
+
+/// Complete input document for creating or replacing an Advanced Report.
+///
+/// The reporting dataset and visualization remain server-shaped JSON. Their
+/// semantics evolve independently of the CLI and are validated authoritatively
+/// by the Public API; the stable resource envelope stays typed here.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdvancedReportInput {
+    /// Advanced Report definition version (currently `1`).
+    pub version: u32,
+    /// Report name.
+    pub name: String,
+    /// Report description.
+    pub description: String,
+    /// Organization UUID embedded in the definition.
+    pub organization_id: String,
+    /// Visibility (`personal` or `organization`); omitted means `personal`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<String>,
+    /// Versioned dataset definition from the Public API contract.
+    pub dataset: Value,
+    /// Visualization definition from the Public API contract.
+    pub visualization: Value,
+}
+
+/// Create request for an Advanced Report.
+pub type CreateAdvancedReportRequest = AdvancedReportInput;
+/// Full replacement request for an Advanced Report.
+pub type UpdateAdvancedReportRequest = AdvancedReportInput;
+/// Authorized Advanced Report definition returned by the server.
+pub type AdvancedReportDefinition = AdvancedReportInput;
+
+/// Owner projection on Advanced Reporting resources.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdvancedOwner {
+    /// Immutable public user identifier.
+    pub public_id: String,
+}
+
+/// Server-calculated permissions on an Advanced Reporting resource.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdvancedPermissions {
+    /// Whether the caller may edit the resource.
+    pub edit: bool,
+    /// Whether the caller may delete the resource.
+    pub delete: bool,
+    /// Whether the caller may duplicate the resource.
+    pub duplicate: bool,
+}
+
+/// Advanced Report summary/detail resource.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdvancedReport {
+    /// Report UUID.
+    pub id: String,
+    /// Report name.
+    pub name: String,
+    /// Report description.
+    pub description: String,
+    /// Visibility (`personal` or `organization`).
+    pub visibility: String,
+    /// Owning user.
+    pub owner: AdvancedOwner,
+    /// Optimistic-concurrency revision.
+    pub revision: i64,
+    /// Creation timestamp.
+    pub created_at: String,
+    /// Last-update timestamp.
+    pub updated_at: String,
+    /// Source visibility (`complete`, `partial`, or `unavailable`).
+    pub source_availability: String,
+    /// Caller permissions calculated by the server.
+    pub permissions: AdvancedPermissions,
+    /// Authorized definition, or null when the caller cannot receive it.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub definition: Option<AdvancedReportDefinition>,
+}
+
+/// Advanced Report detail resource.
+pub type AdvancedReportDetail = AdvancedReport;
+/// Advanced Report list row.
+pub type AdvancedReportSummary = AdvancedReport;
+
+/// One page of Advanced Reports.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdvancedReportList {
+    /// Authorized reports in this page.
+    pub items: Vec<AdvancedReportSummary>,
+    /// Pagination metadata.
+    pub page: Page,
+}
+
+/// Request to evaluate a saved Advanced Report at its current revision.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdvancedReportRunRequest {
+    /// Revision the caller expects to evaluate.
+    pub expected_revision: i64,
+}
+
+/// Result of evaluating one saved Advanced Report.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdvancedReportRunResult {
+    /// Authorized definition that was evaluated.
+    pub definition: AdvancedReportDefinition,
+    /// Server-produced dataset, or null when unavailable.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub dataset: Option<Value>,
+    /// Server-produced presentation warning, or null.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub presentation_warning: Option<Value>,
+    /// Source visibility for this evaluation.
+    pub source_availability: String,
+    /// Optional explanatory server message.
+    #[serde(default)]
+    pub message: Option<String>,
+}
+
+/// Dashboard filter document.
+///
+/// Each filter group is server-shaped JSON, while unknown top-level groups are
+/// rejected to match the frozen Public API request contract.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdvancedDashboardFilters {
+    /// Project selection override.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub projects: Option<Value>,
+    /// Date-range override.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub date_range: Option<Value>,
+    /// Work Item filter override.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub work_items: Option<Value>,
+}
+
+/// Advanced Dashboard summary/detail resource.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdvancedDashboard {
+    /// Dashboard UUID.
+    pub id: String,
+    /// Dashboard name.
+    pub name: String,
+    /// Dashboard description.
+    pub description: String,
+    /// Visibility (`personal` or `organization`).
+    pub visibility: String,
+    /// Owning user.
+    pub owner: AdvancedOwner,
+    /// Optimistic-concurrency revision.
+    pub revision: i64,
+    /// Creation timestamp.
+    pub created_at: String,
+    /// Last-update timestamp.
+    pub updated_at: String,
+    /// Source visibility calculated by the server.
+    pub source_availability: String,
+    /// Caller permissions calculated by the server.
+    pub permissions: AdvancedPermissions,
+    /// Dashboard definition version (currently `1`).
+    pub version: u32,
+    /// Owning Organization UUID.
+    pub organization_id: String,
+    /// Default filters applied by the dashboard.
+    pub default_filters: AdvancedDashboardFilters,
+    /// Server-shaped dashboard widgets.
+    pub widgets: Vec<Value>,
+}
+
+/// Advanced Dashboard detail resource.
+pub type AdvancedDashboardDetail = AdvancedDashboard;
+/// Advanced Dashboard list row.
+pub type AdvancedDashboardSummary = AdvancedDashboard;
+
+/// One page of Advanced Dashboards.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdvancedDashboardList {
+    /// Authorized dashboards in this page.
+    pub items: Vec<AdvancedDashboardSummary>,
+    /// Pagination metadata.
+    pub page: Page,
+}
+
+/// Request to evaluate a saved Advanced Dashboard at its current revision.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdvancedDashboardRunRequest {
+    /// Revision the caller expects to evaluate.
+    pub expected_revision: i64,
+    /// Optional filter overrides.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filters: Option<AdvancedDashboardFilters>,
+}
+
+/// Result of evaluating one saved Advanced Dashboard.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdvancedDashboardRunResult {
+    /// Dashboard result version (currently `1`).
+    pub version: u32,
+    /// Evaluated Dashboard UUID.
+    pub dashboard_id: String,
+    /// Evaluated revision.
+    pub dashboard_revision: i64,
+    /// Evaluation timestamp.
+    pub evaluated_at: String,
+    /// Source visibility calculated by the server.
+    pub source_availability: String,
+    /// Effective filters applied to the run.
+    pub applied_filters: AdvancedDashboardFilters,
+    /// Server-shaped widget results.
+    pub widgets: Vec<Value>,
+}
+
+/// Project projection on an Advanced Report selection row.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdvancedSelectionProject {
+    /// Project key.
+    pub key: String,
+    /// Project name.
+    pub name: String,
+}
+
+/// One Work Item captured by an Advanced Report selection cell.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdvancedSelectionItem {
+    /// Work Item key.
+    pub key: String,
+    /// Project context.
+    pub project: AdvancedSelectionProject,
+    /// Work Item title.
+    pub title: String,
+    /// Captured status.
+    pub status: String,
+    /// Whether the item is archived.
+    pub archived: bool,
+    /// Whether the item is deleted.
+    pub deleted: bool,
+    /// Contribution captured for this result.
+    pub captured_contribution: f64,
+    /// Whether the source estimate was null.
+    pub estimate_was_null: bool,
+    /// Optional observation identifier.
+    #[serde(default)]
+    pub observation_key: Option<String>,
+    /// Optional observation kind.
+    #[serde(default)]
+    pub observation_kind: Option<String>,
+    /// Optional captured observation facts.
+    #[serde(default)]
+    pub captured_fact: Option<Value>,
+}
+
+/// One page of Work Items captured by an Advanced Report selection cell.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdvancedSelectionPage {
+    /// Evaluation timestamp.
+    pub evaluated_at: String,
+    /// Selection expiry timestamp.
+    pub expires_at: String,
+    /// Total items captured by the selection.
+    pub total_items: u64,
+    /// Captured aggregate value.
+    pub captured_value: f64,
+    /// Captured sample count.
+    pub sample_count: u64,
+    /// Sum of item contributions.
+    pub contribution_sum: f64,
+    /// Server aggregation identifier.
+    pub aggregation: String,
+    /// Server unit identifier.
+    pub unit: String,
+    /// Items in this page.
+    pub items: Vec<AdvancedSelectionItem>,
+    /// Pagination metadata.
+    pub page: Page,
 }
 
 #[cfg(test)]

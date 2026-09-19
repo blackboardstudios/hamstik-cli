@@ -384,22 +384,14 @@ impl Session<'_> {
             )
     }
 
-    /// Whether the JSON success envelope should echo the raw API body.
+    /// Whether a machine-readable document is expected on stdout.
+    ///
+    /// True for `--json`, `--jsonl`, and `--tsv`: every command that could emit
+    /// a JSON document must emit it (through [`crate::output::Output::json`],
+    /// which renders per mode) rather than fall back to human prose.
     #[must_use]
     pub fn json(&self) -> bool {
-        self.out.is_json()
-    }
-
-    /// Whether JSON Lines output is active.
-    #[must_use]
-    pub fn jsonl(&self) -> bool {
-        self.global.jsonl
-    }
-
-    /// Whether TSV output is active.
-    #[must_use]
-    pub fn tsv(&self) -> bool {
-        self.global.tsv
+        self.out.is_structured()
     }
 
     /// Output-mode options derived from global flags (columns, jq, etc.).
@@ -488,6 +480,26 @@ pub async fn run(cli: Cli, services: Services<'_>) -> i32 {
         let _ = out.error(&err);
         return err.exit_code();
     }
+    // Table projection is a table feature: in --json/--jsonl the server field
+    // set is the contract, and --quiet prints identifiers only. Reject the
+    // combination instead of silently ignoring what the caller asked for.
+    if (global.columns.is_some() || global.no_header)
+        && matches!(mode, Mode::Json | Mode::JsonLines | Mode::Quiet)
+    {
+        let err = CliError::usage("--columns/--no-header apply to human and --tsv table output");
+        let _ = out.error(&err);
+        return err.exit_code();
+    }
+    // Compile the filter up front: an invalid expression is a usage error that
+    // must fail before any network call, not after the command has run.
+    if let Some(expr) = global.jq.as_deref()
+        && let Err(message) = crate::output::validate_jq(expr)
+    {
+        let err = CliError::usage(format!("--jq filter error: {message}"));
+        let _ = out.error(&err);
+        return err.exit_code();
+    }
+    out.set_jq(global.jq.clone());
 
     let mut session = Session {
         out,

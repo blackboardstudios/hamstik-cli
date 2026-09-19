@@ -159,6 +159,9 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   non-secret defaults (editor, pager, output format, Git branch template);
 - organizations and projects — `hamstik org list|view|use` and
   `hamstik project list|view|create|edit|archive|unarchive|activity|report|use`;
+- Advanced Reporting — `hamstik report list|view|create|edit|delete|run|selection-items`
+  and `hamstik dashboard list|view|run`, including JSON definition/filter
+  files, cursor traversal, automatic revision reads, and report ETag protection;
 - member directory — `hamstik org members` and Organization-wide work via
   `hamstik org work` (`--mine` for the authenticated user);
 - user profiles — `hamstik user view|work|activity|avatar` for
@@ -263,6 +266,14 @@ hamstik sprint create --name "September" --goal "Ship v1" --target-points 40
 hamstik sprint transitions 11111111-1111-4111-8111-111111111111
 hamstik sprint transition 11111111-1111-4111-8111-111111111111 active
 
+# Advanced Reports and Dashboards (Organization context)
+hamstik --org acme report list --visibility organization --all
+hamstik --org acme report create --file report.json
+hamstik --org acme report run 11111111-1111-4111-8111-111111111111 --json
+hamstik --org acme dashboard list --all
+hamstik --org acme dashboard run 44444444-4444-4444-8444-444444444444 \
+  --filters-file dashboard-filters.json --json
+
 # Structured Work Item filters, Organization Work, and My Work
 hamstik work list --status todo --status in_progress --label-name api \
   --sprint none --top-level --sort dueDate --fields title,status,dueDate
@@ -334,6 +345,34 @@ Downloads always write binary data to a file. In `--json` mode stdout contains
 only JSON metadata (path, size, content type, and available response headers),
 never the binary payload. Diagnostics and structured failures go to stderr.
 
+### Advanced Reporting
+
+Advanced Reports and Dashboards are Organization-scoped, capability-gated
+Public API resources. A Premium plan, the enabled Advanced Reporting App,
+Organization membership, the corresponding Advanced capability, and suitable
+`report:read`/`report:write` PAT scopes are enforced by the server. The CLI
+preserves those error codes and never guesses entitlement locally.
+
+`report create` and `report edit` accept the complete `AdvancedReportInput`
+JSON document documented by the checked-in OpenAPI contract; `-` reads stdin.
+Edits and deletes fetch the current ETag unless `--force` explicitly requests
+`If-Match: *`. Runs fetch the current resource revision and supply
+`expectedRevision` automatically:
+
+```bash
+hamstik --org acme report create --file report.json --json
+hamstik --org acme report edit <REPORT_ID> --file report.json --json
+hamstik --org acme report run <REPORT_ID> --json
+hamstik --org acme report selection-items <RUN_ID> <CELL_ID> --all --json
+hamstik --org acme dashboard run <DASHBOARD_ID> \
+  --filters-file filters.json --json
+```
+
+The Public API currently exposes Dashboard reads and evaluations, not Dashboard
+create/edit/delete. Report and Dashboard results are emitted exactly as the
+server returns them; the CLI does not recompute datasets, selections, widgets,
+or aggregations.
+
 ## Dry-run previews
 
 Mutation commands accept a global `--dry-run` flag: the CLI resolves every
@@ -355,7 +394,7 @@ instead of sending anything.
   request is sent and no idempotency key is consumed.
 - For revision-protected operations (`work edit`, `work delete`,
   `work archive`/`unarchive`, `project edit`, `project archive`/`unarchive`,
-  `sprint transition`, `work label add|remove`), dry-run performs the safe
+  `sprint transition`, `work label add|remove`, `report edit|delete`), dry-run performs the safe
   ETag read and shows the resolved `If-Match` value. With `--force`, the
   preview shows `If-Match: *` (explicit last-write-wins) and makes zero
   network requests.
@@ -431,12 +470,19 @@ For automation:
   diagnostic report stays on stdout even when its exit code is nonzero;
 - collection commands support `--jsonl` for one compact, server-shaped resource
   per line and `--tsv` for escaped tab-separated table rows. TSV includes a
-  header by default; `--no-header` suppresses it;
-- `--columns NAME...` selects and orders human/TSV list columns by their printed
-  header names. `--jq EXPR` filters the full collection envelope in `--json`,
-  `--jsonl`, or `--tsv` mode; combine it with `--jsonl` for one jq result per
-  line or return arrays from the filter to define TSV cells. `--jq` and
-  `--columns` cannot be combined;
+  header by default; `--no-header` suppresses it. On a single-resource command
+  both modes emit the resource as one compact JSON line, and `--jsonl` carries
+  no page envelope — read pagination from `--json`;
+- `--columns NAME...` (space-separated) selects and orders the human/TSV table
+  columns by their printed header names; it applies to human and `--tsv` output
+  only, and an unknown name fails with the list of valid names;
+- `--jq EXPR` filters the structured document of any command — the full
+  collection envelope for list commands, the resource document otherwise — in
+  `--json`, `--jsonl`, or `--tsv` mode. `--json` coalesces the filter results
+  into one JSON document (`null` for none, the value for one, an array for
+  many), `--jsonl` writes one result per line, and `--tsv` writes one result per
+  row where an array becomes multiple cells. `--jq` and `--columns` cannot be
+  combined, and an invalid expression is rejected before any network call;
 - `--quiet` emits only the essential identifier or result;
 - `--no-input` disables prompts and `--no-retry` disables safe automatic
   retries;
@@ -462,6 +508,33 @@ For automation:
   collection with `--all`, because without `--all` only the single page that was
   returned is reordered;
 - `--json`, `--jsonl`, `--tsv`, and `--quiet` are mutually exclusive.
+
+Line-oriented pipelines choose the mode that matches the consumer:
+
+```bash
+# Spreadsheets: one header row, then one row per Work Item. Import the file as
+# tab-delimited text; a cell containing a tab, newline, or backslash carries the
+# literal escapes \t, \n, \r, and \\, so a record is always one physical line.
+hamstik work list --all --tsv --columns KEY TITLE STATUS ASSIGNEE --no-input > work.tsv
+
+# A processor that supplies its own column names wants no header row.
+hamstik work list --all --tsv --no-header --no-input | cut -f1
+
+# Every --jsonl line is one complete, server-shaped resource and nothing else
+# reaches stdout, so any line-oriented reader works.
+hamstik work list --all --jsonl --no-input | grep -c '"status"'
+
+# Embedded jq filters the command's own structured output: no external jq,
+# no shell-out, and one result per line when paired with --jsonl.
+hamstik work list --json --jq ".items[].key" --no-input
+hamstik work list --jsonl --jq ".items[].title" --no-input
+
+# The same reads through the external jq binary are equally valid, and the
+# resume checkpoint comes from the --json envelope -- which is why --jsonl
+# never prints pagination of its own.
+hamstik work list --all --json --no-input | jq -r ".items[].key"
+hamstik work list --all --json --no-input | jq -r ".page.nextCursor"
+```
 
 Stable process exit codes are:
 
@@ -536,7 +609,10 @@ selected profile and does not revoke the token server-side (the Public API has
 no PAT-revocation endpoint yet). Profile metadata is intentionally kept, so
 `hamstik auth list` still shows the profile after logout and `auth status`
 reports `no stored credential` until you log in again. Logging out twice is
-idempotent and reports `already logged out`.
+idempotent and reports `already logged out`. `hamstik doctor` treats that
+retained, logged-out profile as an expected skipped credential source rather
+than a failure; authenticated checks are skipped until the profile logs in
+again.
 
 To remove a profile entirely — credential *and* its `config.toml` entry — use
 `hamstik auth forget [PROFILE]` (the selected profile when no name is given).
@@ -620,6 +696,12 @@ per-check latency (`durationMs`). Independent checks continue after a failure;
 dependent checks are marked `skip`. The first blocking root cause determines
 the stable process exit code. Additive Public API operations produce a warning,
 while a missing or moved operation required by this CLI is an API compatibility
+failure.
+
+A selected profile with no stored credential is an intentional logged-out
+state: credential, authentication, Organization, and Project checks that need a
+PAT are reported as `skip`, not `FAIL`. An inaccessible credential store, an
+invalid explicit `HAMSTIK_TOKEN`, or a rejected stored credential remains a
 failure.
 
 `hamstik doctor --json` adds stable check IDs, explicit

@@ -1,0 +1,22 @@
+.TH HAMSTIK 1 "HAMSTIK REPORT EDIT"
+.SH NAME
+hamstik report edit \- Replace an Advanced Report from a complete JSON definition
+.SH SYNOPSIS
+.B hamstik report edit [OPTIONS]
+.SH DESCRIPTION
+Replace an Advanced Report from a complete JSON definition
+.SH ARGUMENTS
+.TP
+.I ID
+Advanced Report UUID
+.SH OPTIONS
+.TP
+.B --file
+JSON file containing an AdvancedReportInput (`-` for stdin)
+.TP
+.B --force
+Bypass optimistic-concurrency protection (`If-Match: *`)
+Choices: true, false
+.TP
+.B --idempotency-key
+Explicit idempotency key
