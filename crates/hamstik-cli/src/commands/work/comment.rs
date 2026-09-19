@@ -5,7 +5,9 @@
 
 use serde_json::{Value, json};
 
-use hamstik_api_client::{CreateCommentRequest, ListOptions, UpdateCommentRequest};
+use hamstik_api_client::{
+    CreateCommentRequest, ListOptions, PageItems, UpdateCommentRequest, follow_with,
+};
 
 use crate::app::Session;
 use crate::args::{CommentArgs, CommentCommand};
@@ -16,6 +18,7 @@ use super::dryrun;
 use super::emit_json;
 use super::emit_table;
 use super::emit_view;
+use super::follow_policy;
 pub(super) async fn comment(session: &mut Session<'_>, args: &CommentArgs) -> Result<(), CliError> {
     match &args.command {
         CommentCommand::List {
@@ -27,29 +30,50 @@ pub(super) async fn comment(session: &mut Session<'_>, args: &CommentArgs) -> Re
             let org = session.require_org(&selection)?;
             let project = session.require_project(&selection)?;
             let api = session.api(&selection)?;
-            let response = api
-                .list_comments(
-                    &org,
-                    &project,
-                    key,
-                    ListOptions {
-                        limit: pagination.limit,
-                        cursor: pagination.cursor.clone(),
-                    },
-                )
+            let base = ListOptions {
+                limit: pagination.page_size(),
+                cursor: pagination.cursor.clone(),
+            };
+            let (comments, json_value) = if pagination.all {
+                let fetch_api = api.clone();
+                let org = org.clone();
+                let project = project.clone();
+                let key = key.clone();
+                let page = follow_with(follow_policy(pagination), move |cursor| {
+                    let fetch_api = fetch_api.clone();
+                    let org = org.clone();
+                    let project = project.clone();
+                    let key = key.clone();
+                    let mut opts = base.clone();
+                    opts.cursor = cursor;
+                    async move {
+                        let response = fetch_api.list_comments(&org, &project, &key, opts).await?;
+                        Ok(PageItems::new(
+                            response.value.items,
+                            &response.raw,
+                            response.value.page,
+                        ))
+                    }
+                })
                 .await
                 .map_err(CliError::from_client)?;
+                let json_value = json!({ "items": page.raw_items, "page": page.page });
+                (page.items, json_value)
+            } else {
+                let response = api
+                    .list_comments(&org, &project, key, base)
+                    .await
+                    .map_err(CliError::from_client)?;
+                (response.value.items, response.raw)
+            };
             // Soft-deleted comments stay in the thread to preserve reply
             // structure; `--exclude-deleted` filters them from the rendering.
+            // The filter runs after `--limit`, which counts what the API
+            // returned rather than what survives the filter.
             let items: Vec<_> = if *exclude_deleted {
-                response
-                    .value
-                    .items
-                    .iter()
-                    .filter(|comment| !comment.deleted)
-                    .collect()
+                comments.iter().filter(|comment| !comment.deleted).collect()
             } else {
-                response.value.items.iter().collect()
+                comments.iter().collect()
             };
             let rows: Vec<Vec<String>> = items
                 .iter()
@@ -69,7 +93,7 @@ pub(super) async fn comment(session: &mut Session<'_>, args: &CommentArgs) -> Re
                 .collect();
             emit_table(
                 session,
-                &response.raw,
+                &json_value,
                 &["ID", "PARENT", "AUTHOR", "CREATED", "BODY"],
                 &rows,
             )

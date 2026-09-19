@@ -16,6 +16,7 @@ use crate::error::CliError;
 
 use super::ensure_profile_for_default;
 use super::work::apply_filters as apply_work_filters;
+use super::work::sort::apply_sort;
 use super::{emit_json, emit_table, emit_view, follow_policy};
 
 /// Runs the `org` subcommands.
@@ -232,7 +233,7 @@ async fn work(session: &mut Session<'_>, args: &OrgWorkListArgs) -> Result<(), C
     apply_work_filters(&mut query, &args.filters);
     query.projects = args.project.clone();
 
-    let json_value: Value = if args.pagination.all {
+    let mut json_value: Value = if args.pagination.all {
         let fetch_api = api.clone();
         let org = org.clone();
         let base = query.clone();
@@ -260,6 +261,10 @@ async fn work(session: &mut Session<'_>, args: &OrgWorkListArgs) -> Result<(), C
             .map_err(CliError::from_client)?;
         response.raw
     };
+    // `--sort KEY:DIR` carries the direction the REST parameter cannot.
+    if let Some(sort) = args.filters.sort {
+        apply_sort(&mut json_value, sort);
+    }
     let color = session.color_enabled();
     let truecolor = session.truecolor_enabled();
     let rows: Vec<Vec<String>> = json_value

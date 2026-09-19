@@ -14,6 +14,9 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
 const WORK_ITEMS: &str = "/api/v1/organizations/acme/projects/HAM/work-items";
+const ORG_WORK_ITEMS: &str = "/api/v1/organizations/acme/work-items";
+const COMMENTS: &str = "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1/comments";
+const ATTACHMENTS: &str = "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1/attachments";
 
 fn base(server: &MockServer, dir: &TempDir) -> Command {
     let mut cmd = Command::cargo_bin("hamstik").expect("hamstik binary");
@@ -44,6 +47,14 @@ fn item(key: &str, priority: &str, due_date: Option<&str>) -> Value {
 /// Serves one fixture page per cursor. The empty cursor names the first page,
 /// so a fixture set also asserts which cursor the CLI chose to start from.
 async fn mount_pages(server: &MockServer, pages: Vec<(&str, Vec<Value>, bool, Option<&str>)>) {
+    mount_pages_at(server, WORK_ITEMS, pages).await;
+}
+
+async fn mount_pages_at(
+    server: &MockServer,
+    endpoint: &str,
+    pages: Vec<(&str, Vec<Value>, bool, Option<&str>)>,
+) {
     let table: Vec<(String, Vec<Value>, bool, Option<String>)> = pages
         .into_iter()
         .map(|(cursor, items, has_more, next)| {
@@ -56,7 +67,7 @@ async fn mount_pages(server: &MockServer, pages: Vec<(&str, Vec<Value>, bool, Op
         })
         .collect();
     Mock::given(method("GET"))
-        .and(path(WORK_ITEMS))
+        .and(path(endpoint))
         .respond_with(move |request: &Request| {
             let cursor = request
                 .url
@@ -87,6 +98,15 @@ fn query_of(request: &Request, name: &str) -> Option<String> {
 
 fn stdout_json(output: &std::process::Output) -> Value {
     serde_json::from_slice(&output.stdout).unwrap()
+}
+
+fn ids_of(body: &Value) -> Vec<String> {
+    body["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item["id"].as_str().unwrap_or_default().to_string())
+        .collect()
 }
 
 fn keys(body: &Value) -> Vec<String> {
@@ -410,7 +430,16 @@ async fn sort_ties_break_on_the_work_item_key() {
     // The human-readable table lists the same order as --json.
     let dir = TempDir::new().unwrap();
     let table = base(&server, &dir)
-        .args(["--org", "acme", "--project", "HAM", "work", "list"])
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "work",
+            "list",
+            "--sort",
+            "updated",
+        ])
         .output()
         .unwrap();
     let table_text = String::from_utf8_lossy(&table.stdout);
@@ -419,7 +448,135 @@ async fn sort_ties_break_on_the_work_item_key() {
         .filter(|line| line.contains("HAM-"))
         .map(|line| line.split_whitespace().next().unwrap_or_default())
         .collect();
-    assert_eq!(rows, vec!["HAM-3", "HAM-1", "HAM-2"]);
+    assert_eq!(rows, vec!["HAM-1", "HAM-2", "HAM-3"]);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn every_work_collection_shares_the_sort_direction() {
+    // `org work` builds its query through the same filters, so a direction is
+    // honored there too instead of being dropped on the way to the API.
+    let server = MockServer::start().await;
+    let context = |key: &str, due: &str| {
+        json!({
+            "id": format!("id-{key}"), "key": key, "revision": 1, "title": format!("T {key}"),
+            "status": "todo", "priority": "low", "dueDate": format!("{due}T00:00:00Z"),
+            "project": {"id": "p", "key": "HAM", "name": "Ham", "color": "#000000"},
+            "organization": {"id": "o", "slug": "acme", "name": "Acme"}
+        })
+    };
+    mount_pages_at(
+        &server,
+        ORG_WORK_ITEMS,
+        vec![(
+            "",
+            vec![
+                context("HAM-3", "2026-01-01"),
+                context("HAM-1", "2026-03-01"),
+                context("HAM-2", "2026-02-01"),
+            ],
+            false,
+            None,
+        )],
+    )
+    .await;
+
+    let output = run(
+        &server,
+        &["org", "work", "--sort", "dueDate:desc", "--json"],
+    )
+    .await;
+    assert_eq!(keys(&stdout_json(&output)), vec!["HAM-1", "HAM-2", "HAM-3"]);
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(
+        query_of(&requests[0], "sort").as_deref(),
+        Some("dueDate"),
+        "only the documented key goes on the wire"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn comment_and_attachment_lists_share_the_pipeline_flags() {
+    // These two lists were the last commands still treating `--limit` as the
+    // transport page size; they now page, resume, and cap like the rest.
+    let server = MockServer::start().await;
+    let comment = |id: &str| {
+        json!({
+            "id": id, "workItemId": "w1", "parentCommentId": null,
+            "author": {"id": "u1", "name": "Steven"}, "body": format!("body {id}"),
+            "deleted": false, "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-01T00:00:00Z", "editedAt": null
+        })
+    };
+    mount_pages_at(
+        &server,
+        COMMENTS,
+        vec![
+            ("", vec![comment("c1")], true, Some("c2")),
+            ("c2", vec![comment("c2")], true, Some("c3")),
+            ("c3", vec![comment("c3")], false, None),
+        ],
+    )
+    .await;
+
+    let output = run(
+        &server,
+        &[
+            "work", "comment", "list", "HAM-1", "--all", "--limit", "2", "--json",
+        ],
+    )
+    .await;
+    let body = stdout_json(&output);
+    assert_eq!(
+        ids_of(&body),
+        vec!["c1", "c2"],
+        "--limit caps every list command"
+    );
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 2, "--all walks the cursors");
+
+    // A cap larger than the endpoint page maximum is never sent as-is.
+    let server = MockServer::start().await;
+    mount_pages_at(
+        &server,
+        COMMENTS,
+        vec![("", vec![comment("c1")], false, None)],
+    )
+    .await;
+    run(
+        &server,
+        &[
+            "work", "comment", "list", "HAM-1", "--limit", "250", "--json",
+        ],
+    )
+    .await;
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(query_of(&requests[0], "limit").as_deref(), Some("200"));
+
+    // Attachments behave the same way.
+    let server = MockServer::start().await;
+    let attachment = |id: &str| {
+        json!({
+            "id": id, "workItemId": "w1", "fileName": format!("{id}.txt"),
+            "contentType": "text/plain", "size": 4,
+            "createdBy": {"id": "u1", "name": "Steven"},
+            "createdAt": "2026-01-01T00:00:00Z"
+        })
+    };
+    mount_pages_at(
+        &server,
+        ATTACHMENTS,
+        vec![
+            ("", vec![attachment("a1")], true, Some("a2")),
+            ("a2", vec![attachment("a2")], false, None),
+        ],
+    )
+    .await;
+    let output = run(
+        &server,
+        &["work", "attachment", "list", "HAM-1", "--all", "--json"],
+    )
+    .await;
+    assert_eq!(ids_of(&stdout_json(&output)), vec!["a1", "a2"]);
 }
 
 #[test]

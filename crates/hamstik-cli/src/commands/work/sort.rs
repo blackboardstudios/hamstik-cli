@@ -17,9 +17,11 @@
 //!   byte-stable across runs.
 //!
 //! `rank` is a server-computed composite with no comparable field, so
-//! `--sort rank:desc` reverses the fetched pages instead of re-deriving rank
-//! client-side. Reordering is never attempted against items the CLI did not
-//! fetch: it is applied to the bounded result only.
+//! `--sort rank:asc` keeps the server order and `--sort rank:desc` reverses the
+//! fetched result instead of re-deriving rank client-side. Reordering is never
+//! attempted against items the CLI did not fetch: it is applied to the bounded
+//! result only, so a direction spanning a whole collection is paired with
+//! `--all`.
 
 use std::cmp::Ordering;
 
@@ -43,24 +45,30 @@ pub(crate) fn apply_sort(payload: &mut Value, sort: SortArg) {
     }
 
     match (sort.key(), sort.dir()) {
-        // Rank has no client-side representation: reverse the server order.
-        (SortKeyArg::Rank, Some(_)) => {
-            items.reverse();
-        }
-        (SortKeyArg::Rank, None) => {}
+        // Rank has no client-side representation: the server order is already
+        // ascending, so only a descending request reorders anything.
+        (SortKeyArg::Rank, Some(SortDirArg::Desc)) => items.reverse(),
+        (SortKeyArg::Rank, _) => {}
         (key, None) => {
-            items.sort_by(|left, right| {
-                if primary(key, left) == primary(key, right) {
-                    tie_break(left, right)
-                } else {
-                    Ordering::Equal
+            // Stabilize ties without disturbing the server order. Comparing
+            // only equal primaries would not be a total order (unequal values
+            // would compare `Equal`), so each maximal run of equally-valued
+            // items is sorted on its own.
+            let mut start = 0usize;
+            while start < items.len() {
+                let value = primary(key, &items[start]);
+                let mut end = start + 1;
+                while end < items.len() && primary(key, &items[end]) == value {
+                    end += 1;
                 }
-            });
+                items[start..end].sort_by(tie_break);
+                start = end;
+            }
         }
         (key, Some(dir)) => {
-            items.sort_by(
-                |left, right| match (primary(key, left), primary(key, right)) {
-                    (None, None) => tie_break(left, right),
+            items.sort_by(|left, right| {
+                let by_value = match (primary(key, left), primary(key, right)) {
+                    (None, None) => Ordering::Equal,
                     // Missing sort values stay last whichever way the key runs.
                     (None, Some(_)) => Ordering::Greater,
                     (Some(_), None) => Ordering::Less,
@@ -68,8 +76,9 @@ pub(crate) fn apply_sort(payload: &mut Value, sort: SortArg) {
                         SortDirArg::Asc => left.cmp(&right),
                         SortDirArg::Desc => right.cmp(&left),
                     },
-                },
-            );
+                };
+                by_value.then_with(|| tie_break(left, right))
+            });
         }
     }
 }
@@ -205,10 +214,48 @@ mod tests {
     }
 
     #[test]
-    fn rank_reverses_the_server_order() {
-        let mut payload = json!({ "items": [{ "key": "A" }, { "key": "B" }, { "key": "C" }] });
-        apply_sort(&mut payload, SortArg::parse("rank:desc").unwrap());
-        assert_eq!(keys(&payload), vec!["C", "B", "A"]);
+    fn rank_reverses_the_server_order_only_when_descending() {
+        let build = |spec: &str| {
+            let mut payload = json!({ "items": [{ "key": "A" }, { "key": "B" }, { "key": "C" }] });
+            apply_sort(&mut payload, SortArg::parse(spec).unwrap());
+            keys(&payload)
+        };
+        // The server's rank order is the ascending order, so `rank` and
+        // `rank:asc` must both leave it untouched.
+        assert_eq!(build("rank"), vec!["A", "B", "C"]);
+        assert_eq!(build("rank:asc"), vec!["A", "B", "C"]);
+        assert_eq!(build("rank:desc"), vec!["C", "B", "A"]);
+    }
+
+    #[test]
+    fn direction_breaks_value_ties_on_the_key() {
+        // Equal sort values must not fall back to whatever order the server
+        // returned: that is what makes a repeated query byte-identical.
+        let mut payload = json!({
+            "items": [
+                { "key": "HAM-2", "dueDate": "2026-01-01" },
+                { "key": "HAM-1", "dueDate": "2026-01-01" },
+                { "key": "HAM-3", "dueDate": "2026-02-01" }
+            ]
+        });
+        apply_sort(&mut payload, SortArg::parse("dueDate:desc").unwrap());
+        assert_eq!(keys(&payload), vec!["HAM-3", "HAM-1", "HAM-2"]);
+    }
+
+    #[test]
+    fn non_adjacent_ties_keep_their_server_positions_without_a_direction() {
+        // Only runs of equally-valued items are reordered: distinct server
+        // values never move, so the emitted order still follows the server and
+        // never becomes a client-side re-sort of the whole page.
+        let mut payload = json!({
+            "items": [
+                { "key": "HAM-2", "updatedAt": "2026-03-01T00:00:00Z" },
+                { "key": "HAM-9", "updatedAt": "2026-02-01T00:00:00Z" },
+                { "key": "HAM-1", "updatedAt": "2026-03-01T00:00:00Z" }
+            ]
+        });
+        apply_sort(&mut payload, SortArg::parse("updated").unwrap());
+        assert_eq!(keys(&payload), vec!["HAM-2", "HAM-9", "HAM-1"]);
     }
 
     #[test]

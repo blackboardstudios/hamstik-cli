@@ -448,8 +448,11 @@ For automation:
   for a position inside a page;
 - `--sort KEY[:DIR]` orders by `updated`, `dueDate`, `priority`, or `rank` with
   an optional `:asc`/`:desc` direction. Ties always break on the Work Item key,
-  so the same query repeats byte for byte; `rank:desc` reverses the server's
-  rank order;
+  so the same query repeats byte for byte; `rank` and `rank:asc` keep the
+  server's rank order and `rank:desc` reverses it. The REST `sort` parameter has
+  no direction, so the CLI applies it to the result it fetched: order a whole
+  collection with `--all`, because without `--all` only the single page that was
+  returned is reordered;
 - `--json` and `--quiet` are mutually exclusive.
 
 Stable process exit codes are:

@@ -17,8 +17,9 @@ before upgrading.
   is `min(limit, endpoint maximum)`: 200 items by default, 100 on the
   organization, project, sprint, label, and link endpoints the contract caps
   lower). A cap larger than one page — which was previously sent as an oversized
-  page and rejected by the API with a 400 — is now met by paging, and
-  `--all --limit N` stops at exactly `N` items. When a cap cuts through a
+  page and rejected by the API with a 400 — is now clamped to that maximum: with
+  `--all` the cap is met by paging and `--all --limit N` stops at exactly `N`
+  items, without `--all` a single page is returned. When a cap cuts through a
   server page the result reports `page.nextCursor: null` with
   `page.hasMore: true`, because the Public API has no cursor for a position
   inside a page. (CLI-58)
@@ -32,8 +33,13 @@ before upgrading.
   gaps (within the server's own ordering consistency); `--sort` accepts an
   explicit direction (`--sort dueDate:desc`, `--sort priority:asc`) for the
   documented keys `updated`, `dueDate`, `priority`, and `rank`, and the CLI
-  breaks ties on the Work Item key so a repeated query is byte-identical.
-  Unknown keys and directions are usage errors.
+  breaks ties on the Work Item key in both directions so a repeated query is
+  byte-identical. The REST `sort` parameter carries no direction, so the CLI
+  orders the result it fetched — pair a direction with `--all` to order a whole
+  collection — and `rank`/`rank:asc` keep the server order while `rank:desc`
+  reverses it. Unknown keys and directions are usage errors. `work comment list`
+  and `work attachment list` honor the same three flags instead of treating
+  `--limit` as a page size.
 
 - `hamstik work view` now accepts multiple keys and a `--file` flag (`-` for
   stdin) for batch lookups, up to 500 keys per invocation. A single key keeps

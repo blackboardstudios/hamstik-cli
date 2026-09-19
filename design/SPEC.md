@@ -1096,11 +1096,13 @@ Resume and ordering guarantees:
 - `--sort KEY[:DIR]` sends the documented key (`updated`, `dueDate`,
   `priority`, `rank`) and applies the direction the REST parameter does not
   carry. The CLI then makes the ordering of the fetched, bounded result total
-  by breaking ties on `key` and then `id`, which is what makes repeated
-  invocations byte-identical; without a direction the server order is kept and
-  only ties are stabilized. `rank` has no client-side representation, so
-  `rank:desc` reverses the fetched order. Ordering is never applied to items
-  the CLI did not fetch.
+  by breaking ties on `key` and then `id` — in both directions — which is what
+  makes repeated invocations byte-identical; without a direction the server
+  order is kept and only adjacent ties are stabilized. `rank` has no client-side
+  representation, so `rank` and `rank:asc` keep the server order and `rank:desc`
+  reverses the fetched order. Ordering is never applied to items the CLI did not
+  fetch: a direction that must span a whole collection is paired with `--all`
+  (a single page is only reordered within itself).
 
 Convenience:
 

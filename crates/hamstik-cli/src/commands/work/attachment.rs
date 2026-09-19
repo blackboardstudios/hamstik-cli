@@ -5,7 +5,7 @@
 
 use serde_json::json;
 
-use hamstik_api_client::ListOptions;
+use hamstik_api_client::{ListOptions, PageItems, follow_with};
 
 use crate::app::Session;
 use crate::args::{WorkAttachmentArgs, WorkAttachmentCommand};
@@ -16,6 +16,7 @@ use super::dryrun;
 use super::emit_json;
 use super::emit_table;
 use super::emit_view;
+use super::follow_policy;
 use super::render_lines;
 pub(super) async fn attachment(
     session: &mut Session<'_>,
@@ -27,21 +28,45 @@ pub(super) async fn attachment(
             let org = session.require_org(&selection)?;
             let project = session.require_project(&selection)?;
             let api = session.api(&selection)?;
-            let response = api
-                .list_attachments(
-                    &org,
-                    &project,
-                    key,
-                    ListOptions {
-                        limit: pagination.limit,
-                        cursor: pagination.cursor.clone(),
-                    },
-                )
+            let base = ListOptions {
+                limit: pagination.page_size(),
+                cursor: pagination.cursor.clone(),
+            };
+            let (attachments, json_value) = if pagination.all {
+                let fetch_api = api.clone();
+                let org = org.clone();
+                let project = project.clone();
+                let key = key.clone();
+                let page = follow_with(follow_policy(pagination), move |cursor| {
+                    let fetch_api = fetch_api.clone();
+                    let org = org.clone();
+                    let project = project.clone();
+                    let key = key.clone();
+                    let mut opts = base.clone();
+                    opts.cursor = cursor;
+                    async move {
+                        let response = fetch_api
+                            .list_attachments(&org, &project, &key, opts)
+                            .await?;
+                        Ok(PageItems::new(
+                            response.value.items,
+                            &response.raw,
+                            response.value.page,
+                        ))
+                    }
+                })
                 .await
                 .map_err(CliError::from_client)?;
-            let rows: Vec<Vec<String>> = response
-                .value
-                .items
+                let json_value = json!({ "items": page.raw_items, "page": page.page });
+                (page.items, json_value)
+            } else {
+                let response = api
+                    .list_attachments(&org, &project, key, base)
+                    .await
+                    .map_err(CliError::from_client)?;
+                (response.value.items, response.raw)
+            };
+            let rows: Vec<Vec<String>> = attachments
                 .iter()
                 .map(|a| {
                     vec![
@@ -59,7 +84,7 @@ pub(super) async fn attachment(
                 .collect();
             emit_table(
                 session,
-                &response.raw,
+                &json_value,
                 &["ID", "FILE", "TYPE", "SIZE", "BY", "CREATED"],
                 &rows,
             )

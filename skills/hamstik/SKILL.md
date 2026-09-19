@@ -104,7 +104,10 @@ on unrelated profile defaults for a mutation.
   with a smaller cap or `--all` from the last complete checkpoint.
 - Make ordering deterministic with `--sort KEY[:DIR]` (`updated`, `dueDate`,
   `priority`, `rank`; optional `:asc`/`:desc`). Ties break on the Work Item key, so
-  repeated runs of the same query produce identical output.
+  repeated runs of the same query produce identical output. The REST `sort`
+  parameter carries no direction, so the CLI orders the result it fetched: use
+  `--all` when the order must span the whole collection, because without it only
+  the returned page is reordered.
 - Keep binary downloads out of ordinary formatted or JSON stdout; use `--output`.
 - Before a risky mutation, preview it with the global `--dry-run` flag (mutation
   commands only). The preview resolves identifiers and validates local input exactly
