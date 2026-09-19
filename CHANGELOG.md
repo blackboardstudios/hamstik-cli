@@ -26,6 +26,33 @@ before upgrading.
 
 ### Added
 
+- Typed server report commands (CLI-63): `hamstik project report <type>` wraps
+  `GET /projects/{key}/reports/{type}` (for example `velocity`,
+  `cumulative-flow`, `ageing-wip`, `epic-progress`) and `hamstik sprint report
+  <id>` wraps `GET /sprints/{id}/report`, so reports no longer require raw
+  `hamstik api request` calls. Human output renders the report rows as a table
+  and the Sprint burndown as a scaled bar per sample (with the ideal line
+  marked), plus commitment, completion, scope changes, carryover, status
+  distribution, the change feed, and any server-reported limitations. `--json`
+  echoes the server payload verbatim in the standard envelope, identical to the
+  raw passthrough of the same endpoint apart from the `api request` `data`
+  envelope. Report type names, filters, and window options are forwarded
+  unchanged — the server owns report semantics, so an unknown type fails with
+  the server's own message and request id and no client-side allowlist — and the
+  CLI computes no metric of its own (client-side aggregation remains CLI-34).
+  Pagination is `--limit`/`--cursor` (`--since-cursor`) over the report's `items`
+  collection; `--all` is not offered because a report's series and rollups are
+  one document, not a paged collection.
+  The checked-in OpenAPI snapshot predates both report endpoints —
+  `scripts/update-openapi.sh --check` reported drift against the live document
+  — so it is refreshed in this change to the exact bytes that
+  `scripts/update-openapi.sh --update` installs (that check now passes). The
+  refresh only adds: 57 operations across 41 paths, up from 55 across 39, being
+  the two report operations plus their component schemas; no operation, schema,
+  `info`, `openapi`, or `servers` entry was removed or altered, so no documented
+  surface changes and `schema_parity` reports no incompatibility. Both
+  operations are registered in `openapi/api-parity.json` (client method, CLI
+  command, tests) as required by the contract tests.
 - Shell pipeline ergonomics for every list command (CLI-58): `--since-cursor
   <CURSOR>` is an accepted alias of `--cursor` and is now honored as the start of
   a traversal even when combined with `--all`, so a pipeline that crashed

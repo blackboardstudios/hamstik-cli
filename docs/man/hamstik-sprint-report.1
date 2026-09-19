@@ -1,0 +1,21 @@
+.TH HAMSTIK 1 "HAMSTIK SPRINT REPORT"
+.SH NAME
+hamstik sprint report \- Read a server Sprint delivery report (commitment, scope changes, carryover, and burndown)
+.SH SYNOPSIS
+.B hamstik sprint report [OPTIONS]
+.SH DESCRIPTION
+Read a server Sprint delivery report (commitment, scope changes, carryover, and burndown)
+.SH ARGUMENTS
+.TP
+.I ID
+Sprint id (UUID)
+.SH OPTIONS
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --limit
+Results per page (1-100; the server default is 50)
+.TP
+.B --cursor
+Opaque cursor returned by a preceding page; `--since-cursor` is the pipeline-checkpoint spelling of the same option. Cursors are forwarded verbatim

@@ -591,11 +591,155 @@ pub enum ProjectCommand {
         #[command(flatten)]
         pagination: PaginationArgs,
     },
+    /// Read a server project report (velocity, ageing-wip, epic-progress, …).
+    Report(Box<ProjectReportArgs>),
     /// Set the default project for the active profile.
     Use {
         /// Project key.
         key: String,
     },
+}
+
+/// Arguments for `project report`.
+///
+/// The report type and every shaping/filter option are forwarded verbatim; the
+/// server owns report semantics, including which type names and option
+/// combinations exist.
+#[derive(Args, Debug)]
+pub struct ProjectReportArgs {
+    /// Report type (for example `velocity`, `cumulative-flow`, `control-chart`,
+    /// `ageing-wip`, `created-vs-resolved`, `distribution`, `epic-progress`);
+    /// passed to the server unchanged.
+    pub report_type: String,
+    /// Project key (overrides context).
+    #[arg(long)]
+    pub project: Option<String>,
+    /// Recent-Sprint count or calendar-day window (the server caps the range
+    /// per report type).
+    #[arg(long, value_name = "N", value_parser = clap::value_parser!(u32).range(1..=366))]
+    pub range: Option<u32>,
+    /// Inclusive ISO calendar date starting the window.
+    #[arg(long, value_name = "YYYY-MM-DD")]
+    pub start: Option<String>,
+    /// Inclusive ISO calendar date ending the window.
+    #[arg(long, value_name = "YYYY-MM-DD")]
+    pub end: Option<String>,
+    /// IANA time zone the calendar window is evaluated in.
+    #[arg(long, value_name = "ZONE")]
+    pub time_zone: Option<String>,
+    /// Measurement unit.
+    #[arg(long, value_name = "UNIT", value_parser = ["count", "points", "items"])]
+    pub unit: Option<String>,
+    /// Sampling interval.
+    #[arg(long, value_parser = ["day", "week", "month"])]
+    pub interval: Option<String>,
+    /// Time measure for cycle-time reports.
+    #[arg(long, value_parser = ["cycle", "lead"])]
+    pub measure: Option<String>,
+    /// Canonical status whose first entry starts cycle time.
+    #[arg(
+        long = "cycle-start-status",
+        value_name = "STATUS",
+        value_parser = ["backlog", "todo", "in_progress", "in_review", "done"]
+    )]
+    pub cycle_start_status: Option<String>,
+    /// Rolling window size for moving measures (1-100).
+    #[arg(long, value_name = "N", value_parser = clap::value_parser!(u32).range(1..=100))]
+    pub window: Option<u32>,
+    /// Grouping dimension.
+    #[arg(
+        long = "group-by",
+        value_name = "DIM",
+        value_parser = ["status", "type", "priority", "assignee", "label"]
+    )]
+    pub group_by: Option<String>,
+    /// Which items count toward the report.
+    #[arg(long, value_parser = ["open", "all"])]
+    pub scope: Option<String>,
+    /// Restrict the report to one Sprint (UUID).
+    #[arg(long, value_name = "SPRINT")]
+    pub sprint: Option<String>,
+    /// Result ordering key.
+    #[arg(
+        long,
+        value_name = "KEY",
+        value_parser = [
+            "name",
+            "progress",
+            "targetDate",
+            "age",
+            "workItem",
+            "status",
+            "assignee",
+            "since"
+        ]
+    )]
+    pub sort: Option<String>,
+    /// Free-text filter on Work Items in scope.
+    #[arg(long = "q", value_name = "TEXT")]
+    pub query: Option<String>,
+    /// SqueakQL filter expression restricting the items in scope.
+    #[arg(long, value_name = "QUERY")]
+    pub squeakql: Option<String>,
+    /// Only count items in this status.
+    #[arg(
+        long,
+        value_name = "STATUS",
+        value_parser = ["backlog", "todo", "in_progress", "in_review", "done"]
+    )]
+    pub status: Option<String>,
+    /// Only count items of this type.
+    #[arg(
+        long = "type",
+        value_name = "TYPE",
+        value_parser = ["task", "bug", "story", "feature", "epic"]
+    )]
+    pub work_type: Option<String>,
+    /// Only count items at this priority.
+    #[arg(
+        long,
+        value_name = "PRIORITY",
+        value_parser = ["low", "medium", "high", "urgent"]
+    )]
+    pub priority: Option<String>,
+    /// Only count items assigned to this user (`me` or a `usr_` public ID).
+    #[arg(long, value_name = "ME|ID")]
+    pub assignee: Option<String>,
+    /// Only count items carrying this label.
+    #[arg(long, value_name = "LABEL")]
+    pub label: Option<String>,
+    /// Bucket count or explicit boundaries for distribution reports.
+    #[arg(long, value_name = "BUCKETS")]
+    pub buckets: Option<String>,
+    /// Report page options.
+    #[command(flatten)]
+    pub page: ReportPageArgs,
+}
+
+/// Page options for report commands.
+///
+/// A report document carries its series and rollups in one response; only the
+/// report's `items` collection is paginated, so `--all` is intentionally
+/// absent and a cursor resumes that collection and nothing else.
+#[derive(Args, Debug)]
+pub struct ReportPageArgs {
+    /// Results per page (1-100; the server default is 50).
+    #[arg(
+        long,
+        value_name = "N",
+        value_parser = clap::value_parser!(u32).range(1..=100)
+    )]
+    pub limit: Option<u32>,
+    /// Opaque cursor returned by a preceding page; `--since-cursor` is the
+    /// pipeline-checkpoint spelling of the same option. Cursors are forwarded
+    /// verbatim.
+    #[arg(
+        long,
+        visible_alias = "since-cursor",
+        value_name = "CURSOR",
+        value_parser = clap::builder::NonEmptyStringValueParser::new()
+    )]
+    pub cursor: Option<String>,
 }
 
 /// Arguments for `project create`.
@@ -718,6 +862,9 @@ pub enum SprintCommand {
         #[arg(long = "idempotency-key", value_name = "KEY")]
         idempotency_key: Option<String>,
     },
+    /// Read a server Sprint delivery report (commitment, scope changes,
+    /// carryover, and burndown).
+    Report(Box<SprintReportArgs>),
     /// List allowed sprint state transitions.
     Transitions {
         /// Sprint id (UUID).
@@ -777,6 +924,19 @@ pub enum SprintCommand {
         #[arg(long = "idempotency-key", value_name = "KEY")]
         idempotency_key: Option<String>,
     },
+}
+
+/// Arguments for `sprint report`.
+#[derive(Args, Debug)]
+pub struct SprintReportArgs {
+    /// Sprint id (UUID).
+    pub id: String,
+    /// Project key (overrides context).
+    #[arg(long)]
+    pub project: Option<String>,
+    /// Report page options.
+    #[command(flatten)]
+    pub page: ReportPageArgs,
 }
 
 /// Arguments for the `label` command group.

@@ -213,6 +213,20 @@
       "status": "Complete"
     },
     {
+      "operationId": "getProjectReport",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/reports/{reportType}",
+      "client": "get_project_report",
+      "cli": [
+        "project report"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "listProjectSprints",
       "method": "GET",
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints",
@@ -247,6 +261,20 @@
       "client": "get_sprint",
       "cli": [
         "sprint view"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getProjectSprintReport",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}/report",
+      "client": "get_sprint_report",
+      "cli": [
+        "sprint report"
       ],
       "tests": [
         "client",

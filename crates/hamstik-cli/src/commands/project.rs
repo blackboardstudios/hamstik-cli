@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! `hamstik project` (list / view / create / edit / archive / unarchive /
-//! activity / use).
+//! activity / report / use).
 
 use serde_json::{Value, json};
 
 use hamstik_api_client::{
     ActivityOptions, CreateProjectRequest, ListProjectsOptions, PageItems, Project,
-    UpdateProjectRequest, follow_with, generate_key, validate_key,
+    ProjectReportOptions, UpdateProjectRequest, follow_with, generate_key, validate_key,
 };
 
 use crate::app::Session;
-use crate::args::{PaginationArgs, ProjectArgs, ProjectCommand};
+use crate::args::{PaginationArgs, ProjectArgs, ProjectCommand, ProjectReportArgs};
 use crate::error::CliError;
 use crate::input::resolve_text;
 
@@ -45,6 +45,7 @@ pub async fn run(session: &mut Session<'_>, args: &ProjectArgs) -> Result<(), Cl
             since,
             pagination,
         } => activity(session, project.as_deref(), since.as_deref(), pagination).await,
+        ProjectCommand::Report(args) => report(session, args).await,
         ProjectCommand::Use { key } => use_project(session, key).await,
     }
 }
@@ -565,4 +566,53 @@ async fn use_project(session: &mut Session<'_>, key: &str) -> Result<(), CliErro
             ))
             .map_err(CliError::general)
     }
+}
+
+/// `hamstik project report <type>`: reads one server project report.
+///
+/// The report type and every shaping option are forwarded unchanged; the server
+/// owns report semantics and is the authority on which types exist, so an
+/// unknown type is a server error (surfaced verbatim with its request id)
+/// rather than a client-side allowlist decision.
+async fn report(session: &mut Session<'_>, args: &ProjectReportArgs) -> Result<(), CliError> {
+    let selection = session.selection()?;
+    let org = session.require_org(&selection)?;
+    let project = match args.project {
+        Some(ref key) => key.clone(),
+        None => session.require_project(&selection)?,
+    };
+    let api = session.api(&selection)?;
+    let opts = ProjectReportOptions {
+        limit: args.page.limit,
+        cursor: args.page.cursor.clone(),
+        range: args.range,
+        start: args.start.clone(),
+        end: args.end.clone(),
+        time_zone: args.time_zone.clone(),
+        unit: args.unit.clone(),
+        interval: args.interval.clone(),
+        measure: args.measure.clone(),
+        cycle_start_status: args.cycle_start_status.clone(),
+        window: args.window,
+        group_by: args.group_by.clone(),
+        scope: args.scope.clone(),
+        sprint: args.sprint.clone(),
+        sort: args.sort.clone(),
+        query: args.query.clone(),
+        squeakql: args.squeakql.clone(),
+        status: args.status.clone(),
+        work_type: args.work_type.clone(),
+        priority: args.priority.clone(),
+        assignee: args.assignee.clone(),
+        label: args.label.clone(),
+        buckets: args.buckets.clone(),
+    };
+    let response = api
+        .get_project_report(&org, &project, &args.report_type, opts)
+        .await
+        .map_err(CliError::from_client)?;
+    let report = response.value.clone();
+    emit_view(session, &response.raw, &report.kind, |session| {
+        super::report::render_project_report(session, &project, &report)
+    })
 }

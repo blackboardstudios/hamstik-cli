@@ -261,6 +261,35 @@ decide eligibility. `work archive`/`unarchive` is the reversible path; `work del
 is owner-only and destructive — use it only when the user explicitly asks to delete
 the resolved item.
 
+Server reports (CLI-63) are computed by the server. Read them with the typed
+commands instead of a raw passthrough, and never recompute a metric locally:
+
+```bash
+hamstik --json --no-input --org <ORG> --project <KEY> project report velocity
+hamstik --json --no-input --org <ORG> --project <KEY> sprint report <SPRINT_ID>
+```
+
+- `project report <type>` forwards the type unchanged (`velocity`,
+  `cumulative-flow`, `control-chart`, `ageing-wip`, `created-vs-resolved`,
+  `distribution`, `epic-progress`). An unsupported type fails with the server's
+  own message, code, and request ID; the CLI keeps no local allowlist, so do not
+  translate `burndown` into another type — Sprint burndown comes from
+  `sprint report`.
+- Report window and filter flags (`--range`, `--start`/`--end`, `--time-zone`,
+  `--unit`, `--interval`, `--measure`, `--cycle-start-status`, `--window`,
+  `--group-by`, `--scope`, `--sprint`, `--sort`, `--q`, `--squeakql`, `--status`,
+  `--type`, `--priority`, `--assignee`, `--label`, `--buckets`) are forwarded
+  verbatim; `--help` lists the accepted values. Server-reported `limitations`
+  belong in the answer: they qualify what the numbers cover.
+- `sprint report <id>` returns commitment, completion, scope changes, carryover,
+  status distribution, burndown, remaining totals, and a change feed. Human
+  output renders the burndown as scaled bars with the ideal line marked.
+- `--json` echoes the server report body verbatim — the same document
+  `hamstik api request <same path>` returns under its `data` envelope.
+  Pagination (`--limit`, `--cursor`/`--since-cursor`) applies to the report's
+  `items` collection only and there is no `--all`; continue from
+  `page.nextCursor` in the JSON.
+
 ## Work from a referenced Work Item
 
 When a coding task names a Hamstik Work Item:

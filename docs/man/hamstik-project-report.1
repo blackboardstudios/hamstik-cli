@@ -1,0 +1,94 @@
+.TH HAMSTIK 1 "HAMSTIK PROJECT REPORT"
+.SH NAME
+hamstik project report \- Read a server project report (velocity, ageing\-wip, epic\-progress, …)
+.SH SYNOPSIS
+.B hamstik project report [OPTIONS]
+.SH DESCRIPTION
+Read a server project report (velocity, ageing\-wip, epic\-progress, …)
+.SH ARGUMENTS
+.TP
+.I REPORT_TYPE
+Report type (for example `velocity`, `cumulative-flow`, `control-chart`, `ageing-wip`, `created-vs-resolved`, `distribution`, `epic-progress`); passed to the server unchanged
+.SH OPTIONS
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --range
+Recent-Sprint count or calendar-day window (the server caps the range per report type)
+.TP
+.B --start
+Inclusive ISO calendar date starting the window
+.TP
+.B --end
+Inclusive ISO calendar date ending the window
+.TP
+.B --time-zone
+IANA time zone the calendar window is evaluated in
+.TP
+.B --unit
+Measurement unit
+Choices: count, points, items
+.TP
+.B --interval
+Sampling interval
+Choices: day, week, month
+.TP
+.B --measure
+Time measure for cycle-time reports
+Choices: cycle, lead
+.TP
+.B --cycle-start-status
+Canonical status whose first entry starts cycle time
+Choices: backlog, todo, in_progress, in_review, done
+.TP
+.B --window
+Rolling window size for moving measures (1-100)
+.TP
+.B --group-by
+Grouping dimension
+Choices: status, type, priority, assignee, label
+.TP
+.B --scope
+Which items count toward the report
+Choices: open, all
+.TP
+.B --sprint
+Restrict the report to one Sprint (UUID)
+.TP
+.B --sort
+Result ordering key
+Choices: name, progress, targetDate, age, workItem, status, assignee, since
+.TP
+.B --q
+Free-text filter on Work Items in scope
+.TP
+.B --squeakql
+SqueakQL filter expression restricting the items in scope
+.TP
+.B --status
+Only count items in this status
+Choices: backlog, todo, in_progress, in_review, done
+.TP
+.B --type
+Only count items of this type
+Choices: task, bug, story, feature, epic
+.TP
+.B --priority
+Only count items at this priority
+Choices: low, medium, high, urgent
+.TP
+.B --assignee
+Only count items assigned to this user (`me` or a `usr_` public ID)
+.TP
+.B --label
+Only count items carrying this label
+.TP
+.B --buckets
+Bucket count or explicit boundaries for distribution reports
+.TP
+.B --limit
+Results per page (1-100; the server default is 50)
+.TP
+.B --cursor
+Opaque cursor returned by a preceding page; `--since-cursor` is the pipeline-checkpoint spelling of the same option. Cursors are forwarded verbatim

@@ -1,7 +1,7 @@
 // Copyright 2026 Blackboard Studios
 // SPDX-License-Identifier: Apache-2.0
 
-//! `hamstik sprint` (list / view / create / transitions / transition).
+//! `hamstik sprint` (list / view / create / transitions / transition / report).
 
 use serde_json::json;
 
@@ -11,7 +11,7 @@ use hamstik_api_client::{
 };
 
 use crate::app::Session;
-use crate::args::{SprintArgs, SprintCommand};
+use crate::args::{ReportPageArgs, SprintArgs, SprintCommand};
 use crate::error::CliError;
 
 use super::dryrun;
@@ -46,6 +46,9 @@ pub async fn run(session: &mut Session<'_>, args: &SprintArgs) -> Result<(), Cli
                 idempotency_key.as_deref(),
             )
             .await
+        }
+        SprintCommand::Report(args) => {
+            report(session, &args.id, args.project.as_deref(), &args.page).await
         }
         SprintCommand::Transitions { id, project } => {
             transitions(session, id, project.as_deref()).await
@@ -244,6 +247,39 @@ fn render_sprint(session: &mut Session<'_>, sprint: &Sprint) -> Result<(), CliEr
         ("revision", sprint.revision.to_string()),
     ];
     render_lines(session, &lines)
+}
+
+/// `hamstik sprint report <id>`: reads the server Sprint delivery report.
+///
+/// The report is rendered from the server payload only; `--json` echoes that
+/// payload verbatim. Pagination applies to the report's change feed (`items`),
+/// which is why `--all` is not offered here.
+async fn report(
+    session: &mut Session<'_>,
+    id: &str,
+    project_flag: Option<&str>,
+    page: &ReportPageArgs,
+) -> Result<(), CliError> {
+    let selection = session.selection()?;
+    let org = session.require_org(&selection)?;
+    let project = require_project(session, project_flag)?;
+    let api = session.api(&selection)?;
+    let response = api
+        .get_sprint_report(
+            &org,
+            &project,
+            id,
+            ListOptions {
+                limit: page.limit,
+                cursor: page.cursor.clone(),
+            },
+        )
+        .await
+        .map_err(CliError::from_client)?;
+    let report = response.value.clone();
+    emit_view(session, &response.raw, id, |session| {
+        super::report::render_sprint_report(session, &report)
+    })
 }
 
 fn idem_key(flag: Option<&str>) -> Result<String, CliError> {

@@ -1481,6 +1481,343 @@ pub struct BulkResultList {
     pub results: Vec<BulkResult>,
 }
 
+/// Query options for `GET .../projects/{key}/reports/{type}`.
+///
+/// Every value is forwarded verbatim; the server decides which combinations a
+/// given report type accepts and reports invalid ones. The CLI performs no
+/// validation beyond rejecting empty strings and never computes report values
+/// itself.
+#[derive(Debug, Clone, Default)]
+pub struct ProjectReportOptions {
+    /// Maximum items per page (server-capped at 100).
+    pub limit: Option<u32>,
+    /// Opaque continuation cursor from a previous page's `nextCursor`.
+    pub cursor: Option<String>,
+    /// Recent-Sprint count or calendar-day window.
+    pub range: Option<u32>,
+    /// Inclusive ISO calendar date bounding the window.
+    pub start: Option<String>,
+    /// Inclusive ISO calendar date bounding the window.
+    pub end: Option<String>,
+    /// IANA time zone the calendar window is evaluated in.
+    pub time_zone: Option<String>,
+    /// Measurement unit (`count`, `points`, `items`).
+    pub unit: Option<String>,
+    /// Sampling interval (`day`, `week`, `month`).
+    pub interval: Option<String>,
+    /// Time measure (`cycle`, `lead`).
+    pub measure: Option<String>,
+    /// Canonical status whose first entry starts cycle time.
+    pub cycle_start_status: Option<String>,
+    /// Rolling window size for moving measures.
+    pub window: Option<u32>,
+    /// Grouping dimension (`status`, `type`, `priority`, `assignee`, `label`).
+    pub group_by: Option<String>,
+    /// Item scope (`open`, `all`).
+    pub scope: Option<String>,
+    /// Sprint id the report is restricted to.
+    pub sprint: Option<String>,
+    /// Result ordering key.
+    pub sort: Option<String>,
+    /// Free-text query filter.
+    pub query: Option<String>,
+    /// SqueakQL filter expression.
+    pub squeakql: Option<String>,
+    /// Status filter.
+    pub status: Option<String>,
+    /// Work Item type filter (contract parameter `type`).
+    pub work_type: Option<String>,
+    /// Priority filter.
+    pub priority: Option<String>,
+    /// Assignee filter.
+    pub assignee: Option<String>,
+    /// Label filter.
+    pub label: Option<String>,
+    /// Bucket count or explicit bucket boundaries for distribution reports.
+    pub buckets: Option<String>,
+}
+
+/// A project reporting series or rollup (`GET .../projects/{key}/reports/{type}`).
+///
+/// `items` and `data` hold server-shaped rows whose columns differ per report
+/// kind, so they stay as raw JSON objects: the server payload is authoritative
+/// and the CLI neither narrows nor recomputes it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectReport {
+    /// The report kind the server produced.
+    pub kind: String,
+    /// Report rows; the paginated collection for this response.
+    pub items: Vec<Value>,
+    /// The report's series/rollup data for the requested window.
+    pub data: Vec<Value>,
+    /// Pagination metadata for `items`.
+    pub page: Page,
+    /// Server-reported caveats about the data (partial coverage, truncation).
+    #[serde(default)]
+    pub limitations: Vec<String>,
+}
+
+/// A Sprint delivery report (`GET .../sprints/{id}/report`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReport {
+    /// The Sprint the report describes.
+    pub sprint: SprintReportSprint,
+    /// Sprint state at report time (`completed`, `active`, `future`).
+    pub mode: String,
+    /// Whether the reported numbers are considered stable by the server.
+    pub stable: bool,
+    /// Commitment snapshot.
+    pub commitment: SprintReportCommitment,
+    /// Scope planned at Sprint creation.
+    pub planned_scope: SprintReportMetricCount,
+    /// Completion measured against commitment and final scope.
+    pub completion: SprintReportCompletion,
+    /// Items added to and removed from the Sprint after commitment.
+    pub scope_changes: SprintReportScopeChanges,
+    /// Items carried over out of the Sprint.
+    pub carryover: Vec<SprintReportCarryover>,
+    /// Current per-status distribution.
+    pub statuses: Vec<SprintReportStatus>,
+    /// The burndown series.
+    pub burndown: SprintReportBurndown,
+    /// What is left in the Sprint.
+    pub remaining: SprintReportMetricCount,
+    /// Server-reported caveats about the data.
+    #[serde(default)]
+    pub limitations: Vec<String>,
+    /// The paginated change feed for this Sprint.
+    pub items: Vec<SprintReportFeedEntry>,
+    /// Pagination metadata for `items`.
+    pub page: Page,
+}
+
+/// The Sprint header of a Sprint report.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportSprint {
+    /// Sprint id.
+    pub id: String,
+    /// Sprint name.
+    pub name: String,
+    /// Sprint state (`future`, `active`, `done`).
+    pub state: String,
+    /// Planned start, when set.
+    pub start_date: Option<String>,
+    /// Planned end, when set.
+    pub end_date: Option<String>,
+    /// Sprint goal, when set.
+    pub goal: Option<String>,
+    /// Target story-point total, when set.
+    pub target_points: Option<i64>,
+    /// Last modification timestamp of the Sprint.
+    pub updated_at: String,
+    /// End of the reported window, when the server fixes one.
+    pub report_end_at: Option<String>,
+}
+
+/// Commitment availability and totals.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportCommitment {
+    /// Whether the server has a commitment snapshot for this Sprint.
+    pub available: bool,
+    /// Committed item count (0 when unavailable).
+    pub item_count: i64,
+    /// Committed points (0 when unavailable).
+    pub points: i64,
+}
+
+/// An `{itemCount, points}` metric pair.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportMetricCount {
+    /// Number of Work Items.
+    pub item_count: i64,
+    /// Story points.
+    pub points: i64,
+}
+
+/// Completion measured against original commitment and final scope.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportCompletion {
+    /// Totals at commitment.
+    pub original_commitment: SprintReportMetricCount,
+    /// Totals in the final scope.
+    pub final_scope: SprintReportMetricCount,
+    /// Completed totals.
+    pub completed: SprintReportMetricCount,
+    /// How many items carry an estimate.
+    pub estimated_item_count: i64,
+    /// Item id sets behind the totals above.
+    pub item_ids: SprintReportCompletionIds,
+    /// Completion percentages for both denominators.
+    pub percentages: SprintReportCompletionPercentages,
+}
+
+/// Item id sets behind the completion totals.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportCompletionIds {
+    /// Item ids committed originally.
+    #[serde(default)]
+    pub original_commitment: Vec<String>,
+    /// Item ids in the final scope.
+    #[serde(default)]
+    pub final_scope: Vec<String>,
+    /// Item ids completed.
+    #[serde(default)]
+    pub completed: Vec<String>,
+}
+
+/// Completion percentages against both denominators.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportCompletionPercentages {
+    /// Percentages measured against the final scope.
+    pub final_scope: SprintReportPercentages,
+    /// Percentages measured against the original commitment.
+    pub original_commitment: SprintReportPercentages,
+}
+
+/// Item and point completion percentages, null when the denominator is zero.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportPercentages {
+    /// Completion percentage counted in items.
+    pub item_percent: Option<i64>,
+    /// Completion percentage counted in points.
+    pub point_percent: Option<i64>,
+}
+
+/// Added/removed scope after commitment.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportScopeChanges {
+    /// Items added after commitment.
+    #[serde(default)]
+    pub added: Vec<SprintReportWorkItem>,
+    /// Items removed after commitment.
+    #[serde(default)]
+    pub removed: Vec<SprintReportWorkItem>,
+}
+
+/// One Work Item row of a Sprint report (scope change, carryover, or feed).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportWorkItem {
+    /// Report-row id.
+    pub id: String,
+    /// Work Item id.
+    pub work_item_id: String,
+    /// Work Item key.
+    pub key: String,
+    /// Work Item title.
+    pub title: String,
+    /// Status at report time.
+    pub status: String,
+    /// Story points, when estimated.
+    pub story_points: Option<i64>,
+    /// When the reported change happened.
+    pub occurred_at: String,
+}
+
+/// A carried-over item and where the server moved it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportCarryover {
+    /// The carried Work Item.
+    #[serde(flatten)]
+    pub item: SprintReportWorkItem,
+    /// Destination (`backlog`, or the receiving Sprint).
+    pub destination: SprintReportDestination,
+}
+
+/// Where a carried item went.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportDestination {
+    /// Destination kind (`backlog`, `sprint`).
+    pub kind: String,
+    /// Receiving Sprint id, when the kind is `sprint`.
+    pub sprint_id: Option<String>,
+    /// Human-readable destination name.
+    pub name: String,
+}
+
+/// One status bucket of the Sprint's current distribution.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportStatus {
+    /// Canonical status.
+    pub status: String,
+    /// Items in this status.
+    pub item_count: i64,
+    /// Points in this status.
+    pub points: i64,
+}
+
+/// The Sprint burndown series.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportBurndown {
+    /// Whether the server produced a burndown for this Sprint.
+    pub available: bool,
+    /// Remaining points per day.
+    #[serde(default)]
+    pub points: Vec<SprintReportBurntpoint>,
+    /// Chart-ready points with labels and the ideal line.
+    #[serde(default)]
+    pub display: Vec<SprintReportBurntDisplay>,
+}
+
+/// One burndown sample (remaining points on a date).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportBurntpoint {
+    /// Sample date (ISO calendar date).
+    pub date: String,
+    /// Points still remaining on that date.
+    pub remaining_points: i64,
+}
+
+/// One burndown sample with the server-supplied label and ideal line.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportBurntDisplay {
+    /// Sample date (ISO calendar date).
+    pub date: String,
+    /// Short axis label for the sample.
+    pub label: String,
+    /// Points remaining.
+    pub remaining: i64,
+    /// Ideal remaining points for this date.
+    pub ideal: i64,
+}
+
+/// One entry of the Sprint change feed.
+///
+/// The contract models the feed as a `oneOf` over scope changes and carryovers;
+/// both variants share the Work Item row and differ only in which extra fields
+/// are present, so they decode into one tolerant struct with optional
+/// discriminators.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SprintReportFeedEntry {
+    /// The Work Item the entry describes.
+    #[serde(flatten)]
+    pub item: SprintReportWorkItem,
+    /// Entry kind (`scope_change`, `carryover`).
+    pub kind: String,
+    /// For a scope change, whether the item was added or removed.
+    #[serde(default)]
+    pub change_type: Option<String>,
+    /// For a carryover, where the item went.
+    #[serde(default)]
+    pub destination: Option<SprintReportDestination>,
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {

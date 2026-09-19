@@ -853,6 +853,13 @@ fn push_bool(query: &mut Vec<(String, String)>, name: &str, value: Option<bool>)
     }
 }
 
+/// Appends an owned optional query parameter when present.
+fn push_opt(query: &mut Vec<(String, String)>, name: &str, value: Option<String>) {
+    if let Some(text) = value {
+        query.push((name.to_string(), text));
+    }
+}
+
 fn push_scalar(query: &mut Vec<(String, String)>, name: &str, value: &Option<String>) {
     if let Some(text) = value {
         query.push((name.to_string(), text.clone()));
@@ -1102,6 +1109,25 @@ pub trait HamstikApi: Send + Sync {
         project_key: &str,
         sprint_id: &str,
     ) -> Result<ApiResponse<Sprint>, ClientError>;
+    /// `GET .../reports/{reportType}`: one project report (burndown-style
+    /// series and rollups). The server owns the report shape; unknown types
+    /// are rejected by the server, not by the client.
+    async fn get_project_report(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        report_type: &str,
+        opts: ProjectReportOptions,
+    ) -> Result<ApiResponse<ProjectReport>, ClientError>;
+    /// `GET .../sprints/{id}/report`: the Sprint delivery report (commitment,
+    /// scope changes, carryover, burndown, and a paginated change feed).
+    async fn get_sprint_report(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        sprint_id: &str,
+        opts: ListOptions,
+    ) -> Result<ApiResponse<SprintReport>, ClientError>;
     /// `GET .../sprints/{id}/transitions`: permitted Sprint state transitions.
     async fn list_sprint_transitions(
         &self,
@@ -1944,6 +1970,88 @@ impl HamstikApi for HamstikClient {
                 sprint_id.to_string(),
             ],
             query: Vec::new(),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn get_project_report(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        report_type: &str,
+        opts: ProjectReportOptions,
+    ) -> Result<ApiResponse<ProjectReport>, ClientError> {
+        let mut query = Vec::new();
+        push_list(
+            &mut query,
+            &ListOptions {
+                limit: opts.limit,
+                cursor: opts.cursor,
+            },
+        );
+        push_opt(&mut query, "range", opts.range.map(|v| v.to_string()));
+        push_opt(&mut query, "start", opts.start);
+        push_opt(&mut query, "end", opts.end);
+        push_opt(&mut query, "timeZone", opts.time_zone);
+        push_opt(&mut query, "unit", opts.unit);
+        push_opt(&mut query, "interval", opts.interval);
+        push_opt(&mut query, "measure", opts.measure);
+        push_opt(&mut query, "cycleStartStatus", opts.cycle_start_status);
+        push_opt(&mut query, "window", opts.window.map(|v| v.to_string()));
+        push_opt(&mut query, "groupBy", opts.group_by);
+        push_opt(&mut query, "scope", opts.scope);
+        push_opt(&mut query, "sprint", opts.sprint);
+        push_opt(&mut query, "sort", opts.sort);
+        push_opt(&mut query, "q", opts.query);
+        push_opt(&mut query, "squeakql", opts.squeakql);
+        push_opt(&mut query, "status", opts.status);
+        push_opt(&mut query, "type", opts.work_type);
+        push_opt(&mut query, "priority", opts.priority);
+        push_opt(&mut query, "assignee", opts.assignee);
+        push_opt(&mut query, "label", opts.label);
+        push_opt(&mut query, "buckets", opts.buckets);
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "reports".to_string(),
+                report_type.to_string(),
+            ],
+            query,
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn get_sprint_report(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        sprint_id: &str,
+        opts: ListOptions,
+    ) -> Result<ApiResponse<SprintReport>, ClientError> {
+        let mut query = Vec::new();
+        push_list(&mut query, &opts);
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "sprints".to_string(),
+                sprint_id.to_string(),
+                "report".to_string(),
+            ],
+            query,
             headers: Vec::new(),
             body: None,
             retryable: true,

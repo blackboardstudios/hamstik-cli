@@ -1171,6 +1171,235 @@
    "positionals": []
   },
   {
+   "about": "Read a server project report (velocity, ageing-wip, epic-progress, \u2026)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Report type (for example `velocity`, `cumulative-flow`, `control-chart`, `ageing-wip`, `created-vs-resolved`, `distribution`, `epic-progress`); passed to the server unchanged",
+     "kind": "positional",
+     "name": "report_type",
+     "valueName": "REPORT_TYPE"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Recent-Sprint count or calendar-day window (the server caps the range per report type)",
+     "kind": "option",
+     "long": "--range"
+    },
+    {
+     "help": "Inclusive ISO calendar date starting the window",
+     "kind": "option",
+     "long": "--start"
+    },
+    {
+     "help": "Inclusive ISO calendar date ending the window",
+     "kind": "option",
+     "long": "--end"
+    },
+    {
+     "help": "IANA time zone the calendar window is evaluated in",
+     "kind": "option",
+     "long": "--time-zone"
+    },
+    {
+     "choices": [
+      "count",
+      "points",
+      "items"
+     ],
+     "help": "Measurement unit",
+     "kind": "option",
+     "long": "--unit"
+    },
+    {
+     "choices": [
+      "day",
+      "week",
+      "month"
+     ],
+     "help": "Sampling interval",
+     "kind": "option",
+     "long": "--interval"
+    },
+    {
+     "choices": [
+      "cycle",
+      "lead"
+     ],
+     "help": "Time measure for cycle-time reports",
+     "kind": "option",
+     "long": "--measure"
+    },
+    {
+     "choices": [
+      "backlog",
+      "todo",
+      "in_progress",
+      "in_review",
+      "done"
+     ],
+     "help": "Canonical status whose first entry starts cycle time",
+     "kind": "option",
+     "long": "--cycle-start-status"
+    },
+    {
+     "help": "Rolling window size for moving measures (1-100)",
+     "kind": "option",
+     "long": "--window"
+    },
+    {
+     "choices": [
+      "status",
+      "type",
+      "priority",
+      "assignee",
+      "label"
+     ],
+     "help": "Grouping dimension",
+     "kind": "option",
+     "long": "--group-by"
+    },
+    {
+     "choices": [
+      "open",
+      "all"
+     ],
+     "help": "Which items count toward the report",
+     "kind": "option",
+     "long": "--scope"
+    },
+    {
+     "help": "Restrict the report to one Sprint (UUID)",
+     "kind": "option",
+     "long": "--sprint"
+    },
+    {
+     "choices": [
+      "name",
+      "progress",
+      "targetDate",
+      "age",
+      "workItem",
+      "status",
+      "assignee",
+      "since"
+     ],
+     "help": "Result ordering key",
+     "kind": "option",
+     "long": "--sort"
+    },
+    {
+     "help": "Free-text filter on Work Items in scope",
+     "kind": "option",
+     "long": "--q"
+    },
+    {
+     "help": "SqueakQL filter expression restricting the items in scope",
+     "kind": "option",
+     "long": "--squeakql"
+    },
+    {
+     "choices": [
+      "backlog",
+      "todo",
+      "in_progress",
+      "in_review",
+      "done"
+     ],
+     "help": "Only count items in this status",
+     "kind": "option",
+     "long": "--status"
+    },
+    {
+     "choices": [
+      "task",
+      "bug",
+      "story",
+      "feature",
+      "epic"
+     ],
+     "help": "Only count items of this type",
+     "kind": "option",
+     "long": "--type"
+    },
+    {
+     "choices": [
+      "low",
+      "medium",
+      "high",
+      "urgent"
+     ],
+     "help": "Only count items at this priority",
+     "kind": "option",
+     "long": "--priority"
+    },
+    {
+     "help": "Only count items assigned to this user (`me` or a `usr_` public ID)",
+     "kind": "option",
+     "long": "--assignee"
+    },
+    {
+     "help": "Only count items carrying this label",
+     "kind": "option",
+     "long": "--label"
+    },
+    {
+     "help": "Bucket count or explicit boundaries for distribution reports",
+     "kind": "option",
+     "long": "--buckets"
+    },
+    {
+     "help": "Results per page (1-100; the server default is 50)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque cursor returned by a preceding page; `--since-cursor` is the pipeline-checkpoint spelling of the same option. Cursors are forwarded verbatim",
+     "kind": "option",
+     "long": "--cursor"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik project report",
+   "hasSubcommands": false,
+   "options": [
+    "--project",
+    "--range",
+    "--start",
+    "--end",
+    "--time-zone",
+    "--unit",
+    "--interval",
+    "--measure",
+    "--cycle-start-status",
+    "--window",
+    "--group-by",
+    "--scope",
+    "--sprint",
+    "--sort",
+    "--q",
+    "--squeakql",
+    "--status",
+    "--type",
+    "--priority",
+    "--assignee",
+    "--label",
+    "--buckets",
+    "--limit",
+    "--cursor"
+   ],
+   "positionals": [
+    "report_type"
+   ]
+  },
+  {
    "about": "Set the default project for the active profile",
    "aliases": [],
    "arguments": [
@@ -1333,6 +1562,47 @@
     "--idempotency-key"
    ],
    "positionals": []
+  },
+  {
+   "about": "Read a server Sprint delivery report (commitment, scope changes, carryover, and burndown)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Sprint id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Results per page (1-100; the server default is 50)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque cursor returned by a preceding page; `--since-cursor` is the pipeline-checkpoint spelling of the same option. Cursors are forwarded verbatim",
+     "kind": "option",
+     "long": "--cursor"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik sprint report",
+   "hasSubcommands": false,
+   "options": [
+    "--project",
+    "--limit",
+    "--cursor"
+   ],
+   "positionals": [
+    "id"
+   ]
   },
   {
    "about": "List allowed sprint state transitions",

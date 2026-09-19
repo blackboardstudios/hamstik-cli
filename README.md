@@ -158,15 +158,15 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
 - global configuration — `hamstik config path|list|get|set|unset` for safe
   non-secret defaults (editor, pager, output format, Git branch template);
 - organizations and projects — `hamstik org list|view|use` and
-  `hamstik project list|view|create|edit|archive|unarchive|activity|use`;
+  `hamstik project list|view|create|edit|archive|unarchive|activity|report|use`;
 - member directory — `hamstik org members` and Organization-wide work via
   `hamstik org work` (`--mine` for the authenticated user);
 - user profiles — `hamstik user view|work|activity|avatar` for
   visibility-scoped public data;
 - authenticated identity via `hamstik me`, including credential scopes,
   expiration, default Organization, and memberships;
-- sprints — `hamstik sprint list|view|create|transitions|transition` with
-  completion actions for sprints that still have unfinished work items;
+- sprints — `hamstik sprint list|view|create|transitions|transition|report`
+  with completion actions for sprints that still have unfinished work items;
 - labels — `hamstik label list|create` and `hamstik work label add|remove`
   (attach/detach with Work Item revision protection);
 - work items — `hamstik work list|view|create|edit`, status transitions
