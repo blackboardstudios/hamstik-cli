@@ -357,6 +357,15 @@ impl Session<'_> {
             && self.env.stdout_is_terminal()
     }
 
+    /// The configured editor preference (`[settings] editor`), when set.
+    ///
+    /// Environment overrides (`$VISUAL`, `$EDITOR`) are applied by
+    /// [`crate::editor`] on top of this value; a config that cannot be read is
+    /// an error rather than a silent fall back to defaults (SPEC §23).
+    pub fn configured_editor(&self) -> Result<Option<String>, CliError> {
+        Ok(self.config.load()?.settings.and_then(|s| s.editor))
+    }
+
     /// Whether ANSI colors may decorate human output this invocation.
     ///
     /// Uses the shared [`color_probe`] so `doctor`'s report and every other

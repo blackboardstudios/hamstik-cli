@@ -592,19 +592,25 @@ pub enum ConfigCommand {
     List,
     /// Get a single configuration value.
     Get {
-        /// Configuration key (e.g. `editor`, `pager`, `output`, `profile`).
+        /// Configuration key: `profile`, `organization`, `project`, `editor`,
+        /// `pager`, `output`, `git_branch_template`, or `audit_log`.
         key: String,
     },
     /// Set a configuration value.
     Set {
-        /// Configuration key (e.g. `editor`, `pager`, `output`, `profile`).
+        /// Configuration key: `profile`, `organization`, `project`, `editor`,
+        /// `pager`, `output`, `git_branch_template`, or `audit_log`.
         key: String,
-        /// New value for the key.
+        /// New value for the key: `true`/`false` for `audit_log`, an existing
+        /// profile name for `profile`, a defined output mode (`human`, `json`,
+        /// `jsonl`, `tsv`, `quiet`) for `output`. Credentials are never
+        /// accepted: they live in the OS credential store or `HAMSTIK_TOKEN`.
         value: String,
     },
     /// Remove a configuration value.
     Unset {
-        /// Configuration key to remove.
+        /// Configuration key to remove: `profile`, `organization`, `project`,
+        /// `editor`, `pager`, `output`, `git_branch_template`, or `audit_log`.
         key: String,
     },
 }

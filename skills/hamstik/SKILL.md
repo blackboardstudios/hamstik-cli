@@ -84,6 +84,28 @@ When exactly one result matches the user's named target, use it. When multiple r
 remain plausible and the choice changes where a write lands, ask the user. Do not rely
 on unrelated profile defaults for a mutation.
 
+## Change local, non-secret defaults
+
+`hamstik config path|list|get|set|unset` manage the global configuration file
+(the location `hamstik config path` prints). The accepted keys are `profile`,
+`organization`, `project`, `editor`, `pager`, `output`, `git_branch_template`,
+and `audit_log`; unknown keys and invalid values fail with exit code 10 and
+write nothing.
+
+```bash
+hamstik --json config list
+hamstik --json config get editor
+hamstik --json config set editor <command>
+hamstik --json config unset editor
+```
+
+Never store a token, password, or secret there: configuration holds no
+credentials, which come only from the OS credential store (`hamstik auth login`)
+or `HAMSTIK_TOKEN`. Prefer explicit flags over changing a user's global
+defaults — `profile`, `organization`, and `project` move where later commands
+act — so confirm before writing them and verify afterwards with
+`hamstik context explain`.
+
 ## Use automation-safe output
 
 - Prefer `--json --no-input` for reads and structured automation.

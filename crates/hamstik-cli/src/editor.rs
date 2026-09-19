@@ -3,7 +3,8 @@
 
 //! Editor-based authoring for long-form text.
 //!
-//! `--editor` launches `$VISUAL` (then `$EDITOR`, then platform defaults)
+//! `--editor` launches `$VISUAL` (then `$EDITOR`, then the `editor`
+//! configuration setting, then platform defaults)
 //! on a secure temporary file, and uses the resulting content as the
 //! argument value. The template carries instructions as leading `#`
 //! comments, which are stripped from the final text. An unchanged file is
@@ -17,9 +18,12 @@ use std::process::Command as Process;
 use crate::environment::Environment;
 use crate::error::CliError;
 
-/// Editor candidates in precedence order: `$VISUAL` then `$EDITOR`, then the
-/// per-platform fallbacks.
-fn editor_command(env: &dyn crate::environment::Environment) -> Option<String> {
+/// Editor candidates in precedence order: `$VISUAL`, then `$EDITOR`, then the
+/// `editor` configuration setting, then the per-platform fallbacks.
+///
+/// Environment variables beat the stored preference, so a shell-specific
+/// override always wins over the global default (flags > environment > config).
+fn editor_command(env: &dyn Environment, config_editor: Option<&str>) -> Option<String> {
     for key in ["VISUAL", "EDITOR"] {
         if let Some(value) = env
             .var(key)
@@ -28,6 +32,12 @@ fn editor_command(env: &dyn crate::environment::Environment) -> Option<String> {
         {
             return Some(value);
         }
+    }
+    if let Some(value) = config_editor
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        return Some(value.to_string());
     }
     // Sensible per-platform fallbacks; `vi` is POSIX-mandated, `notepad`
     // exists on every Windows install.
@@ -45,15 +55,23 @@ fn editor_command(env: &dyn crate::environment::Environment) -> Option<String> {
 /// Unix) in the system temp directory, and removed on every exit path.
 /// Editor failure (nonzero exit, missing binary) is a usage-class error;
 /// unchanged template content is treated as a deliberate cancellation.
-pub fn edit_text(env: &dyn Environment, no_input: bool, what: &str) -> Result<String, CliError> {
+pub fn edit_text(
+    env: &dyn Environment,
+    config_editor: Option<&str>,
+    no_input: bool,
+    what: &str,
+) -> Result<String, CliError> {
     if no_input {
         return Err(CliError::usage(
             "editor authoring is disabled under --no-input; provide the text with --file - (stdin), \
              a --*-file path, or inline",
         ));
     }
-    let editor = editor_command(env).ok_or_else(|| {
-        CliError::usage("no editor configured; set $VISUAL or $EDITOR, or use --*-file")
+    let editor = editor_command(env, config_editor).ok_or_else(|| {
+        CliError::usage(
+            "no editor configured; set $VISUAL or $EDITOR, run `hamstik config set editor <command>`, \
+             or use --*-file",
+        )
     })?;
 
     let header = template_header(what);
@@ -197,15 +215,33 @@ mod tests {
         let env = MapEnvironment::new()
             .with_var("VISUAL", "nvim")
             .with_var("EDITOR", "vim");
-        assert_eq!(editor_command(&env).as_deref(), Some("nvim"));
+        assert_eq!(editor_command(&env, Some("emacs")).as_deref(), Some("nvim"));
         let env = MapEnvironment::new().with_var("EDITOR", "nano");
-        assert_eq!(editor_command(&env).as_deref(), Some("nano"));
+        assert_eq!(editor_command(&env, Some("emacs")).as_deref(), Some("nano"));
+    }
+
+    #[test]
+    fn config_editor_beats_platform_default_but_not_the_environment() {
+        // The stored preference is the last stop before the platform fallback.
+        let env = MapEnvironment::new();
+        assert_eq!(
+            editor_command(&env, Some("code -w")).as_deref(),
+            Some("code -w")
+        );
+        let env = MapEnvironment::new().with_var("EDITOR", "vim");
+        assert_eq!(
+            editor_command(&env, Some("code -w")).as_deref(),
+            Some("vim")
+        );
+        // A blank stored value never shadows the fallback.
+        let env = MapEnvironment::new();
+        assert!(!editor_command(&env, Some("   ")).unwrap().trim().is_empty());
     }
 
     #[test]
     fn empty_editor_env_falls_back() {
         let env = MapEnvironment::new().with_var("VISUAL", "  ");
-        let command = editor_command(&env).unwrap();
+        let command = editor_command(&env, None).unwrap();
         assert!(!command.is_empty());
     }
 

@@ -47,13 +47,15 @@ pub struct Profile {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigSettings {
-    /// Preferred editor command used by authoring commands.
+    /// Preferred editor command for `--*-editor` authoring, used when neither
+    /// `$VISUAL` nor `$EDITOR` is set.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub editor: Option<String>,
     /// Preferred pager command for long output.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pager: Option<String>,
-    /// Preferred output format (e.g. `json`, `table`, `plain`).
+    /// Preferred output mode (`human`, `json`, `jsonl`, `tsv`, or `quiet`).
+    /// Explicit flags always win; the value is validated on write.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output: Option<String>,
     /// Git branch name template used by context-aware commands.

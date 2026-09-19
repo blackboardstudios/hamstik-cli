@@ -4,7 +4,7 @@ Get a single configuration value
 
 ### `key`
 
-Configuration key (e.g. `editor`, `pager`, `output`, `profile`)
+Configuration key: `profile`, `organization`, `project`, `editor`, `pager`, `output`, `git_branch_template`, or `audit_log`
 
 Value: `KEY`
 

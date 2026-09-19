@@ -156,7 +156,9 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
 - working context — `hamstik context show|set|clear|init` backed by a
   project-local `.hamstik.toml` plus global profile defaults;
 - global configuration — `hamstik config path|list|get|set|unset` for safe
-  non-secret defaults (editor, pager, output format, Git branch template);
+  non-secret defaults (`profile`, `organization`, `project`, `editor`, `pager`,
+  `output`, `git_branch_template`, `audit_log`); values are validated locally
+  before they are written, and credentials are never accepted;
 - organizations and projects — `hamstik org list|view|use` and
   `hamstik project list|view|create|edit|archive|unarchive|activity|report|use`;
 - Advanced Reporting — `hamstik report list|view|create|edit|delete|run|selection-items`
@@ -431,7 +433,8 @@ Long-form text (Work Item descriptions, comment bodies, project descriptions)
 can be supplied inline, from a file, from stdin, or through your editor:
 
 - `--description-editor` / `--body-editor` launch `$VISUAL` (then `$EDITOR`,
-  then a platform default) on a secure temporary file (owner-only
+  then `hamstik config set editor <command>`, then a platform default) on a
+  secure temporary file (owner-only
   permissions, removed on every exit path). Saving accepts the content;
   leaving it empty/unchanged cancels the command without sending anything.
 - `--*-file <PATH>` accepts a path, or `-` for stdin — the same convention on

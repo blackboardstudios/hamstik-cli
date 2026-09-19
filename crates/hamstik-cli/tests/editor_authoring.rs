@@ -517,3 +517,65 @@ async fn stdin_is_consumed_only_when_explicitly_selected() {
     let sent: Value = serde_json::from_slice(&request.body).unwrap();
     assert_eq!(sent["description"], "piped description");
 }
+
+/// `[settings] editor` is the editor of record when the environment sets none:
+/// what `hamstik config set editor <command>` stored must be what launches.
+/// Precedence stays `$VISUAL` > `$EDITOR` > config > platform default.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn config_editor_setting_authors_when_the_environment_sets_none() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1/comments",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": "44444444-4444-4444-8444-444444444444",
+            "workItemId": "33333333-3333-4333-8333-333333333333",
+            "author": {"publicId": "usr_cPbfeqnghA-RLpDVOMQhHg", "name": "S"},
+            "body": "authored",
+            "deleted": false,
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-01T00:00:00Z",
+            "editedAt": null,
+            "parentCommentId": null
+        })))
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    let editor = install_editor(&dir, "configured-editor.sh", "from the config setting\n");
+    std::fs::write(
+        dir.path().join("config.toml"),
+        format!("version = 2\n[settings]\neditor = \"{editor}\"\n"),
+    )
+    .unwrap();
+
+    let output = base(&server, &dir)
+        .env_remove("VISUAL")
+        .env_remove("EDITOR")
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "work",
+            "comment",
+            "add",
+            "HAM-1",
+            "--body-editor",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let request = &server.received_requests().await.unwrap()[0];
+    let sent: Value = serde_json::from_slice(&request.body).unwrap();
+    assert_eq!(sent["body"], "from the config setting\n");
+}

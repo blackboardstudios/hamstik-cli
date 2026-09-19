@@ -10,6 +10,30 @@ before upgrading.
 
 ## [Unreleased]
 
+### Added
+
+- The `editor` configuration setting is honored: `hamstik config set editor
+  <command>` is the editor `--description-editor`/`--body-editor` authoring
+  launches when neither `$VISUAL` nor `$EDITOR` is set, so a stored default
+  behaves as a default (precedence: environment > config > platform default).
+
+### Fixed
+
+- `hamstik config set` validates values before writing them. Empty values (use
+  `hamstik config unset <key>` instead), embedded newlines or control
+  characters, values longer than 1024 characters, and `output` spellings
+  outside the modes the CLI implements (`human`, `json`, `jsonl`, `tsv`,
+  `quiet`) now fail with exit code 10 and leave the configuration file
+  untouched, instead of persisting a value nothing can use.
+- `hamstik config unset <key>` no longer claims success for a key that was
+  never set, and no longer rewrites the configuration file (or appends a
+  mutation audit record) for a no-op.
+- The credential-like-value rejection points at `hamstik auth login` and
+  `HAMSTIK_TOKEN`; it previously suggested a `hamstik credential` command that
+  does not exist.
+- `hamstik config get|set|unset --help` (and the generated reference pages)
+  list every accepted key instead of an example subset.
+
 ## [0.2.0] - 2026-09-19
 
 ### Breaking

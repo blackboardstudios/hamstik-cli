@@ -205,6 +205,7 @@ async fn create(
     let description = if args.description_editor {
         Some(crate::editor::edit_text(
             session.env,
+            session.configured_editor()?.as_deref(),
             session.global.no_input,
             "a project description",
         )?)
@@ -292,6 +293,7 @@ async fn edit(
     } else if args.description_editor {
         Some(Some(crate::editor::edit_text(
             session.env,
+            session.configured_editor()?.as_deref(),
             session.global.no_input,
             "a project description edit",
         )?))

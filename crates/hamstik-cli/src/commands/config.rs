@@ -8,6 +8,16 @@ use crate::args::ConfigCommand;
 use crate::config::{ConfigFile, ConfigSettings};
 use crate::error::CliError;
 
+/// Maximum accepted length for one stored value.
+///
+/// Values land in a shared file that also holds every profile, so a single
+/// absurd write must not be able to bloat it.
+const MAX_VALUE_LEN: usize = 1_024;
+
+/// Output modes the CLI implements; any other spelling is a mistake caught at
+/// write time rather than a surprise at render time.
+const OUTPUT_MODES: &[&str] = &["human", "json", "jsonl", "tsv", "quiet"];
+
 /// Supported configuration keys and their descriptions.
 const VALID_KEYS: &[&str] = &[
     "profile",
@@ -153,7 +163,8 @@ async fn cmd_get(session: &mut Session<'_>, key: &str) -> Result<(), CliError> {
 
 async fn cmd_set(session: &mut Session<'_>, key: &str, value: &str) -> Result<(), CliError> {
     validate_key(key)?;
-    reject_credential_key(key, value)?;
+    validate_value(key, value)?;
+    reject_credential_value(value)?;
 
     let mut config = session.config.load()?;
 
@@ -213,44 +224,32 @@ async fn cmd_unset(session: &mut Session<'_>, key: &str) -> Result<(), CliError>
     validate_key(key)?;
     let mut config = session.config.load()?;
 
+    // `take()` decides `changed` from what was actually stored, so unsetting a
+    // key that was never set rewrites nothing and reports honestly.
     let changed = match key {
-        "profile" => {
-            config.active_profile = None;
-            true
-        }
+        "profile" => config.active_profile.take().is_some(),
         "organization" => {
             let profile_name = require_active_profile(&config)?;
-            if let Some(profile) = config.profiles.get_mut(&profile_name) {
-                profile.default_organization = None;
-                true
-            } else {
-                false
-            }
+            config
+                .profiles
+                .get_mut(&profile_name)
+                .is_some_and(|profile| profile.default_organization.take().is_some())
         }
         "project" => {
             let profile_name = require_active_profile(&config)?;
-            if let Some(profile) = config.profiles.get_mut(&profile_name) {
-                profile.default_project = None;
-                true
-            } else {
-                false
-            }
+            config
+                .profiles
+                .get_mut(&profile_name)
+                .is_some_and(|profile| profile.default_project.take().is_some())
         }
-        _ => {
-            if let Some(settings) = &mut config.settings {
-                match key {
-                    "editor" => settings.editor = None,
-                    "pager" => settings.pager = None,
-                    "output" => settings.output = None,
-                    "git_branch_template" => settings.git_branch_template = None,
-                    "audit_log" => settings.audit_log = None,
-                    _ => unreachable!(),
-                }
-                true
-            } else {
-                false
-            }
-        }
+        _ => config.settings.as_mut().is_some_and(|settings| match key {
+            "editor" => settings.editor.take().is_some(),
+            "pager" => settings.pager.take().is_some(),
+            "output" => settings.output.take().is_some(),
+            "git_branch_template" => settings.git_branch_template.take().is_some(),
+            "audit_log" => settings.audit_log.take().is_some(),
+            _ => false,
+        }),
     };
 
     if changed {
@@ -286,6 +285,38 @@ fn parse_bool(value: &str) -> Result<bool, CliError> {
     }
 }
 
+/// Validates purely local values before they are written.
+///
+/// Only client-side shape is checked here. Organization and project values are
+/// server-owned identifiers, so the server stays authoritative for whether one
+/// exists; this CLI rejects only values that could never work (empty, control
+/// characters, absurd length) plus the preference spellings it owns outright.
+fn validate_value(key: &str, value: &str) -> Result<(), CliError> {
+    if value.trim().is_empty() {
+        return Err(CliError::config(format!(
+            "{key} must not be empty; remove the value instead with `hamstik config unset {key}`"
+        )));
+    }
+    if value.chars().any(char::is_control) {
+        return Err(CliError::config(format!(
+            "{key} must not contain newlines or control characters"
+        )));
+    }
+    let length = value.chars().count();
+    if length > MAX_VALUE_LEN {
+        return Err(CliError::config(format!(
+            "{key} must be at most {MAX_VALUE_LEN} characters (got {length})"
+        )));
+    }
+    if key == "output" && !OUTPUT_MODES.contains(&value) {
+        return Err(CliError::config(format!(
+            "invalid output preference: {value}; valid output modes: {}",
+            OUTPUT_MODES.join(", ")
+        )));
+    }
+    Ok(())
+}
+
 fn validate_key(key: &str) -> Result<(), CliError> {
     if !VALID_KEYS.contains(&key) {
         return Err(CliError::config(format!(
@@ -303,11 +334,17 @@ fn require_active_profile(config: &ConfigFile) -> Result<String, CliError> {
         .ok_or_else(|| CliError::config("no active profile; set a profile first with `config set profile <name>` or `auth login`"))
 }
 
-fn reject_credential_key(_key: &str, value: &str) -> Result<(), CliError> {
+/// Rejects values that look like credentials before they reach disk.
+///
+/// Configuration is a plain, world-readable-by-design file: tokens stay in the
+/// OS credential store or `HAMSTIK_TOKEN` and are never written here, so a
+/// value that reads like a secret is refused with the two real alternatives.
+fn reject_credential_value(value: &str) -> Result<(), CliError> {
     let lowered = value.to_lowercase();
     if lowered.contains("token") || lowered.contains("secret") || lowered.contains("password") {
         return Err(CliError::config(
-            "refusing to store a credential-like value in config; use `hamstik credential` or the OS keyring instead",
+            "refusing to store a credential-like value in configuration; keep credentials in the OS \
+             credential store (`hamstik auth login`) or set HAMSTIK_TOKEN instead",
         ));
     }
     Ok(())

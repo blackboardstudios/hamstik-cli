@@ -46,7 +46,8 @@ pub(super) fn read_text(
 ///
 /// Source conflicts are already rejected at argument-parse time (`conflicts_with`),
 /// so at most one source can be present here. `--editor` launches
-/// `$VISUAL`/`$EDITOR` on a secure temporary file; the editor's content
+/// `$VISUAL`/`$EDITOR` (then the `editor` config setting) on a secure temporary
+/// file; the editor's content
 /// becomes the value (see [`crate::editor::edit_text`]).
 pub(super) fn read_long_text(
     session: &Session<'_>,
@@ -56,7 +57,13 @@ pub(super) fn read_long_text(
     what: &str,
 ) -> Result<Option<String>, CliError> {
     if editor {
-        return crate::editor::edit_text(session.env, session.global.no_input, what).map(Some);
+        return crate::editor::edit_text(
+            session.env,
+            session.configured_editor()?.as_deref(),
+            session.global.no_input,
+            what,
+        )
+        .map(Some);
     }
     read_text(inline, file)
 }
