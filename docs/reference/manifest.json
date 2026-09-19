@@ -39,9 +39,46 @@
       "true",
       "false"
      ],
+     "help": "Emit JSON Lines (one JSON object per line, NDJSON)",
+     "kind": "option",
+     "long": "--jsonl"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Emit tab-separated values",
+     "kind": "option",
+     "long": "--tsv"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
      "help": "Emit only essential identifiers",
      "kind": "option",
      "long": "--quiet"
+    },
+    {
+     "help": "Apply a jq filter expression to structured output (requires --json, --jsonl, or --tsv)",
+     "kind": "option",
+     "long": "--jq"
+    },
+    {
+     "help": "Restrict list output to these columns (header names), in order",
+     "kind": "option",
+     "long": "--columns"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Suppress the header row in list output (TSV and human table modes)",
+     "kind": "option",
+     "long": "--no-header"
     },
     {
      "choices": [
@@ -106,7 +143,12 @@
     "--org",
     "--project",
     "--json",
+    "--jsonl",
+    "--tsv",
     "--quiet",
+    "--jq",
+    "--columns",
+    "--no-header",
     "--verbose",
     "--no-color",
     "--no-input",

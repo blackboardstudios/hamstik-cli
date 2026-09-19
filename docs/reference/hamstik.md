@@ -26,9 +26,35 @@ Emit machine\-readable JSON
 
 Choices: `true`, `false`
 
+### `--jsonl`
+
+Emit JSON Lines (one JSON object per line, NDJSON)
+
+Choices: `true`, `false`
+
+### `--tsv`
+
+Emit tab\-separated values
+
+Choices: `true`, `false`
+
 ### `--quiet`
 
 Emit only essential identifiers
+
+Choices: `true`, `false`
+
+### `--jq`
+
+Apply a jq filter expression to structured output (requires \-\-json, \-\-jsonl, or \-\-tsv)
+
+### `--columns`
+
+Restrict list output to these columns (header names), in order
+
+### `--no-header`
+
+Suppress the header row in list output (TSV and human table modes)
 
 Choices: `true`, `false`
 

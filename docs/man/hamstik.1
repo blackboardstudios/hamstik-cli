@@ -23,8 +23,26 @@ Project key override
 Emit machine-readable JSON
 Choices: true, false
 .TP
+.B --jsonl
+Emit JSON Lines (one JSON object per line, NDJSON)
+Choices: true, false
+.TP
+.B --tsv
+Emit tab-separated values
+Choices: true, false
+.TP
 .B --quiet
 Emit only essential identifiers
+Choices: true, false
+.TP
+.B --jq
+Apply a jq filter expression to structured output (requires --json, --jsonl, or --tsv)
+.TP
+.B --columns
+Restrict list output to these columns (header names), in order
+.TP
+.B --no-header
+Suppress the header row in list output (TSV and human table modes)
 Choices: true, false
 .TP
 .B --verbose
