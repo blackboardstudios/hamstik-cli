@@ -7,7 +7,9 @@ use hamstik_api_client::{FollowPolicy, Me};
 use serde_json::Value;
 
 use crate::app::{Selection, Session};
-use crate::args::{AgentCommand, Command, PaginationArgs};
+use crate::args::{
+    AgentCommand, Command, PaginationArgs, ProjectCommand, SprintCommand, WorkCommand,
+};
 use crate::config::{Profile, profile_auto_name, unique_profile_name};
 use crate::error::CliError;
 use crate::output::{self, OutputOptions};
@@ -55,8 +57,68 @@ pub(crate) fn follow_policy(pagination: &PaginationArgs) -> FollowPolicy {
     }
 }
 
+/// The destructive action a command performs locally, when it requires
+/// explicit consent before any request is sent.
+///
+/// The server still authorizes the action; this only records that consent was
+/// expressed locally (SPEC §41). `org leave` is not part of the current Public
+/// API v1 command surface, so it is intentionally absent here.
+#[must_use]
+pub(crate) fn destructive_action(command: &Command) -> Option<&'static str> {
+    match command {
+        Command::Work(args) => match &args.command {
+            WorkCommand::Delete { .. } => Some("delete a work item"),
+            _ => None,
+        },
+        Command::Project(args) => match &args.command {
+            ProjectCommand::Archive { .. } => Some("archive a project"),
+            _ => None,
+        },
+        Command::Sprint(args) => match &args.command {
+            SprintCommand::Transition { target, .. } if target.as_str() == "done" => {
+                Some("complete a sprint")
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Enforces explicit local consent before a destructive mutation.
+///
+/// Consent is expressed with `--confirm-destructive` (or the scripting
+/// override `--yes`). Interactive sessions may confirm at a prompt instead;
+/// `--no-input` and `--json` never prompt and fail with a usage error naming
+/// the flag. `--dry-run` sends no mutation and therefore needs no consent.
+///
+/// # Errors
+/// Returns a usage error (exit 2) when consent is not given.
+pub(crate) fn require_destructive_consent(
+    session: &mut Session<'_>,
+    action: &str,
+) -> Result<(), CliError> {
+    if session.global.dry_run || session.global.confirm_destructive || session.global.yes {
+        return Ok(());
+    }
+    if session.can_prompt() {
+        let answer = session
+            .prompt
+            .read_line(&format!("About to {action}. Continue? [y/N] "))
+            .map_err(|err| CliError::general(format!("prompt failed: {err}")))?;
+        if matches!(answer.trim().to_ascii_lowercase().as_str(), "y" | "yes") {
+            return Ok(());
+        }
+    }
+    Err(CliError::usage(format!(
+        "refusing to {action} without confirmation; pass --confirm-destructive (or --yes for scripts) to consent"
+    )))
+}
+
 /// Runs the selected subcommand against the session.
 pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<(), CliError> {
+    if let Some(action) = destructive_action(command) {
+        require_destructive_consent(session, action)?;
+    }
     match command {
         Command::Me => me::run(session).await,
         Command::Auth(args) => auth::run(session, args).await,

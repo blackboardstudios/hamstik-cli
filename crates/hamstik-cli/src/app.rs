@@ -605,6 +605,20 @@ mod tests {
         }
     }
 
+    /// Prompt that returns one canned answer (for consent-prompt tests).
+    struct ScriptedPrompt {
+        answer: String,
+    }
+
+    impl crate::input::Prompt for ScriptedPrompt {
+        fn read_line(&mut self, _prompt: &str) -> std::io::Result<String> {
+            Ok(self.answer.clone())
+        }
+        fn read_secret(&mut self, _prompt: &str) -> std::io::Result<String> {
+            Ok(self.answer.clone())
+        }
+    }
+
     struct StaticEnvironment {
         vars: BTreeMap<String, String>,
         terminals: bool,
@@ -675,6 +689,8 @@ mod tests {
             verbose: false,
             no_color: false,
             no_input: false,
+            confirm_destructive: false,
+            yes: false,
             no_retry: false,
             dry_run: false,
             ca_bundle: None,
@@ -682,6 +698,15 @@ mod tests {
     }
 
     fn test_session_with(global: crate::args::GlobalOptions, terminals: bool) -> Session<'static> {
+        let prompt: &'static mut dyn crate::input::Prompt = Box::leak(Box::new(NullPrompt));
+        test_session_with_prompt(global, terminals, prompt)
+    }
+
+    fn test_session_with_prompt(
+        global: crate::args::GlobalOptions,
+        terminals: bool,
+        prompt: &'static mut dyn crate::input::Prompt,
+    ) -> Session<'static> {
         let mut env = StaticEnvironment::new();
         if terminals {
             env = env.with_terminals();
@@ -698,7 +723,6 @@ mod tests {
             Box::leak(Box::new(MemoryCredentialStore::new()));
         let leaked_dyn: &'static dyn CredentialStore = leaked;
         let env_ref: &'static dyn crate::environment::Environment = Box::leak(env);
-        let prompt: &'static mut dyn crate::input::Prompt = Box::leak(Box::new(NullPrompt));
         let factory: &'static dyn ApiFactory = Box::leak(Box::new(NullFactory));
         Session {
             out,
@@ -782,6 +806,117 @@ mod tests {
     fn can_prompt_requires_interactive_streams() {
         assert!(test_session_with(test_global(), true).can_prompt());
         assert!(!test_session_with(test_global(), false).can_prompt());
+    }
+
+    #[test]
+    fn destructive_consent_requires_flag_or_interactive_yes() {
+        // Interactive "yes" consents without a flag.
+        let mut session = test_session_with_prompt(
+            test_global(),
+            true,
+            Box::leak(Box::new(ScriptedPrompt {
+                answer: "yes".to_string(),
+            })),
+        );
+        assert!(
+            crate::commands::require_destructive_consent(&mut session, "delete a work item")
+                .is_ok()
+        );
+
+        // Interactive "no" is a usage error naming the flag.
+        let mut session = test_session_with_prompt(
+            test_global(),
+            true,
+            Box::leak(Box::new(ScriptedPrompt {
+                answer: "n".to_string(),
+            })),
+        );
+        let err = crate::commands::require_destructive_consent(&mut session, "delete a work item")
+            .unwrap_err();
+        assert_eq!(err.exit_code(), 2);
+        assert!(err.message.contains("--confirm-destructive"));
+
+        // Non-interactive without consent fails before prompting.
+        let mut session = test_session();
+        let err = crate::commands::require_destructive_consent(&mut session, "delete a work item")
+            .unwrap_err();
+        assert_eq!(err.exit_code(), 2);
+
+        // `--confirm-destructive` and `--yes` both consent without a prompt.
+        for global in [
+            crate::args::GlobalOptions {
+                confirm_destructive: true,
+                ..test_global()
+            },
+            crate::args::GlobalOptions {
+                yes: true,
+                ..test_global()
+            },
+        ] {
+            let mut session = test_session_with(global, false);
+            assert!(
+                crate::commands::require_destructive_consent(&mut session, "delete a work item")
+                    .is_ok()
+            );
+        }
+
+        // `--dry-run` never mutates and needs no consent.
+        let mut session = test_session_with(
+            crate::args::GlobalOptions {
+                dry_run: true,
+                ..test_global()
+            },
+            false,
+        );
+        assert!(
+            crate::commands::require_destructive_consent(&mut session, "delete a work item")
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn destructive_action_maps_the_gated_commands() {
+        use clap::Parser;
+        let parse = |args: &[&str]| {
+            let mut full = vec!["hamstik"];
+            full.extend_from_slice(args);
+            crate::args::Cli::try_parse_from(full).unwrap().command
+        };
+        assert_eq!(
+            crate::commands::destructive_action(&parse(&["work", "delete", "HAM-1"])),
+            Some("delete a work item")
+        );
+        assert_eq!(
+            crate::commands::destructive_action(&parse(&["project", "archive", "WEB"])),
+            Some("archive a project")
+        );
+        assert_eq!(
+            crate::commands::destructive_action(&parse(&[
+                "sprint",
+                "transition",
+                "11111111-1111-1111-1111-111111111111",
+                "done"
+            ])),
+            Some("complete a sprint")
+        );
+        // Not gated: other status transitions, work archive, project unarchive.
+        assert_eq!(
+            crate::commands::destructive_action(&parse(&[
+                "sprint",
+                "transition",
+                "11111111-1111-1111-1111-111111111111",
+                "active"
+            ])),
+            None
+        );
+        assert_eq!(
+            crate::commands::destructive_action(&parse(&["work", "archive", "HAM-1"])),
+            None
+        );
+        assert_eq!(
+            crate::commands::destructive_action(&parse(&["project", "unarchive", "WEB"])),
+            None
+        );
     }
 
     #[test]

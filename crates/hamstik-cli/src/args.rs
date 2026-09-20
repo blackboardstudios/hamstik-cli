@@ -90,6 +90,19 @@ pub struct GlobalOptions {
     #[arg(long, global = true)]
     pub no_input: bool,
 
+    /// Consent to the destructive operation this invocation performs
+    /// (`work delete`, `project archive`, or completing a Sprint). Required
+    /// when interactive confirmation is unavailable; `--yes` is the
+    /// scripting override.
+    #[arg(long = "confirm-destructive", global = true)]
+    pub confirm_destructive: bool,
+
+    /// Scripting override: consent to the destructive operation this
+    /// invocation performs without prompting. Prefer `--confirm-destructive`
+    /// in interactive sessions.
+    #[arg(long, global = true)]
+    pub yes: bool,
+
     /// Disable automatic retries.
     #[arg(long, global = true)]
     pub no_retry: bool,

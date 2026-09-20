@@ -1744,6 +1744,7 @@ async fn sprint_transition_sends_if_match_and_completion() {
             sprint_id,
             "done",
             "--move-to-backlog",
+            "--confirm-destructive",
             "--json",
         ])
         .assert()
@@ -2251,6 +2252,7 @@ async fn sprint_error_codes_map_to_exit_six() {
             sprint_id,
             "done",
             "--move-to-backlog",
+            "--confirm-destructive",
         ])
         .assert()
         .code(6)
@@ -2848,6 +2850,7 @@ async fn work_delete_sends_cascade_body() {
             "delete",
             "HAM-1",
             "--cascade",
+            "--confirm-destructive",
             "--json",
         ])
         .assert()
@@ -3153,7 +3156,14 @@ async fn project_archive_and_unarchive_flow() {
     let dir = TempDir::new().unwrap();
     base(&server, &dir)
         .args([
-            "--org", "acme", "project", "archive", "WEB", "--force", "--json",
+            "--org",
+            "acme",
+            "project",
+            "archive",
+            "WEB",
+            "--force",
+            "--confirm-destructive",
+            "--json",
         ])
         .assert()
         .success();

@@ -10,7 +10,23 @@ before upgrading.
 
 ## [Unreleased]
 
+### Breaking
+
+- Destructive commands now require explicit per-process consent before any
+  request is sent. `work delete`, `project archive`, and completing a Sprint
+  (`sprint transition <ID> done`) fail with a usage error (exit 2) unless the
+  invocation passes the new global `--confirm-destructive` flag or the `--yes`
+  scripting override, including under `--no-input`. Interactive terminal
+  sessions may confirm at a `y/N` prompt; `--dry-run` is unaffected because it
+  sends no mutation. Update automation that deletes Work Items, archives
+  Projects, or completes Sprints to pass one of the flags.
+
 ### Added
+
+- Global `--confirm-destructive` and `--yes` flags express local consent for
+  destructive commands (`work delete`, `project archive`, completing a Sprint)
+  without changing server-side authorization. Consent failures name the flag
+  and never contact the server.
 
 - Configuration-drift advisory for resolved Organization context. When a
   command already fetches the authenticated identity from `GET /api/v1/me`

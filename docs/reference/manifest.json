@@ -112,6 +112,24 @@
       "true",
       "false"
      ],
+     "help": "Consent to the destructive operation this invocation performs (`work delete`, `project archive`, or completing a Sprint). Required when interactive confirmation is unavailable; `--yes` is the scripting override",
+     "kind": "option",
+     "long": "--confirm-destructive"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Scripting override: consent to the destructive operation this invocation performs without prompting. Prefer `--confirm-destructive` in interactive sessions",
+     "kind": "option",
+     "long": "--yes"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
      "help": "Disable automatic retries",
      "kind": "option",
      "long": "--no-retry"
@@ -152,6 +170,8 @@
     "--verbose",
     "--no-color",
     "--no-input",
+    "--confirm-destructive",
+    "--yes",
     "--no-retry",
     "--dry-run",
     "--ca-bundle"

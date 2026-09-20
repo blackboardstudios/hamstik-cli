@@ -335,6 +335,8 @@ fn global_options_match_documented_surface() {
         "--verbose",
         "--no-color",
         "--no-input",
+        "--confirm-destructive",
+        "--yes",
         "--no-retry",
         "--dry-run",
         "--ca-bundle",

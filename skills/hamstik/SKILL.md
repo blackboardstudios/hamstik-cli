@@ -155,6 +155,15 @@ act — so confirm before writing them and verify afterwards with
   method, path, header intent (`If-Match`, `Idempotency-Key` — never credentials), and
   the typed body. It sends nothing, consumes no idempotency key, and is not proof of
   server-side validation or authorization.
+- Three commands are destructive and require explicit per-process consent even
+  outside `--no-input`: `work delete`, `project archive`, and
+  `sprint transition <SPRINT-ID> done` (completing a Sprint). Pass
+  `--confirm-destructive`, or the scripting override `--yes`, for every such
+  invocation. Interactive terminal sessions without either flag may confirm at
+  a prompt; `--no-input` and `--json` never prompt. Missing consent is a usage
+  error (exit 2) naming `--confirm-destructive` and the server is never
+  contacted. `--dry-run` needs no consent. The server still authorizes the
+  action; the flag only records local consent.
 
 Stable exit codes are: `0` success, `1` general failure, `2` usage, `3`
 authentication, `4` authorization/scope, `5` not found, `6`
@@ -357,7 +366,9 @@ create, label create, work archive/unarchive/delete) exists where the Public API
 exposes it and is restricted to administrators or owners server-side; the CLI does not
 decide eligibility. `work archive`/`unarchive` is the reversible path; `work delete`
 is owner-only and destructive — use it only when the user explicitly asks to delete
-the resolved item.
+the resolved item, and always pass `--confirm-destructive` (or `--yes`). Likewise,
+`project archive` and completing a Sprint with `sprint transition <ID> done`
+require `--confirm-destructive`/`--yes`.
 
 Server reports (CLI-63) are computed by the server. Read them with the typed
 commands instead of a raw passthrough, and never recompute a metric locally:

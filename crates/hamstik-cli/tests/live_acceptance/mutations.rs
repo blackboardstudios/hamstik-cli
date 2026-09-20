@@ -273,6 +273,7 @@ fn scenario(env: &AcceptanceEnv, created: &mut Vec<String>) {
         "done",
         "--force",
         "--move-to-backlog",
+        "--confirm-destructive",
     ]);
 
     // ---- Bulk create/update/transition with per-item results (run once;
@@ -348,7 +349,8 @@ fn cleanup_work_items(env: &AcceptanceEnv, created: &[String]) {
     for key in created {
         // Delete first (owner-scoped); fall back to archive when the test PAT
         // is not the Organization owner. Report anything that still leaks.
-        let (deleted, _, _) = env.fails(&["work", "delete", key, "--force"]);
+        let (deleted, _, _) =
+            env.fails(&["work", "delete", key, "--force", "--confirm-destructive"]);
         if deleted {
             continue;
         }

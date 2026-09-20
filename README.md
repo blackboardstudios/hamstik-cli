@@ -425,6 +425,30 @@ instead of sending anything.
 - Read commands (`work list`, `work view`, `me`, `doctor`, …) reject
   `--dry-run` with a usage error.
 
+## Destructive-operation consent
+
+Three commands are destructive and require explicit per-process consent
+before any request is sent:
+
+- `work delete` (soft-delete a Work Item);
+- `project archive`;
+- `sprint transition <SPRINT-ID> done` (completing a Sprint).
+
+Consent is expressed with the global `--confirm-destructive` flag. The
+`--yes` flag is the documented scripting override and satisfies the same gate
+without prompting. Interactive terminal sessions without either flag may
+confirm at a `y/N` prompt; `--no-input` and `--json` never prompt, so
+automation must pass one of the flags. Missing consent is a usage error
+(exit 2) whose message names `--confirm-destructive`, and the server is never
+contacted. `--dry-run` sends no mutation and needs no consent. The server
+remains authoritative for authorization; this gate only records that consent
+was expressed locally.
+
+```bash
+hamstik --no-input --org ACME --project HAM work delete HAM-42 --confirm-destructive
+hamstik --no-input --org ACME project archive OLD --yes
+```
+
 ## Context precedence diagnostics
 
 `hamstik context explain` reports how every resolved setting won precedence —
@@ -580,6 +604,10 @@ For automation:
 - `--quiet` emits only the essential identifier or result;
 - `--no-input` disables prompts and `--no-retry` disables safe automatic
   retries;
+- `--confirm-destructive` consents to the destructive operation an invocation
+  performs (`work delete`, `project archive`, completing a Sprint); `--yes`
+  is the scripting override. Destructive commands require one of them even
+  outside `--no-input` (see [Destructive-operation consent](#destructive-operation-consent));
 - `--cursor` requests the page that follows an opaque cursor — `--since-cursor`
   is the pipeline-checkpoint spelling of the same option — while `--all` starts
   at the first page, follows every returned cursor, and emits one deterministic

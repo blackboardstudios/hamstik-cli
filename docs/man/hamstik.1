@@ -57,6 +57,14 @@ Choices: true, false
 Never prompt interactively; fail instead
 Choices: true, false
 .TP
+.B --confirm-destructive
+Consent to the destructive operation this invocation performs (`work delete`, `project archive`, or completing a Sprint). Required when interactive confirmation is unavailable; `--yes` is the scripting override
+Choices: true, false
+.TP
+.B --yes
+Scripting override: consent to the destructive operation this invocation performs without prompting. Prefer `--confirm-destructive` in interactive sessions
+Choices: true, false
+.TP
 .B --no-retry
 Disable automatic retries
 Choices: true, false
