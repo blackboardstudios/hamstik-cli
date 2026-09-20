@@ -183,8 +183,15 @@ def generate_docs(binary: Path, reference_dir: Path) -> int:
     reference_dir.mkdir(parents=True, exist_ok=True)
     man_dir.mkdir(parents=True, exist_ok=True)
 
+    # The CLI manifest normally excludes clap-hidden commands. Keep this
+    # defensive filter here too so a future manifest extension cannot publish
+    # internal command pages (for example `_hamstik_dyn_complete`).
+    public_commands = [
+        command for command in document["commands"] if not command.get("hidden", False)
+    ]
+
     count = 0
-    for command in document["commands"]:
+    for command in public_commands:
         slug = command_slug(command["command"])
         (reference_dir / f"{slug}.md").write_text(
             render_reference(command), encoding="utf-8"

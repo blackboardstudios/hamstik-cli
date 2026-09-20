@@ -6,7 +6,10 @@
 //! This is an internal, hidden subcommand invoked by the generated shell
 //! completion scripts. It resolves the same context as any other read command,
 //! queries the API for live values, and returns one candidate per line to
-//! stdout.
+//! stdout. Live collections fetch only their first page (at most 100 items),
+//! use no retries, and use a five-second request timeout. Context, credential,
+//! network, and API failures all degrade to an empty successful response so a
+//! cursor is never held up by an unavailable service.
 //!
 //! Acceptance criteria (CLI-32):
 //! - Never issues a mutating request.
@@ -17,50 +20,56 @@
 
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::time::Duration;
 
 use hamstik_api_client::{
-    ClientError, FollowPolicy, HamstikApi, ListOptions, ListProjectsOptions, ListWorkItemsQuery,
-    PageItems, follow_with,
+    ClientError, HamstikApi, ListOptions, ListProjectsOptions, ListWorkItemsQuery,
 };
 
 use crate::app::{Selection, Session};
-use crate::args::{CompleteArgs, CompleteType};
+use crate::args::{CompleteArgs, CompleteType, StatusArg, TypeArg};
 use crate::error::CliError;
 
-/// Page size used for completion traversals. Completion is an interactive
-/// operation, so we fetch a bounded number of pages per collection (the client
-/// also caps traversal at [`hamstik_api_client::pagination::MAX_FOLLOW_PAGES`] /
-/// [`hamstik_api_client::pagination::MAX_FOLLOW_ITEMS`]).
+/// Page size used for one completion request.
 const COMPLETION_PAGE_SIZE: u32 = 100;
+
+/// Total request timeout for one completion request, including connection and
+/// response-body time. The completion client also disables retries.
+const COMPLETION_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Returns completion candidates for the given type and prefix.
 pub async fn run(session: &mut Session<'_>, args: &CompleteArgs) -> Result<(), CliError> {
-    // Resolve context and build the API client. When context or credentials
-    // are unavailable (offline, unauthenticated, or no organization resolved
-    // for org-scoped types), emit nothing — the completion scripts treat an
-    // empty stdout as "no candidates" and the shell falls back to its default
-    // completion.
-    let selection = match session.selection() {
-        Ok(sel) => sel,
-        Err(_) => return Ok(()),
+    let mut candidates = match args.typ {
+        CompleteType::Status | CompleteType::Type => complete_static(args.typ, &args.prefix),
+        CompleteType::Org
+        | CompleteType::Project
+        | CompleteType::WorkItemKey
+        | CompleteType::Label => {
+            // Resolve context and build the API client. When context or
+            // credentials are unavailable (offline, unauthenticated, or no
+            // organization/project is resolved), emit nothing — the shell
+            // treats an empty stdout as "no candidates".
+            let selection = match session.selection() {
+                Ok(sel) => sel,
+                Err(_) => return Ok(()),
+            };
+            let api = match session.completion_api(&selection, COMPLETION_REQUEST_TIMEOUT) {
+                Ok(a) => a,
+                Err(_) => return Ok(()),
+            };
+
+            // Completion is best-effort by design. API and transport failures
+            // are indistinguishable from an empty candidate set to the shell.
+            match args.typ {
+                CompleteType::Org => complete_orgs(args, &api).await,
+                CompleteType::Project => complete_projects(args, &api, &selection).await,
+                CompleteType::WorkItemKey => complete_work_items(args, &api, &selection).await,
+                CompleteType::Label => complete_labels(args, &api, &selection).await,
+                CompleteType::Status | CompleteType::Type => Ok(Vec::new()),
+            }
+            .unwrap_or_default()
+        }
     };
-
-    let api = match session.api(&selection) {
-        Ok(a) => a,
-        Err(_) => return Ok(()),
-    };
-
-    let candidates: Vec<String> = match args.typ {
-        CompleteType::Org => complete_orgs(session, args, &api).await,
-        CompleteType::Project => complete_projects(session, args, &api, &selection).await,
-        CompleteType::WorkItemKey => complete_work_items(session, args, &api, &selection).await,
-        CompleteType::Label => complete_labels(session, args, &api, &selection).await,
-        CompleteType::Status => Ok(complete_static("status", &args.prefix)),
-        CompleteType::Type => Ok(complete_static("type", &args.prefix)),
-    }
-    .map_err(CliError::from_client)?;
-
-    let mut candidates = candidates;
     candidates.sort();
     candidates.dedup();
 
@@ -87,32 +96,19 @@ fn filter_candidates<T: AsRef<str>>(
         .collect()
 }
 
-/// Organization slugs matching the prefix (all pages).
+/// Organization slugs matching the prefix from one page.
 async fn complete_orgs(
-    _session: &mut Session<'_>,
     args: &CompleteArgs,
     api: &Arc<dyn HamstikApi>,
 ) -> Result<Vec<String>, ClientError> {
-    let fetch_api = api.clone();
-    let page = follow_with(FollowPolicy::all(), move |cursor| {
-        let fetch_api = fetch_api.clone();
-        async move {
-            let response = fetch_api
-                .list_organizations(ListOptions {
-                    limit: Some(COMPLETION_PAGE_SIZE),
-                    cursor,
-                })
-                .await?;
-            Ok(PageItems::new(
-                response.value.items,
-                &response.raw,
-                response.value.page,
-            ))
-        }
-    })
-    .await?;
+    let response = api
+        .list_organizations(ListOptions {
+            limit: Some(COMPLETION_PAGE_SIZE),
+            cursor: None,
+        })
+        .await?;
     Ok(filter_candidates(
-        page.items.into_iter().map(|org| org.slug),
+        response.value.items.into_iter().map(|org| org.slug),
         &args.prefix,
     ))
 }
@@ -122,7 +118,6 @@ async fn complete_orgs(
 /// Fetches both archived and non-archived Projects so a completed key can
 /// still point at an archived Project.
 async fn complete_projects(
-    _session: &mut Session<'_>,
     args: &CompleteArgs,
     api: &Arc<dyn HamstikApi>,
     selection: &Selection,
@@ -134,26 +129,17 @@ async fn complete_projects(
     let mut keys: HashSet<String> = HashSet::new();
     for archived in [false, true] {
         let org = org.to_string();
-        let fetch_api = api.clone();
-        let page = follow_with(FollowPolicy::all(), move |cursor| {
-            let org = org.clone();
-            let fetch_api = fetch_api.clone();
-            async move {
-                let opts = ListProjectsOptions {
+        let response = api
+            .list_projects(
+                &org,
+                ListProjectsOptions {
                     limit: Some(COMPLETION_PAGE_SIZE),
-                    cursor,
+                    cursor: None,
                     archived: Some(archived),
-                };
-                let response = fetch_api.list_projects(&org, opts).await?;
-                Ok(PageItems::new(
-                    response.value.items,
-                    &response.raw,
-                    response.value.page,
-                ))
-            }
-        })
-        .await?;
-        for p in page.items {
+                },
+            )
+            .await?;
+        for p in response.value.items {
             keys.insert(p.key);
         }
     }
@@ -165,7 +151,6 @@ async fn complete_projects(
 /// A resolved Project scopes the query to that Project's Work Items; otherwise
 /// the Organization Work collection is queried (no project resolved).
 async fn complete_work_items(
-    _session: &mut Session<'_>,
     args: &CompleteArgs,
     api: &Arc<dyn HamstikApi>,
     selection: &Selection,
@@ -178,55 +163,34 @@ async fn complete_work_items(
     let project_key = selection.project.value.as_deref();
 
     if let Some(project_key) = project_key {
-        let fetch_api = api.clone();
-        let org = org.to_string();
-        let project_key = project_key.to_string();
-        let page = follow_with(FollowPolicy::all(), move |cursor| {
-            let org = org.clone();
-            let project_key = project_key.clone();
-            let fetch_api = fetch_api.clone();
-            async move {
-                let query = ListWorkItemsQuery {
+        let response = api
+            .list_work_items(
+                org,
+                project_key,
+                ListWorkItemsQuery {
                     limit: Some(COMPLETION_PAGE_SIZE),
                     fields: Some("key".to_string()),
-                    cursor,
+                    cursor: None,
                     ..Default::default()
-                };
-                let response = fetch_api.list_work_items(&org, &project_key, query).await?;
-                Ok(PageItems::new(
-                    response.value.items,
-                    &response.raw,
-                    response.value.page,
-                ))
-            }
-        })
-        .await?;
-        for item in page.items {
+                },
+            )
+            .await?;
+        for item in response.value.items {
             keys.insert(item.key);
         }
     } else {
-        let fetch_api = api.clone();
-        let org = org.to_string();
-        let page = follow_with(FollowPolicy::all(), move |cursor| {
-            let org = org.clone();
-            let fetch_api = fetch_api.clone();
-            async move {
-                let query = ListWorkItemsQuery {
+        let response = api
+            .list_organization_work_items(
+                org,
+                ListWorkItemsQuery {
                     limit: Some(COMPLETION_PAGE_SIZE),
                     fields: Some("key".to_string()),
-                    cursor,
+                    cursor: None,
                     ..Default::default()
-                };
-                let response = fetch_api.list_organization_work_items(&org, query).await?;
-                Ok(PageItems::new(
-                    response.value.items,
-                    &response.raw,
-                    response.value.page,
-                ))
-            }
-        })
-        .await?;
-        for item in page.items {
+                },
+            )
+            .await?;
+        for item in response.value.items {
             keys.insert(item.summary.key);
         }
     }
@@ -238,7 +202,6 @@ async fn complete_work_items(
 /// The v1 API lists a Project's labels directly (`GET .../projects/{key}/labels`),
 /// so the full label set is fetched and filtered client-side.
 async fn complete_labels(
-    _session: &mut Session<'_>,
     args: &CompleteArgs,
     api: &Arc<dyn HamstikApi>,
     selection: &Selection,
@@ -250,47 +213,38 @@ async fn complete_labels(
         ClientError::Protocol("no project resolved for label completion".to_string())
     })?;
 
-    let fetch_api = api.clone();
-    let org = org.to_string();
-    let project_key = project_key.to_string();
-    let page = follow_with(FollowPolicy::all(), move |cursor| {
-        let org = org.clone();
-        let project_key = project_key.clone();
-        let fetch_api = fetch_api.clone();
-        async move {
-            let response = fetch_api
-                .list_labels(
-                    &org,
-                    &project_key,
-                    ListOptions {
-                        limit: Some(COMPLETION_PAGE_SIZE),
-                        cursor,
-                    },
-                )
-                .await?;
-            Ok(PageItems::new(
-                response.value.items,
-                &response.raw,
-                response.value.page,
-            ))
-        }
-    })
-    .await?;
+    let response = api
+        .list_labels(
+            org,
+            project_key,
+            ListOptions {
+                limit: Some(COMPLETION_PAGE_SIZE),
+                cursor: None,
+            },
+        )
+        .await?;
     Ok(filter_candidates(
-        page.items.into_iter().map(|label| label.name),
+        response.value.items.into_iter().map(|label| label.name),
         &args.prefix,
     ))
 }
 
 /// Static candidates for the work item status or type enums.
 ///
-/// The values are fixed by the API contract (`WorkItemSummary::status` /
-/// `::type` and `CreateWorkItemRequest`), so no network lookup is needed.
-fn complete_static(kind: &str, prefix: &str) -> Vec<String> {
-    let values: Vec<&'static str> = match kind {
-        "status" => vec!["backlog", "todo", "in_progress", "in_review", "done"],
-        "type" => vec!["task", "bug", "story", "feature", "epic"],
-        _ => vec![],
-    };
-    filter_candidates(values, prefix)
+/// The values come from the same request-side enums used for validation, so
+/// this branch never performs network I/O.
+fn complete_static(typ: CompleteType, prefix: &str) -> Vec<String> {
+    match typ {
+        CompleteType::Status => {
+            filter_candidates(StatusArg::ALL.iter().map(|status| status.as_str()), prefix)
+        }
+        CompleteType::Type => filter_candidates(
+            TypeArg::ALL.iter().map(|item_type| item_type.as_str()),
+            prefix,
+        ),
+        CompleteType::Org
+        | CompleteType::Project
+        | CompleteType::WorkItemKey
+        | CompleteType::Label => Vec::new(),
+    }
 }

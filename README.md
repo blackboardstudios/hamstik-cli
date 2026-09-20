@@ -228,9 +228,14 @@ subcommands. Cursors are opaque: pass the returned `nextCursor` unchanged.
 
 ### Shell completions
 
-`hamstik completion <shell>` prints the completion script for `bash`, `zsh`,
-`fish`, or `powershell` (no network access; candidates cover command names and
-statically known values):
+`hamstik completion <shell>` prints static completion for every supported shell.
+Bash and fish also query live Organization slugs, Project keys, and labels
+through the hidden `hamstik _hamstik_dyn_complete` helper; Bash additionally
+uses it for Work Item key positions. These callbacks make read-only Public API
+v1 `GET` requests, fetch one bounded page with no retries, and silently return
+no candidates when offline or unauthenticated. Context precedence remains
+flag > environment > `.hamstik.toml` > profile. Zsh, PowerShell, and Elvish
+are static-only:
 
 ```bash
 # Bash (current session)

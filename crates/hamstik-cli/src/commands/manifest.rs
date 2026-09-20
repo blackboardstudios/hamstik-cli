@@ -37,6 +37,11 @@ pub(crate) fn collect(cli: &ClapCommand) -> Vec<ManifestCommand> {
 }
 
 fn walk(command: &ClapCommand, path: &str, out: &mut Vec<ManifestCommand>) {
+    // Hidden implementation commands are callable but are not part of the
+    // public command contract or generated documentation.
+    if command.is_hide_set() {
+        return;
+    }
     let aliases = command
         .get_all_aliases()
         .map(str::to_string)

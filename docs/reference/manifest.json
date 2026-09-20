@@ -5113,43 +5113,6 @@
    ]
   },
   {
-   "about": "Internal: dynamic shell completion for live values",
-   "aliases": [],
-   "arguments": [
-    {
-     "choices": [
-      "org",
-      "project",
-      "work-item-key",
-      "status",
-      "type",
-      "label"
-     ],
-     "help": "Completion candidate type",
-     "kind": "positional",
-     "name": "typ",
-     "valueName": "TYP"
-    },
-    {
-     "help": "Prefix to filter candidates",
-     "kind": "positional",
-     "name": "prefix",
-     "valueName": "PREFIX"
-    }
-   ],
-   "capabilities": {
-    "json": true,
-    "noInput": true
-   },
-   "command": "hamstik _hamstik_dyn_complete",
-   "hasSubcommands": false,
-   "options": [],
-   "positionals": [
-    "typ",
-    "prefix"
-   ]
-  },
-  {
    "about": "Bootstrap the working directory for Hamstik",
    "aliases": [],
    "arguments": [],

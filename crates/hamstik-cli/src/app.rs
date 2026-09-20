@@ -11,6 +11,7 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use secrecy::SecretString;
 
@@ -74,6 +75,10 @@ pub struct ClientRequest<'a> {
     pub ca_bundle: Option<&'a Path>,
     /// The `User-Agent` value.
     pub user_agent: String,
+    /// Optional total request timeout override for interactive operations.
+    pub request_timeout: Option<Duration>,
+    /// Whether successful rate-limit exhaustion may delay the next request.
+    pub wait_on_depleted_rate_limit: bool,
 }
 
 /// Parameters for constructing an unauthenticated Public API client.
@@ -97,6 +102,8 @@ impl ApiFactory for ProductionApiFactory {
             request.user_agent.clone(),
             request.no_retry,
             request.ca_bundle,
+            request.request_timeout,
+            request.wait_on_depleted_rate_limit,
         )?;
         let client = HamstikClient::new(request.host.clone(), request.token.clone(), config)
             .map_err(CliError::from_client)?;
@@ -108,6 +115,8 @@ impl ApiFactory for ProductionApiFactory {
             request.user_agent.clone(),
             request.no_retry,
             request.ca_bundle,
+            None,
+            true,
         )?;
         // Keep the same concrete type and configuration as authenticated
         // clients; only the bearer credential is absent.
@@ -121,13 +130,19 @@ fn client_config(
     user_agent: String,
     no_retry: bool,
     ca_bundle: Option<&Path>,
+    request_timeout: Option<Duration>,
+    wait_on_depleted_rate_limit: bool,
 ) -> Result<ClientConfig, CliError> {
     let mut config = ClientConfig {
         user_agent,
+        wait_on_depleted_rate_limit,
         ..ClientConfig::default()
     };
     if no_retry {
         config.retry = hamstik_api_client::RetryPolicy::none();
+    }
+    if let Some(timeout) = request_timeout {
+        config.request_timeout = timeout;
     }
     if let Some(path) = ca_bundle {
         config.ca_pem.push(read_ca_bundle(path)?);
@@ -300,6 +315,22 @@ impl Session<'_> {
         self.build_client(selection.host.clone(), token)
     }
 
+    /// Builds the bounded, no-retry client used by dynamic completion.
+    pub fn completion_api(
+        &self,
+        selection: &Selection,
+        request_timeout: Duration,
+    ) -> Result<Arc<dyn HamstikApi>, CliError> {
+        let token = self.token_for(selection)?;
+        self.build_client_with_options(
+            selection.host.clone(),
+            token,
+            true,
+            Some(request_timeout),
+            false,
+        )
+    }
+
     /// Builds an unauthenticated client for the public OpenAPI operation.
     pub fn public_api(&self, selection: &Selection) -> Result<Arc<dyn HamstikApi>, CliError> {
         let env_ca_bundle = self
@@ -325,6 +356,17 @@ impl Session<'_> {
         host: Host,
         token: SecretString,
     ) -> Result<Arc<dyn HamstikApi>, CliError> {
+        self.build_client_with_options(host, token, self.global.no_retry, None, true)
+    }
+
+    fn build_client_with_options(
+        &self,
+        host: Host,
+        token: SecretString,
+        no_retry: bool,
+        request_timeout: Option<Duration>,
+        wait_on_depleted_rate_limit: bool,
+    ) -> Result<Arc<dyn HamstikApi>, CliError> {
         let env_ca_bundle = self
             .env
             .var("HAMSTIK_CA_BUNDLE")
@@ -337,9 +379,11 @@ impl Session<'_> {
         let request = ClientRequest {
             host,
             token,
-            no_retry: self.global.no_retry,
+            no_retry,
             ca_bundle,
             user_agent: user_agent(),
+            request_timeout,
+            wait_on_depleted_rate_limit,
         };
         self.factory.build(&request)
     }

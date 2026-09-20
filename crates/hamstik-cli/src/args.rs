@@ -2456,6 +2456,15 @@ pub enum StatusArg {
 }
 
 impl StatusArg {
+    /// Every accepted wire spelling, in CLI order.
+    pub const ALL: &[Self] = &[
+        Self::Backlog,
+        Self::Todo,
+        Self::InProgress,
+        Self::InReview,
+        Self::Done,
+    ];
+
     /// The wire value for this status.
     #[must_use]
     pub fn as_str(self) -> &'static str {
@@ -2485,6 +2494,15 @@ pub enum TypeArg {
 }
 
 impl TypeArg {
+    /// Every accepted wire spelling, in CLI order.
+    pub const ALL: &[Self] = &[
+        Self::Task,
+        Self::Bug,
+        Self::Story,
+        Self::Feature,
+        Self::Epic,
+    ];
+
     /// The wire value for this type.
     #[must_use]
     pub fn as_str(self) -> &'static str {

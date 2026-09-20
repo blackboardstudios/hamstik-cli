@@ -12,6 +12,11 @@ before upgrading.
 
 ### Added
 
+- Dynamic shell completion for Bash and fish: live Organization slugs, Project
+  keys, labels, and Bash Work Item key positions use the hidden
+  `_hamstik_dyn_complete` helper. It performs read-only Public API GETs only,
+  fetches a single page without retries, and silently degrades to no candidates
+  offline or without credentials.
 - Date and time flags accept human-friendly local expressions. `--since`,
   `--updated-after`, `--due-before`, `--due-after`, `--due-date`, and sprint
   `--start-date`/`--end-date` now take forms such as `7d`, `2w`, `1mo`, `+3h`,

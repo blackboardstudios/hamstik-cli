@@ -45,6 +45,19 @@ fn manifest_covers_the_whole_command_tree() {
     sorted.sort();
     sorted.dedup();
     assert_eq!(sorted.len(), names.len(), "no duplicate manifest entries");
+    assert!(!names.contains(&"hamstik _hamstik_dyn_complete"));
+}
+
+#[test]
+fn dynamic_completion_command_is_hidden_but_callable() {
+    use clap::CommandFactory;
+    use hamstik_cli::args::Cli;
+
+    let command = Cli::command();
+    let internal = command
+        .find_subcommand("_hamstik_dyn_complete")
+        .expect("internal completion command remains installed");
+    assert!(internal.is_hide_set());
 }
 
 /// Manifest capabilities: global `--json`/`--no-input` apply everywhere.
@@ -149,7 +162,7 @@ fn completion_scripts_render_for_all_shells() {
     }
 }
 
-/// Completion candidates are statically knowable and network-free.
+/// Static completion still includes command and enum candidates.
 #[test]
 fn completion_candidates_cover_commands_and_enum_values() {
     let dir = TempDir::new().unwrap();

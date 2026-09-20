@@ -210,6 +210,9 @@ pub struct ClientConfig {
     pub retry: RetryPolicy,
     /// Additional PEM root certificates (from `--ca-bundle` / env).
     pub ca_pem: Vec<String>,
+    /// Whether successful responses with an exhausted rate-limit window may
+    /// proactively wait before the next request.
+    pub wait_on_depleted_rate_limit: bool,
 }
 
 impl Default for ClientConfig {
@@ -220,6 +223,7 @@ impl Default for ClientConfig {
             user_agent: String::from("hamstik-cli"),
             retry: RetryPolicy::default(),
             ca_pem: Vec::new(),
+            wait_on_depleted_rate_limit: true,
         }
     }
 }
@@ -232,6 +236,7 @@ pub struct HamstikClient {
     token: Option<SecretString>,
     policy: RetryPolicy,
     sleeper: SharedSleeper,
+    wait_on_depleted_rate_limit: bool,
 }
 
 impl HamstikClient {
@@ -289,6 +294,7 @@ impl HamstikClient {
             token,
             policy: config.retry,
             sleeper,
+            wait_on_depleted_rate_limit: config.wait_on_depleted_rate_limit,
         })
     }
 
@@ -311,7 +317,9 @@ impl HamstikClient {
             .send_with_retry(spec.retryable, || self.build(&spec, authenticated))
             .await?;
         let finalized = self.finalize(response).await?;
-        self.absorb_depleted_window(finalized.rate_limit).await;
+        if self.wait_on_depleted_rate_limit {
+            self.absorb_depleted_window(finalized.rate_limit).await;
+        }
         Ok(finalized)
     }
 
