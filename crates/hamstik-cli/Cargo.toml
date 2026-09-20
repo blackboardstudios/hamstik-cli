@@ -87,3 +87,6 @@ missing_docs = "warn"
 [lints.clippy]
 unwrap_used = "warn"
 expect_used = "warn"
+# External error types (like ClientError) are inherently large; we allow this
+# lint instead of boxing every Result return type.
+result_large_err = "allow"

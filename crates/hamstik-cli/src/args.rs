@@ -143,6 +143,9 @@ pub enum Command {
     Doctor(DoctorArgs),
     /// Generate a shell completion script.
     Completion(CompletionArgs),
+    /// Internal: dynamic shell completion for live values.
+    #[command(name = "_hamstik_dyn_complete", hide = true)]
+    Complete(CompleteArgs),
     /// Bootstrap the working directory for Hamstik.
     Init,
     /// Print the machine-readable command manifest derived from the real
@@ -2386,6 +2389,33 @@ pub struct CompletionArgs {
     /// Target shell.
     #[arg(value_enum)]
     pub shell: clap_complete::Shell,
+}
+
+/// Completion candidate types for `__complete`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+pub enum CompleteType {
+    /// Organization slug.
+    Org,
+    /// Project key.
+    Project,
+    /// Work item key.
+    WorkItemKey,
+    /// Work item status.
+    Status,
+    /// Work item type.
+    Type,
+    /// Label name.
+    Label,
+}
+
+/// Arguments for `__complete` (internal, hidden).
+#[derive(Args, Debug)]
+pub struct CompleteArgs {
+    /// Completion candidate type.
+    #[arg(value_enum)]
+    pub typ: CompleteType,
+    /// Prefix to filter candidates.
+    pub prefix: String,
 }
 
 /// Arguments for `commands`: the machine-readable command manifest.

@@ -19,6 +19,7 @@ pub mod api;
 pub mod auth;
 pub mod bulk_preflight;
 pub mod commands_manifest;
+pub mod complete;
 pub mod completion;
 pub mod config;
 pub mod context_cmd;
@@ -77,6 +78,7 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
             doctor::run(session, args.local_only, args.bundle.as_deref()).await
         }
         Command::Completion(args) => completion::run(session, args),
+        Command::Complete(args) => complete::run(session, args).await,
         Command::Commands(_) => commands_manifest::run(session),
         Command::Version => version(session),
     }

@@ -115,7 +115,12 @@ fn root_command_hierarchy_matches_documented_surface() {
     use hamstik_cli::args::Cli;
 
     let root = Cli::command();
-    let names: Vec<&str> = root.get_subcommands().map(|c| c.get_name()).collect();
+    // Filter out hidden/internal commands (e.g., `_hamstik_dyn_complete` for dynamic completion).
+    let names: Vec<&str> = root
+        .get_subcommands()
+        .filter(|c| !c.is_hide_set())
+        .map(|c| c.get_name())
+        .collect();
     assert_eq!(
         names,
         [

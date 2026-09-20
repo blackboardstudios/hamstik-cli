@@ -25,6 +25,9 @@ missing_docs = "warn"
 # scoped per-crate below rather than workspace-wide.
 unwrap_used = "warn"
 expect_used = "warn"
+# External error types (like ClientError) are inherently large; we allow this
+# lint workspace-wide instead of boxing every Result return type.
+result_large_err = "allow"
 
 [workspace.dependencies]
 # Shared runtime / serialization
