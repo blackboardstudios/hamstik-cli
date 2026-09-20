@@ -320,6 +320,10 @@ hamstik work bulk update --operations-file update-operations.json \
 hamstik work bulk transition --operations-file transition-operations.json \
   --concurrency last-write-wins --json
 
+# Convert a CSV into the same operations envelope and pipe it into bulk
+hamstik work bulk from-csv items.csv --op create --project HAM \
+  | hamstik work bulk create --operations-file -
+
 # Dry-run: preview the exact mutation without sending it
 hamstik work create --title "Document API" --dry-run --json
 hamstik work edit HAM-42 --priority high --dry-run --json
@@ -877,6 +881,21 @@ transitions, and missing targets). `--json` preserves every documented
 per-operation field exactly as the server returned it. Preflight performs
 local structure validation only; server-side validation, authorization, and
 transition legality remain authoritative on the server.
+
+`work bulk from-csv <FILE> --op create|update --project <KEY>` converts a local
+CSV file into that exact operations array (write it with `--output <FILE>`, or
+leave it on stdout to pipe into `--operations-file -`). The dialect is RFC 4180:
+a required header row, comma-separated fields, `"` quoting, and `""` for an
+embedded quote; an empty cell omits the field. `--op create` accepts `title`
+(the only field the frozen bulk create envelope carries), and `--op update`
+accepts `workItemKey` (required), `revision`, `title`, `description`, `type`,
+`priority`, `assignee`, `sprint`, `parent`, `storyPoints`, and `dueDate`. The
+converter never guesses: unknown columns, mis-spelled enums, and malformed rows
+fail locally with the CSV row number and column name before any request, and the
+result is re-run through the same bulk preflight and typed envelopes the JSON
+path uses. Status and labels are not part of either bulk envelope (status is a
+transition, labels use the label endpoints), so they are rejected rather than
+silently dropped.
 
 ## Public API passthrough
 

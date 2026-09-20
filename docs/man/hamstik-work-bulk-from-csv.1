@@ -1,0 +1,22 @@
+.TH HAMSTIK 1 "HAMSTIK WORK BULK FROM CSV"
+.SH NAME
+hamstik work bulk from-csv \- Convert a CSV file into the `work bulk` operations JSON array
+.SH SYNOPSIS
+.B hamstik work bulk from-csv [OPTIONS]
+.SH DESCRIPTION
+Convert a CSV file into the `work bulk` operations JSON array
+.SH ARGUMENTS
+.TP
+.I FILE
+CSV file (path, or - for stdin). The first row must be a header
+.SH OPTIONS
+.TP
+.B --op
+Operation kind the rows convert to
+Choices: create, update
+.TP
+.B --project
+Project key applied to every converted operation (defaults to the global `--project`, then normal project selection such as HAMSTIK_PROJECT or `hamstik project use`)
+.TP
+.B -o, --output
+Write the operations JSON to a file instead of stdout

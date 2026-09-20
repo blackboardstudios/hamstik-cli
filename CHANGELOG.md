@@ -12,6 +12,23 @@ before upgrading.
 
 ### Added
 
+- `work bulk from-csv <FILE> --op create|update --project <KEY>` converts a
+  local CSV file into the exact `work bulk` operations JSON array, written to
+  `--output <FILE>` or stdout for piping into
+  `work bulk create|update --operations-file -`. The dialect is RFC 4180
+  (header row, comma separation, `"` quoting, `""` escapes; empty cell means
+  omitted). `--op create` maps `title`; `--op update` maps `workItemKey`,
+  `revision`, `title`, `description`, `type`, `priority`, `assignee`, `sprint`,
+  `parent`, `storyPoints`, and `dueDate` into `changes`. The project key comes
+  from `--project`, the global `--project`, or normal project selection
+  (`HAMSTIK_PROJECT`, the context file, `hamstik project use`). The converter
+  re-runs the generated array through the existing bulk preflight so it can
+  never accept an envelope the JSON path rejects; unknown columns, mis-spelled
+  enums, and malformed rows fail locally with the CSV row number and column
+  name before any network call. Status and labels are not part of either bulk
+  envelope and are rejected as unknown columns. Existing JSON-file bulk
+  workflows are unaffected.
+
 - `work create` convenience sources: `--from <KEY>` seeds a new Work Item from
   an existing one and `--template <FILE>` reads a local Markdown file with YAML
   frontmatter (`-` for stdin). Both copy the documented

@@ -325,6 +325,22 @@ hamstik --json --no-input --org <ORG> work bulk update \
   --operations-file <OPERATIONS.json> --dry-run   # preview, no request
 ```
 
+When the operations come from a spreadsheet, convert a local CSV into the same
+array instead of hand-writing JSON. The dialect is RFC 4180 (header row, `"`
+quoting, `""` escapes; an empty cell omits the field); `--op create` maps only
+`title` (the whole create envelope), while `--op update` maps `workItemKey`
+(required), `revision`, `title`, `description`, `type`, `priority`, `assignee`,
+`sprint`, `parent`, `storyPoints`, and `dueDate`. The converter does not guess:
+unknown columns, mis-spelled enums, and malformed rows fail locally with the CSV
+row number and column name, and the result is re-run through the same bulk
+preflight. Status and labels are not representable in a bulk operation (status is
+a transition, labels use the label endpoints), so they are rejected:
+
+```bash
+hamstik work bulk from-csv items.csv --op create --project <KEY> > operations.json
+hamstik --json --no-input --org <ORG> work bulk create --operations-file operations.json
+```
+
 Bulk results in JSON preserve per-operation `index`, `status`, `workItem`, and
 `error` exactly; human output summarizes succeeded/failed counts with actionable
 failure details.

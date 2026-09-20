@@ -12,12 +12,25 @@ use crate::args::{WorkBulkArgs, WorkBulkCommand};
 use crate::error::CliError;
 
 use super::archive::read_operations;
+use super::bulk_csv;
 use super::bulk_preflight;
 use super::common::idem_key;
 use super::dryrun;
 use super::emit_json;
 use super::emit_table;
 pub(super) async fn bulk(session: &mut Session<'_>, args: &WorkBulkArgs) -> Result<(), CliError> {
+    // `from-csv` is a local conversion: it needs no Organization, credential,
+    // or network access, so handle it before resolving any API context.
+    if let WorkBulkCommand::FromCsv {
+        file,
+        op,
+        project,
+        output,
+    } = &args.command
+    {
+        return bulk_csv::from_csv(session, file, *op, project.as_deref(), output.as_deref());
+    }
+
     let selection = session.selection()?;
     let org = session.require_org(&selection)?;
     let api = session.api(&selection)?;
@@ -87,6 +100,9 @@ pub(super) async fn bulk(session: &mut Session<'_>, args: &WorkBulkArgs) -> Resu
                         "/api/v1/organizations/{organization}/bulk-work-item-transitions",
                         serde_json::to_value(&body).map_err(CliError::general)?,
                     )
+                }
+                WorkBulkCommand::FromCsv { .. } => {
+                    unreachable!("from-csv is handled before any request")
                 }
             };
         let count = body
@@ -162,6 +178,9 @@ pub(super) async fn bulk(session: &mut Session<'_>, args: &WorkBulkArgs) -> Resu
                 .await
                 .map_err(CliError::from_client)?
         }
+        WorkBulkCommand::FromCsv { .. } => {
+            unreachable!("from-csv is handled before any request")
+        }
     };
     let concurrency_mode = match &args.command {
         WorkBulkCommand::Create { .. } => None,
@@ -171,6 +190,9 @@ pub(super) async fn bulk(session: &mut Session<'_>, args: &WorkBulkArgs) -> Resu
                 .unwrap_or(crate::args::ConcurrencyArg::RequireRevision)
                 .as_str(),
         ),
+        WorkBulkCommand::FromCsv { .. } => {
+            unreachable!("from-csv is handled before any request")
+        }
     };
     if response.idempotency_replayed {
         session
@@ -181,6 +203,9 @@ pub(super) async fn bulk(session: &mut Session<'_>, args: &WorkBulkArgs) -> Resu
         WorkBulkCommand::Create { .. } => "work.bulk.create",
         WorkBulkCommand::Update { .. } => "work.bulk.update",
         WorkBulkCommand::Transition { .. } => "work.bulk.transition",
+        WorkBulkCommand::FromCsv { .. } => {
+            unreachable!("from-csv is handled before any request")
+        }
     };
     // A batch has no single target: record the batch size, which is all the
     // record can state without touching operation payloads.
@@ -209,6 +234,9 @@ fn args_idempotency(command: &WorkBulkCommand) -> Option<String> {
         | WorkBulkCommand::Transition {
             idempotency_key, ..
         } => idempotency_key.clone(),
+        WorkBulkCommand::FromCsv { .. } => {
+            unreachable!("from-csv is handled before any request")
+        }
     }
 }
 /// Renders bulk results: the raw `{results: [...]}` body in JSON mode, a

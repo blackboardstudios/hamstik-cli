@@ -12,6 +12,7 @@ mod archive;
 mod attachment;
 mod await_cmd;
 mod bulk;
+mod bulk_csv;
 mod comment;
 pub(crate) mod common;
 mod create;
