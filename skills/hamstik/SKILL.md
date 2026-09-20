@@ -409,6 +409,32 @@ hamstik api request --method PATCH --body-file body.json /api/v1/organizations/a
 - `--dry-run` previews the exact request (versioned envelope, nothing sent) and
   is rejected for GET.
 
+## External subcommand plugins (CLI-33)
+
+`hamstik` supports git/gh-style external subcommands: an executable named
+`hamstik-<name>` on `PATH` is invoked when you run `hamstik <name> [args...]`
+and `<name>` is not a built-in command. The core CLI does not install,
+register, or update plugins — `PATH` discovery only.
+
+- Built-ins are listed in `hamstik --help`; external plugins appear under an
+  explicit `External plugins:` section (labeled, never mixed into the built-in
+  list) and carry `"external": true` in `hamstik commands --json`.
+- The CLI passes resolved context as environment variables, with the same
+  precedence as any built-in command: `HAMSTIK_HOST`, `HAMSTIK_PROFILE`,
+  `HAMSTIK_ORG`, `HAMSTIK_PROJECT`, `HAMSTIK_CONTEXT_PATH`. Output mode comes
+  via `HAMSTIK_FORMAT` (`human`, `json`, `jsonl`, `tsv`, `quiet`) and global
+  flags via `HAMSTIK_QUIET`, `HAMSTIK_VERBOSE`, `HAMSTIK_DRY_RUN`,
+  `HAMSTIK_NO_COLOR`, `HAMSTIK_NO_INPUT`, `HAMSTIK_NO_RETRY`; the plugin name
+  is in `HAMSTIK_PLUGIN`.
+- Credentials never reach a plugin: `HAMSTIK_TOKEN` and credential-bearing
+  environment variables are stripped before spawning. A plugin that needs API
+  access must use the context variables plus its own authenticated transport;
+  it must not rely on the parent process environment for secrets.
+- `hamstik --help` and `hamstik commands --json` never execute discovered
+  plugins; they only announce them.
+- The plugin's own exit code becomes the process exit code. A missing plugin
+  executable is a usage error (exit 2).
+
 ## Failure handling and safety
 
 - `REVISION_CONFLICT`: re-read, reconcile, and retry only the intended logical change;

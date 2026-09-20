@@ -12,6 +12,16 @@ before upgrading.
 
 ### Added
 
+- Git-style external subcommand plugins: an executable named `hamstik-<name>`
+  on `PATH` is invoked for `hamstik <name> [args...]` when `<name>` is not a
+  built-in command. The resolved context (`HAMSTIK_HOST`, `HAMSTIK_PROFILE`,
+  `HAMSTIK_ORG`, `HAMSTIK_PROJECT`, `HAMSTIK_CONTEXT_PATH`), output mode
+  (`HAMSTIK_FORMAT`), global flags, and plugin identity (`HAMSTIK_PLUGIN`) are
+  passed as environment variables — never via argv, and never with the raw
+  credential token. Plugins appear in `hamstik commands --json` and in the
+  root help as external (with `"external": true`), and are never executed
+  during introspection. Missing executables now exit 2 (usage).
+
 - Dynamic shell completion for Bash and fish: live Organization slugs, Project
   keys, labels, and Bash Work Item key positions use the hidden
   `_hamstik_dyn_complete` helper. It performs read-only Public API GETs only,

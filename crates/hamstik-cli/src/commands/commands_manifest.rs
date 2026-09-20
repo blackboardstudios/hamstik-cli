@@ -123,6 +123,11 @@ pub(crate) fn build() -> Result<Value, CliError> {
         commands.push(entry);
     }
 
+    // Append discovered external plugins.
+    for ext in super::external::plugins_as_json() {
+        commands.push(ext);
+    }
+
     Ok(json!({
         "manifestVersion": MANIFEST_VERSION,
         "binary": "hamstik",

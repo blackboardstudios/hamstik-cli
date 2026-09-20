@@ -26,6 +26,7 @@ pub mod context_cmd;
 pub mod credential;
 pub mod doctor;
 pub mod dryrun;
+pub mod external;
 pub mod init;
 pub mod label;
 pub mod manifest;
@@ -81,6 +82,7 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
         Command::Complete(args) => complete::run(session, args).await,
         Command::Commands(_) => commands_manifest::run(session),
         Command::Version => version(session),
+        Command::External(args) => external::run_plugin(session, &args[0], &args[1..]),
     }
 }
 
@@ -177,6 +179,10 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
                 crate::args::ApiCommand::Request(_) | crate::args::ApiCommand::Passthrough(_)
             )
         }
+        // External plugins make no API calls themselves; `--dry-run` is
+        // forwarded to the plugin as `HAMSTIK_DRY_RUN` (see external.rs and
+        // the Agent Skill contract) rather than being rejected as a no-op.
+        Command::External(_) => true,
         _ => false,
     }
 }

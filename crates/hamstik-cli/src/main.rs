@@ -45,7 +45,21 @@ fn main() {
 }
 
 async fn entry() -> Result<i32, String> {
-    let command = Cli::command().help_template(banner::root_help_template());
+    let mut command = Cli::command().help_template(banner::root_help_template());
+
+    // Announce discovered external plugins in the root help. They are
+    // labeled as external (not built-in) and never executed during
+    // introspection (see commands/external.rs).
+    let plugins = hamstik_cli::commands::external::discover_plugins();
+    if !plugins.is_empty() {
+        let listing = plugins
+            .iter()
+            .map(|name| format!("  hamstik {}  (external plugin)", name))
+            .collect::<Vec<_>>()
+            .join("\n");
+        command = command.before_help(format!("\nExternal plugins:\n{listing}\n"));
+    }
+
     let matches = match command.try_get_matches() {
         Ok(matches) => matches,
         Err(err) => return Ok(render_clap_error(&err)),

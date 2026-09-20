@@ -1070,7 +1070,7 @@ fn unrecognized_subcommand_has_no_banner() {
         .assert()
         .code(2)
         .stdout(predicate::str::contains(BANNER_ART).not())
-        .stderr(predicate::str::contains("unrecognized subcommand"));
+        .stderr(predicate::str::contains("external plugin not found"));
 }
 
 // ---- Profile removal and broken config files ------------------------------

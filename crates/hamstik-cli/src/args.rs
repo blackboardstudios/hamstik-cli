@@ -153,6 +153,12 @@ pub enum Command {
     Commands(CommandsArgs),
     /// Print the CLI version.
     Version,
+    /// External plugin subcommand (`hamstik-<name>` on PATH). Captured by
+    /// clap as an `external_subcommand` — any unrecognized first word after
+    /// `hamstik` falls here. The plugin executable is invoked with the
+    /// resolved context as environment variables (never as argv).
+    #[command(external_subcommand)]
+    External(Vec<String>),
 }
 
 /// Arguments for the `report` command group.

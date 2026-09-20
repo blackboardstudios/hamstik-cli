@@ -4,8 +4,11 @@
 """Regenerate command-reference and man-page artifacts (CLI-2).
 
 Everything is derived from `hamstik commands --json`, which is itself
-generated deterministically from the authoritative Clap command tree. There
-is no hand-maintained duplication: rerun this after any command-surface
+generated from the authoritative Clap command tree. Runtime-discovered
+external subcommand plugins (`hamstik-<name>` on PATH) are deliberately
+excluded from these artifacts: they vary per machine and are never shipped,
+while the live CLI still announces them in `commands --json` and root help.
+There is no hand-maintained duplication: rerun this after any command-surface
 change and commit the checked-in artifacts. CI fails when they differ.
 
 Usage:
@@ -183,11 +186,16 @@ def generate_docs(binary: Path, reference_dir: Path) -> int:
     reference_dir.mkdir(parents=True, exist_ok=True)
     man_dir.mkdir(parents=True, exist_ok=True)
 
-    # The CLI manifest normally excludes clap-hidden commands. Keep this
-    # defensive filter here too so a future manifest extension cannot publish
-    # internal command pages (for example `_hamstik_dyn_complete`).
+    # The CLI manifest excludes clap-hidden commands. External subcommand
+    # plugins ("external": true) are runtime-discovered via PATH, vary per
+    # machine, and are never shipped; the canonical reference must remain the
+    # deterministic built-in command tree. Keep the filter defensive so a
+    # future manifest extension cannot publish internal command pages
+    # (for example `_hamstik_dyn_complete`) or per-machine plugin pages.
     public_commands = [
-        command for command in document["commands"] if not command.get("hidden", False)
+        command
+        for command in document["commands"]
+        if not command.get("hidden", False) and not command.get("external", False)
     ]
 
     count = 0
@@ -200,8 +208,12 @@ def generate_docs(binary: Path, reference_dir: Path) -> int:
             render_manpage(command), encoding="utf-8"
         )
         count += 1
+    # The artifact mirrors the documented built-in command tree only; the
+    # live CLI still reports any external plugins present at runtime, but the
+    # checked-in docs must not depend on a particular machine's PATH.
+    canonical = {**document, "commands": public_commands}
     (reference_dir / "manifest.json").write_text(
-        json.dumps(document, indent=1, sort_keys=False) + "\n", encoding="utf-8"
+        json.dumps(canonical, indent=1, sort_keys=False) + "\n", encoding="utf-8"
     )
     return count
 

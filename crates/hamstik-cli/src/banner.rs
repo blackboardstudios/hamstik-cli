@@ -24,9 +24,10 @@ const ART: &str = r#"              _                         _   _ _
     (")_(")  |_| |_|\__,_|_| |_| |_|___/\__|_|_|\_"#;
 
 /// clap's default help template, reproduced verbatim so prepending the banner
-/// leaves the rest of the root help body byte-identical. `before-help` stays
-/// empty (we never set `before_help`, which clap would otherwise word-wrap and
-/// reflow the art).
+/// leaves the rest of the root help body byte-identical. The template's
+/// `{before-help}` placeholder stays empty in the template itself; `main.rs` may
+/// prepend a plain, already-wrapped block there for discovered external
+/// plugins (which clap would otherwise word-wrap and reflow).
 const DEFAULT_HELP_TEMPLATE: &str = r#"{before-help}{about-with-newline}
 {usage-heading} {usage}
 
