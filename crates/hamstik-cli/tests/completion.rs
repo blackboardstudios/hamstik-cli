@@ -5,8 +5,8 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use std::io::Write;
-use std::process::{Command as ProcessCommand, Stdio};
+use std::fs;
+use std::process::Command as ProcessCommand;
 
 use assert_cmd::Command;
 use serde_json::{Value, json};
@@ -373,25 +373,32 @@ fn generated_scripts_rename_bash_static_function_and_hide_internal_candidates() 
     );
     assert!(!bash.contains("sed -e"));
 
-    if let Ok(mut checker) = ProcessCommand::new("bash")
+    let bash_probe = dir.path().join("bash-probe.sh");
+    fs::write(&bash_probe, "true\n").unwrap();
+    match ProcessCommand::new("bash")
         .arg("-n")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()
+        .arg(&bash_probe)
+        .output()
     {
-        checker
-            .stdin
-            .take()
-            .unwrap()
-            .write_all(bash.as_bytes())
-            .unwrap();
-        let result = checker.wait_with_output().unwrap();
-        assert!(
-            result.status.success(),
-            "bash -n failed: {}",
-            String::from_utf8_lossy(&result.stderr)
-        );
+        Ok(probe) if probe.status.success() => {
+            let bash_script = dir.path().join("hamstik-completion.bash");
+            fs::write(&bash_script, &bash).unwrap();
+            let result = ProcessCommand::new("bash")
+                .arg("-n")
+                .arg(&bash_script)
+                .output()
+                .unwrap();
+            assert!(
+                result.status.success(),
+                "bash -n failed: {}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+        }
+        Ok(probe) => eprintln!(
+            "SKIPPED: bash could not syntax-check a known-valid script: {}",
+            String::from_utf8_lossy(&probe.stderr)
+        ),
+        Err(err) => eprintln!("SKIPPED: bash syntax check unavailable: {err}"),
     }
 
     let zsh = script("zsh");
