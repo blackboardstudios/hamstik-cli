@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use hamstik_api_client::{
     ClientError, FollowPolicy, HamstikApi, ListOptions, ListProjectsOptions, ListWorkItemsQuery,
-    OrganizationListItem, PageItems, follow_with,
+    PageItems, follow_with,
 };
 
 use crate::app::{Selection, Session};
@@ -76,7 +76,10 @@ pub async fn run(session: &mut Session<'_>, args: &CompleteArgs) -> Result<(), C
 }
 
 /// Filter a set of candidates to those matching the typed prefix.
-fn filter_candidates<T: AsRef<str>>(values: impl IntoIterator<Item = T>, prefix: &str) -> Vec<String> {
+fn filter_candidates<T: AsRef<str>>(
+    values: impl IntoIterator<Item = T>,
+    prefix: &str,
+) -> Vec<String> {
     values
         .into_iter()
         .map(|v| v.as_ref().to_string())
@@ -91,25 +94,22 @@ async fn complete_orgs(
     api: &Arc<dyn HamstikApi>,
 ) -> Result<Vec<String>, ClientError> {
     let fetch_api = api.clone();
-    let page = follow_with(
-        FollowPolicy::all(),
-        move |cursor| {
-            let fetch_api = fetch_api.clone();
-            async move {
-                let response = fetch_api
-                    .list_organizations(ListOptions {
-                        limit: COMPLETION_PAGE_SIZE,
-                        cursor,
-                    })
-                    .await?;
-                Ok(PageItems::new(
-                    response.value.items,
-                    &response.raw,
-                    response.value.page,
-                ))
-            }
-        },
-    )
+    let page = follow_with(FollowPolicy::all(), move |cursor| {
+        let fetch_api = fetch_api.clone();
+        async move {
+            let response = fetch_api
+                .list_organizations(ListOptions {
+                    limit: Some(COMPLETION_PAGE_SIZE),
+                    cursor,
+                })
+                .await?;
+            Ok(PageItems::new(
+                response.value.items,
+                &response.raw,
+                response.value.page,
+            ))
+        }
+    })
     .await?;
     Ok(filter_candidates(
         page.items.into_iter().map(|org| org.slug),
@@ -135,26 +135,23 @@ async fn complete_projects(
     for archived in [false, true] {
         let org = org.to_string();
         let fetch_api = api.clone();
-        let page = follow_with(
-            FollowPolicy::all(),
-            move |cursor| {
-                let org = org.clone();
-                let fetch_api = fetch_api.clone();
-                async move {
-                    let opts = ListProjectsOptions {
-                        limit: Some(COMPLETION_PAGE_SIZE),
-                        cursor,
-                        archived: Some(archived),
-                    };
-                    let response = fetch_api.list_projects(&org, opts).await?;
-                    Ok(PageItems::new(
-                        response.value.items,
-                        &response.raw,
-                        response.value.page,
-                    ))
-                }
-            },
-        )
+        let page = follow_with(FollowPolicy::all(), move |cursor| {
+            let org = org.clone();
+            let fetch_api = fetch_api.clone();
+            async move {
+                let opts = ListProjectsOptions {
+                    limit: Some(COMPLETION_PAGE_SIZE),
+                    cursor,
+                    archived: Some(archived),
+                };
+                let response = fetch_api.list_projects(&org, opts).await?;
+                Ok(PageItems::new(
+                    response.value.items,
+                    &response.raw,
+                    response.value.page,
+                ))
+            }
+        })
         .await?;
         for p in page.items {
             keys.insert(p.key);
@@ -184,30 +181,25 @@ async fn complete_work_items(
         let fetch_api = api.clone();
         let org = org.to_string();
         let project_key = project_key.to_string();
-        let page = follow_with(
-            FollowPolicy::all(),
-            move |cursor| {
-                let org = org.clone();
-                let project_key = project_key.clone();
-                let fetch_api = fetch_api.clone();
-                async move {
-                    let query = ListWorkItemsQuery {
-                        limit: Some(COMPLETION_PAGE_SIZE),
-                        fields: Some("key".to_string()),
-                        cursor,
-                        ..Default::default()
-                    };
-                    let response = fetch_api
-                        .list_work_items(&org, &project_key, query)
-                        .await?;
-                    Ok(PageItems::new(
-                        response.value.items,
-                        &response.raw,
-                        response.value.page,
-                    ))
-                }
-            },
-        )
+        let page = follow_with(FollowPolicy::all(), move |cursor| {
+            let org = org.clone();
+            let project_key = project_key.clone();
+            let fetch_api = fetch_api.clone();
+            async move {
+                let query = ListWorkItemsQuery {
+                    limit: Some(COMPLETION_PAGE_SIZE),
+                    fields: Some("key".to_string()),
+                    cursor,
+                    ..Default::default()
+                };
+                let response = fetch_api.list_work_items(&org, &project_key, query).await?;
+                Ok(PageItems::new(
+                    response.value.items,
+                    &response.raw,
+                    response.value.page,
+                ))
+            }
+        })
         .await?;
         for item in page.items {
             keys.insert(item.key);
@@ -215,29 +207,24 @@ async fn complete_work_items(
     } else {
         let fetch_api = api.clone();
         let org = org.to_string();
-        let page = follow_with(
-            FollowPolicy::all(),
-            move |cursor| {
-                let org = org.clone();
-                let fetch_api = fetch_api.clone();
-                async move {
-                    let query = ListWorkItemsQuery {
-                        limit: Some(COMPLETION_PAGE_SIZE),
-                        fields: Some("key".to_string()),
-                        cursor,
-                        ..Default::default()
-                    };
-                    let response = fetch_api
-                        .list_organization_work_items(&org, query)
-                        .await?;
-                    Ok(PageItems::new(
-                        response.value.items,
-                        &response.raw,
-                        response.value.page,
-                    ))
-                }
-            },
-        )
+        let page = follow_with(FollowPolicy::all(), move |cursor| {
+            let org = org.clone();
+            let fetch_api = fetch_api.clone();
+            async move {
+                let query = ListWorkItemsQuery {
+                    limit: Some(COMPLETION_PAGE_SIZE),
+                    fields: Some("key".to_string()),
+                    cursor,
+                    ..Default::default()
+                };
+                let response = fetch_api.list_organization_work_items(&org, query).await?;
+                Ok(PageItems::new(
+                    response.value.items,
+                    &response.raw,
+                    response.value.page,
+                ))
+            }
+        })
         .await?;
         for item in page.items {
             keys.insert(item.summary.key);
@@ -266,27 +253,28 @@ async fn complete_labels(
     let fetch_api = api.clone();
     let org = org.to_string();
     let project_key = project_key.to_string();
-    let page = follow_with(
-        FollowPolicy::all(),
-        move |cursor| {
-            let org = org.clone();
-            let project_key = project_key.clone();
-            let fetch_api = fetch_api.clone();
-            async move {
-                let response = fetch_api
-                    .list_labels(&org, &project_key, ListOptions {
-                        limit: COMPLETION_PAGE_SIZE,
+    let page = follow_with(FollowPolicy::all(), move |cursor| {
+        let org = org.clone();
+        let project_key = project_key.clone();
+        let fetch_api = fetch_api.clone();
+        async move {
+            let response = fetch_api
+                .list_labels(
+                    &org,
+                    &project_key,
+                    ListOptions {
+                        limit: Some(COMPLETION_PAGE_SIZE),
                         cursor,
-                    })
-                    .await?;
-                Ok(PageItems::new(
-                    response.value.items,
-                    &response.raw,
-                    response.value.page,
-                ))
-            }
-        },
-    )
+                    },
+                )
+                .await?;
+            Ok(PageItems::new(
+                response.value.items,
+                &response.raw,
+                response.value.page,
+            ))
+        }
+    })
     .await?;
     Ok(filter_candidates(
         page.items.into_iter().map(|label| label.name),

@@ -201,3 +201,29 @@ if [ "$funcstack[1]" != "_hamstik" ] && [ -n "$(typeset -f _hamstik 2>/dev/null)
     eval "$(typeset -f _hamstik | sed -e 's/^_hamstik() {/_hamstik_completion() {/')"
 fi
 "#;
+
+/// Fish dynamic completion helper appended to the generated script.
+const DYNAMIC_FISH: &str = r#"
+# ──────────────────────────────────────────────────────────────────────
+# Dynamic completion for live values (CLI-32)
+# ──────────────────────────────────────────────────────────────────────
+
+# Shell out to the hidden `hamstik _hamstik_dyn_complete` command to fetch
+# live completion candidates. Any failure (offline, no credentials, no
+# context, API error) produces no output, which fish reads as "no
+# candidates".
+function _hamstik_dynamic_complete
+    set -l type_ "$argv[1]"
+    set -l prefix "$argv[2]"
+    command hamstik _hamstik_dyn_complete "$type_" "$prefix" 2>/dev/null
+end
+
+# Register dynamic candidates for the live-value flags. Fish merges these
+# with the static completions generated above, so flag/subcommand completion
+# continues to work unchanged.
+complete -c hamstik -l org -f -a '(_hamstik_dynamic_complete org (commandline -ct))'
+complete -c hamstik -l project -f -a '(_hamstik_dynamic_complete project (commandline -ct))'
+complete -c hamstik -l status -f -a '(_hamstik_dynamic_complete status (commandline -ct))'
+complete -c hamstik -l type -f -a '(_hamstik_dynamic_complete type (commandline -ct))'
+complete -c hamstik -l label-name -f -a '(_hamstik_dynamic_complete label (commandline -ct))'
+"#;
