@@ -182,9 +182,12 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   show|watch|unwatch|mute|unmute`), bulk operations
   (`work bulk create|update|transition`), and condition waiting
   (`work await`);
-- first-class My Work via `hamstik work mine` (`work my` alias) and
-  Organization-wide SqueakQL search via `hamstik work search` /
-  `hamstik squeakql validate`;
+- first-class My Work via `hamstik work mine` (`work my` alias), a composed
+  daily triage view via `hamstik work triage` (open Work assigned to you,
+  overdue Work, and recent Project activity in one command — each section
+  degrades independently, and `--json` marks a failed section with its error
+  instead of silently omitting it), and Organization-wide SqueakQL search via
+  `hamstik work search` / `hamstik squeakql validate`;
 - a one-invocation Work Item read bundle via `hamstik work context
   <KEY>` (`--json` for agents, `--format markdown` for readable
   hand-off, `--comments N` / `--activity N` / `--compact` size
@@ -286,6 +289,8 @@ hamstik work list --status todo --status in_progress --label-name api \
   --sprint none --top-level --sort dueDate --fields title,status,dueDate
 hamstik org work --project HAM --priority urgent --overdue true
 hamstik work mine --scope open --project HAM --project WEB --all
+hamstik work triage --org acme --project HAM
+hamstik work triage --org acme --project HAM --since 7d --activity 20 --json
 
 # SqueakQL validation and read-only JSON-body search
 hamstik squeakql validate 'status = todo and priority >= high'

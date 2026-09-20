@@ -12,6 +12,25 @@ before upgrading.
 
 ### Added
 
+- Composed daily triage view: `hamstik work triage` merges three existing
+  Public API v1 reads for the resolved Organization in one invocation — open
+  Work Items assigned to the authenticated user (`assignedOpen`, the
+  `work mine --scope open` read), overdue Work Items assigned to the user
+  (`overdue`, the `work mine --overdue true` read), and recent Project activity
+  (`activity`, the `project activity` read, included only when a Project is
+  resolved). Public API v1 exposes no unread/mention/watched-items read, so no
+  local "seen" state is kept and the activity section is the Project feed. The
+  Work Item sections honor the shared `--limit`/`--cursor`/`--all` pagination
+  flags; `--activity N` bounds the feed (0 skips it) and `--since` windows it.
+  A failed section is reported without aborting the others: the command exits
+  0, the human view labels the section unavailable and warns on stderr, and
+  `--json` always emits every section plus a top-level `failedSections` array.
+  The stable JSON schema is `triageVersion`, `sections`
+  (`assignedOpen`/`overdue`/`activity`), and `failedSections`; each section is
+  `{status: "ok", items, page}`, `{status: "error", error}` (the standard CLI
+  error object), or `{status: "skipped", reason}`. `--quiet` prints Work Item
+  keys only.
+
 - Client-side aggregate summaries: `hamstik project stats <KEY>` and
   `hamstik sprint stats <SPRINT_ID>` page through the Work Item list endpoint
   (same filters as `work list`) and compute counts by status, type, priority,

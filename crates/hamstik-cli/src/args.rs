@@ -1514,6 +1514,11 @@ pub enum WorkCommand {
     /// List Work assigned to the authenticated user across Projects.
     #[command(alias = "my")]
     Mine(MyWorkArgs),
+    /// One-invocation daily attention view: open Work assigned to you,
+    /// overdue Work assigned to you, and recent Project activity, composed
+    /// from existing Public API v1 reads. A failed section is reported and
+    /// never aborts the others.
+    Triage(TriageArgs),
     /// Search Organization Work Items with SqueakQL.
     Search {
         /// SqueakQL expression (inline).
@@ -1690,6 +1695,28 @@ pub struct MyWorkArgs {
     /// Pagination options.
     #[command(flatten)]
     pub pagination: PaginationArgs,
+}
+
+/// Arguments for `work triage`.
+///
+/// The Work Item sections (`assignedOpen`, `overdue`) use the shared
+/// pagination flags; the `activity` section is bounded separately by
+/// `--activity` and optionally windowed by `--since`.
+#[derive(Args, Debug)]
+pub struct TriageArgs {
+    /// Pagination options for the Work Item sections (assigned and overdue).
+    #[command(flatten)]
+    pub pagination: PaginationArgs,
+    /// Maximum recent Project activity events to include (0 disables the
+    /// section; the Project feed is the only activity source Public API v1
+    /// exposes).
+    #[arg(long = "activity", value_name = "N", default_value_t = 10)]
+    pub activity: u32,
+    /// Only activity strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+    /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+    /// is read in the host's local time zone.
+    #[arg(long, value_name = "DATE")]
+    pub since: Option<TimeArg>,
 }
 
 /// Arguments for `work await`.

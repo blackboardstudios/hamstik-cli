@@ -162,6 +162,7 @@ Read and search before mutating:
 hamstik --json --no-input --org <ORG> --project <KEY> work list \
   --status todo --status in_progress
 hamstik --json --no-input --org <ORG> work mine --scope open
+hamstik --json --no-input --org <ORG> --project <KEY> work triage
 hamstik --json --no-input --org <ORG> org work --project <KEY> --overdue true
 hamstik --json --no-input --org <ORG> squeakql validate "status = 'backlog'"
 hamstik --json --no-input --org <ORG> work search "status = 'backlog'"
@@ -175,6 +176,18 @@ for stdin; up to 500) and emits one JSON envelope in input order with per-item
 `status`/`error` entries and optional `comments`/`activity`/`links` sections;
 a missing or forbidden item never aborts the batch, and the exit code is the
 most severe per-item exit code.
+
+`work triage` is a composed attention snapshot for the authenticated user: open
+Work assigned to the user (`sections.assignedOpen`), overdue Work assigned to the
+user (`sections.overdue`), and recent Project activity (`sections.activity`, only
+when a Project is resolved). The Work Item sections use the same reads and
+pagination flags as `work mine`; `--activity N` bounds the activity feed and
+`--since` windows it. A section that fails to load is reported rather than
+aborting the command: the exit code stays `0`, the `--json` document always
+contains every section plus a `failedSections` array, and a failed section is
+`{"status": "error", "error": …}`. Public API v1 exposes no unread/mention/
+watched-items read, so there is no client-side "seen" state and the activity
+section is simply the Project feed.
 
 Resolve people before assigning: `org members --all` lists active members, and
 `user view <PUBLIC_ID>` / `user work <PUBLIC_ID>` inspect a profile and its visible

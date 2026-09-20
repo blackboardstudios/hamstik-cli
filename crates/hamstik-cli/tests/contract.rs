@@ -269,6 +269,7 @@ fn subcommand_groups_match_documented_surface() {
                 "start",
                 "transition",
                 "transitions",
+                "triage",
                 "unarchive",
                 "view",
                 "watcher",
