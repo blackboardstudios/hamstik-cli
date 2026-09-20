@@ -3,7 +3,7 @@
 
 //! Command dispatch and shared output helpers.
 
-use hamstik_api_client::FollowPolicy;
+use hamstik_api_client::{FollowPolicy, Me};
 use serde_json::Value;
 
 use crate::app::{Selection, Session};
@@ -203,7 +203,7 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
 /// SPEC §28 otherwise selects no profile, which would leave the default the
 /// caller is about to write permanently unreachable by resolution.
 pub(crate) async fn ensure_profile_for_default(
-    session: &Session<'_>,
+    session: &mut Session<'_>,
     selection: &Selection,
 ) -> Result<String, CliError> {
     if let Some(name) = &selection.profile {
@@ -214,6 +214,7 @@ pub(crate) async fn ensure_profile_for_default(
     let api = session.build_client(selection.host.clone(), secret)?;
     let me = api.whoami().await.map_err(CliError::from_client)?;
     let me = me.value;
+    warn_on_context_drift(session, selection, &me);
 
     let mut config = session.config.load()?;
     let base = profile_auto_name(selection.host.as_str(), &me.email);
@@ -332,6 +333,29 @@ where
     Ok(())
 }
 
+/// Prints the non-blocking configuration-drift advisory when the resolved
+/// Organization is absent from the authenticated user's membership list.
+///
+/// `me` must be a `GET /me` response the caller already fetched for its own
+/// purpose; this helper never makes a request, so commands that do not already
+/// hold membership data simply do not call it (no extra round trip on hot
+/// paths). Membership data is unavailable when `organizations` is empty
+/// (offline, an unauthenticated request, or a token without the membership
+/// scope), and the advisory is skipped rather than guessed. The exit code is
+/// untouched: this only writes a warning to stderr.
+pub(crate) fn warn_on_context_drift(session: &mut Session<'_>, selection: &Selection, me: &Me) {
+    let member_slugs: Vec<String> = me
+        .organizations
+        .iter()
+        .map(|organization| organization.slug.clone())
+        .collect();
+    if let Some(warning) =
+        crate::context::membership_drift_warning(&selection.organization, &member_slugs)
+    {
+        session.out.warn(&warning);
+    }
+}
+
 /// Resolves a user-facing user argument into a `usr_` public ID.
 ///
 /// Accepts an existing public ID verbatim or `me`, which is resolved through
@@ -339,7 +363,7 @@ where
 /// CLI-side convenience). The literal `none` is forwarded for callers that
 /// use it as a clear-assignment sentinel.
 pub(crate) async fn resolve_user_arg(
-    session: &Session<'_>,
+    session: &mut Session<'_>,
     value: &str,
 ) -> Result<String, CliError> {
     if value.eq_ignore_ascii_case("none") {
@@ -356,6 +380,7 @@ pub(crate) async fn resolve_user_arg(
     let selection = session.selection()?;
     let api = session.api(&selection)?;
     let response = api.whoami().await.map_err(CliError::from_client)?;
+    warn_on_context_drift(session, &selection, &response.value);
     Ok(response.value.public_id.clone())
 }
 

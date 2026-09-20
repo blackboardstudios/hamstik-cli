@@ -449,6 +449,28 @@ hamstik context explain                 # human summary with remediation
 hamstik context explain --json          # stable shape for CI
 ```
 
+## Configuration drift advisory
+
+When a command already fetches the authenticated identity from
+`GET /api/v1/me` — `hamstik me`, `hamstik auth login`/`status`, the
+ephemeral-token profile bootstrap used by `hamstik org use`/`project use`, or
+`hamstik work create`/`edit --assignee me` — the CLI compares the resolved
+Organization against the memberships in that response. If the resolved
+Organization is not a member, a non-blocking warning is written to stderr
+naming both the configured value and the actual memberships:
+
+```text
+warning: configuration drift: resolved organization "other-org" (.hamstik.toml) is not among the authenticated user's memberships [acme]; the command continued and the context was not changed
+```
+
+The warning never changes the exit code and never switches context
+automatically. Commands that do not already hold membership data make no extra
+request to obtain it, so the check degrades silently rather than slowing every
+command. It is also skipped when `GET /me` returns no Organizations (offline,
+or a token without the membership scope). Because the Public API's `/me`
+exposes Organization memberships only, Project drift is reported only through
+its Organization.
+
 ## Editor authoring and stdin conventions
 
 Long-form text (Work Item descriptions, comment bodies, project descriptions)

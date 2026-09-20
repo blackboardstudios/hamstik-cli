@@ -74,6 +74,7 @@ async fn login(session: &mut Session<'_>, with_token: bool) -> Result<(), CliErr
 
     let api = session.build_client(selection.host.clone(), secret.clone())?;
     let me = api.whoami().await.map_err(CliError::from_client)?;
+    super::warn_on_context_drift(session, &selection, &me.value);
 
     let mut config = session.config.load()?;
     let base = config::profile_auto_name(selection.host.as_str(), &me.value.email);
@@ -166,6 +167,8 @@ async fn status(session: &mut Session<'_>) -> Result<(), CliError> {
             return Err(cli);
         }
     };
+
+    super::warn_on_context_drift(session, &selection, &me.value);
 
     let now_seconds = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

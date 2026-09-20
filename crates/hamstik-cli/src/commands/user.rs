@@ -52,7 +52,7 @@ pub async fn run(session: &mut Session<'_>, args: &UserArgs) -> Result<(), CliEr
 }
 
 /// Resolves a profile target: `me` becomes the caller's public ID via `GET /me`.
-async fn resolve_target(session: &Session<'_>, public_id: &str) -> Result<String, CliError> {
+async fn resolve_target(session: &mut Session<'_>, public_id: &str) -> Result<String, CliError> {
     if public_id.starts_with("usr_") {
         return Ok(public_id.to_string());
     }

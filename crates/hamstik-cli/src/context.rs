@@ -345,6 +345,45 @@ impl From<ResolvedChain> for ResolvedField {
     }
 }
 
+/// Builds a non-blocking "configuration drift" advisory when the resolved
+/// Organization is absent from the authenticated user's membership list.
+///
+/// `member_slugs` is the `organizations[].slug` list from `GET /me`, which is
+/// the only membership data the Public API exposes. The check never changes
+/// context and never fails a command; it returns `None` when there is nothing
+/// to report:
+///
+/// - no Organization is resolved (nothing to compare);
+/// - the membership list is empty, which the callers treat as "membership data
+///   unavailable" (offline, a token without membership scope, or an account
+///   with no Organizations);
+/// - the resolved Organization is a member.
+///
+/// Keeping the decision pure (SPEC §34 pattern) lets it be unit-tested without
+/// a session or a network call; the command layer only prints the result.
+#[must_use]
+pub fn membership_drift_warning(
+    organization: &ResolvedField,
+    member_slugs: &[String],
+) -> Option<String> {
+    let configured = organization.value.as_deref()?;
+    if member_slugs.is_empty() {
+        return None;
+    }
+    if member_slugs.iter().any(|slug| slug == configured) {
+        return None;
+    }
+    let mut available: Vec<&str> = member_slugs.iter().map(String::as_str).collect();
+    available.sort_unstable();
+    Some(format!(
+        "warning: configuration drift: resolved organization {configured:?} ({}) is not among \
+         the authenticated user's memberships [{}]; the command continued and the context was \
+         not changed",
+        organization.source.label(),
+        available.join(", ")
+    ))
+}
+
 /// Searches upward from `start` for the nearest `.hamstik.toml`.
 #[must_use]
 pub fn discover(start: &Path) -> Option<PathBuf> {
@@ -504,6 +543,44 @@ mod tests {
         let resolution = resolve((&None, &None, &None), &env, Some(&context), None);
         assert_eq!(resolution.organization.value.as_deref(), Some("env-org"));
         assert_eq!(resolution.organization.source, Source::Env);
+    }
+
+    #[test]
+    fn drift_warning_names_configured_and_actual_values() {
+        let organization = ResolvedField {
+            value: Some("ctx-org".to_string()),
+            source: Source::ContextFile,
+        };
+        let memberships = vec!["acme".to_string(), "beta".to_string()];
+        let warning = membership_drift_warning(&organization, &memberships).unwrap();
+        assert!(warning.contains("ctx-org"), "{warning}");
+        assert!(warning.contains("acme"), "{warning}");
+        assert!(warning.contains("beta"), "{warning}");
+        assert!(warning.contains(".hamstik.toml"), "{warning}");
+    }
+
+    #[test]
+    fn drift_warning_silent_when_organization_matches() {
+        let organization = ResolvedField {
+            value: Some("acme".to_string()),
+            source: Source::ContextFile,
+        };
+        let memberships = vec!["acme".to_string(), "beta".to_string()];
+        assert!(membership_drift_warning(&organization, &memberships).is_none());
+    }
+
+    #[test]
+    fn drift_warning_silent_without_membership_data_or_organization() {
+        let unset = ResolvedField {
+            value: None,
+            source: Source::Default,
+        };
+        let configured = ResolvedField {
+            value: Some("ctx-org".to_string()),
+            source: Source::ContextFile,
+        };
+        assert!(membership_drift_warning(&unset, &["acme".to_string()]).is_none());
+        assert!(membership_drift_warning(&configured, &[]).is_none());
     }
 
     #[test]

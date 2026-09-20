@@ -12,6 +12,21 @@ before upgrading.
 
 ### Added
 
+- Configuration-drift advisory for resolved Organization context. When a
+  command already fetches the authenticated identity from `GET /api/v1/me`
+  (`hamstik me`, `hamstik auth login`/`status`, the ephemeral-token profile
+  bootstrap used by `hamstik org use`/`project use`, or `hamstik work
+  create`/`edit --assignee me`), the CLI compares the resolved Organization
+  against the memberships in that response. If the resolved Organization is
+  not a member, a non-blocking warning is written to stderr naming both the
+  configured value and the actual memberships; the exit code is unchanged and
+  the context is never switched automatically. The check makes no extra
+  network request — commands that do not already hold membership data do not
+  check — and is skipped when `organizations` is empty (offline or a token
+  without membership scope). Because the Public API's `/me` exposes
+  Organization memberships only, Project drift is reported only through its
+  Organization.
+
 - `work bulk from-csv <FILE> --op create|update --project <KEY>` converts a
   local CSV file into the exact `work bulk` operations JSON array, written to
   `--output <FILE>` or stdout for piping into

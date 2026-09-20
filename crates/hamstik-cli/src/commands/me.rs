@@ -15,6 +15,7 @@ pub async fn run(session: &mut Session<'_>) -> Result<(), CliError> {
     let api = session.api(&selection)?;
     let response = api.whoami().await.map_err(CliError::from_client)?;
     let me = response.value.clone();
+    super::warn_on_context_drift(session, &selection, &me);
     let now_seconds = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)

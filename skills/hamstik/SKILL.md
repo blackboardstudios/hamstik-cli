@@ -84,6 +84,13 @@ When exactly one result matches the user's named target, use it. When multiple r
 remain plausible and the choice changes where a write lands, ask the user. Do not rely
 on unrelated profile defaults for a mutation.
 
+When a command already fetches `GET /api/v1/me` and the resolved Organization is not
+among the returned memberships, the CLI writes a non-blocking `configuration drift`
+warning to stderr (the exit code is unchanged and the context is never switched
+automatically). Treat it as a signal that the context file or account changed: surface
+it to the user instead of ignoring stderr, and re-confirm the intended Organization
+before a write.
+
 ## Change local, non-secret defaults
 
 `hamstik config path|list|get|set|unset` manage the global configuration file
