@@ -1442,6 +1442,184 @@
    ]
   },
   {
+   "about": "Compute a client-side aggregate summary of Work Items in the project",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Project key (positional; overrides context)",
+     "kind": "positional",
+     "name": "project",
+     "valueName": "PROJECT"
+    },
+    {
+     "help": "Free-text search over titles and descriptions",
+     "kind": "option",
+     "long": "--search"
+    },
+    {
+     "choices": [
+      "backlog",
+      "todo",
+      "in_progress",
+      "in_review",
+      "done"
+     ],
+     "help": "Filter by status (repeatable)",
+     "kind": "option",
+     "long": "--status"
+    },
+    {
+     "choices": [
+      "all",
+      "open",
+      "closed"
+     ],
+     "help": "Status scope. When omitted, all statuses are included",
+     "kind": "option",
+     "long": "--scope"
+    },
+    {
+     "choices": [
+      "task",
+      "bug",
+      "story",
+      "feature",
+      "epic"
+     ],
+     "help": "Filter by type (repeatable)",
+     "kind": "option",
+     "long": "--type"
+    },
+    {
+     "choices": [
+      "low",
+      "medium",
+      "high",
+      "urgent"
+     ],
+     "help": "Filter by priority (repeatable)",
+     "kind": "option",
+     "long": "--priority"
+    },
+    {
+     "help": "Filter by assignee: me, none, a user UUID, or a public ID (usr_...)",
+     "kind": "option",
+     "long": "--assignee"
+    },
+    {
+     "help": "Filter by sprint: none or a sprint UUID",
+     "kind": "option",
+     "long": "--sprint"
+    },
+    {
+     "help": "Filter by label UUID (repeatable)",
+     "kind": "option",
+     "long": "--label"
+    },
+    {
+     "help": "Filter by label name (repeatable)",
+     "kind": "option",
+     "long": "--label-name"
+    },
+    {
+     "help": "Filter by parent work item key",
+     "kind": "option",
+     "long": "--parent"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Filter by top-level state (a bare flag means true)",
+     "kind": "option",
+     "long": "--top-level"
+    },
+    {
+     "help": "Only items updated at or after this time",
+     "kind": "option",
+     "long": "--updated-after"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Only overdue items (true) or only on-track items (false)",
+     "kind": "option",
+     "long": "--overdue"
+    },
+    {
+     "help": "Only items due strictly before this time",
+     "kind": "option",
+     "long": "--due-before"
+    },
+    {
+     "help": "Only items due strictly after this time",
+     "kind": "option",
+     "long": "--due-after"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Only archived (true) or only unarchived (false) items",
+     "kind": "option",
+     "long": "--archived"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages (default: one page only)",
+     "kind": "option",
+     "long": "--all"
+    },
+    {
+     "help": "Maximum total items to aggregate (distinct from the server page size)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque cursor returned by a preceding page",
+     "kind": "option",
+     "long": "--cursor"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik project stats",
+   "hasSubcommands": false,
+   "options": [
+    "--search",
+    "--status",
+    "--scope",
+    "--type",
+    "--priority",
+    "--assignee",
+    "--sprint",
+    "--label",
+    "--label-name",
+    "--parent",
+    "--top-level",
+    "--updated-after",
+    "--overdue",
+    "--due-before",
+    "--due-after",
+    "--archived",
+    "--all",
+    "--limit",
+    "--cursor"
+   ],
+   "positionals": [
+    "project"
+   ]
+  },
+  {
    "about": "Set the default project for the active profile",
    "aliases": [],
    "arguments": [
@@ -2026,6 +2204,57 @@
    ],
    "positionals": [
     "id"
+   ]
+  },
+  {
+   "about": "Compute a client-side aggregate summary of Work Items in the sprint",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Sprint id (UUID; positional)",
+     "kind": "positional",
+     "name": "sprint",
+     "valueName": "SPRINT"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages (default: one page only)",
+     "kind": "option",
+     "long": "--all"
+    },
+    {
+     "help": "Maximum total items to aggregate (distinct from the server page size)",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque cursor returned by a preceding page",
+     "kind": "option",
+     "long": "--cursor"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik sprint stats",
+   "hasSubcommands": false,
+   "options": [
+    "--project",
+    "--all",
+    "--limit",
+    "--cursor"
+   ],
+   "positionals": [
+    "sprint"
    ]
   },
   {

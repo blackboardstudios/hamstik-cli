@@ -160,7 +160,7 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   `output`, `git_branch_template`, `audit_log`); values are validated locally
   before they are written, and credentials are never accepted;
 - organizations and projects — `hamstik org list|view|use` and
-  `hamstik project list|view|create|edit|archive|unarchive|activity|report|use`;
+  `hamstik project list|view|create|edit|archive|unarchive|activity|report|stats|use`;
 - Advanced Reporting — `hamstik report list|view|create|edit|delete|run|selection-items`
   and `hamstik dashboard list|view|run`, including JSON definition/filter
   files, cursor traversal, automatic revision reads, and report ETag protection;
@@ -170,7 +170,7 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   visibility-scoped public data;
 - authenticated identity via `hamstik me`, including credential scopes,
   expiration, default Organization, and memberships;
-- sprints — `hamstik sprint list|view|create|transitions|transition|report`
+- sprints — `hamstik sprint list|view|create|transitions|transition|report|stats`
   with completion actions for sprints that still have unfinished work items;
 - labels — `hamstik label list|create` and `hamstik work label add|remove`
   (attach/detach with Work Item revision protection);

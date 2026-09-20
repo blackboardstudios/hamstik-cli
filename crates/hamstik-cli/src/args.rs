@@ -746,6 +746,8 @@ pub enum ProjectCommand {
     },
     /// Read a server project report (velocity, ageing-wip, epic-progress, …).
     Report(Box<ProjectReportArgs>),
+    /// Compute a client-side aggregate summary of Work Items in the project.
+    Stats(ProjectStatsArgs),
     /// Set the default project for the active profile.
     Use {
         /// Project key.
@@ -1022,6 +1024,8 @@ pub enum SprintCommand {
     /// Read a server Sprint delivery report (commitment, scope changes,
     /// carryover, and burndown).
     Report(Box<SprintReportArgs>),
+    /// Compute a client-side aggregate summary of Work Items in the sprint.
+    Stats(SprintStatsArgs),
     /// List allowed sprint state transitions.
     Transitions {
         /// Sprint id (UUID).
@@ -1094,6 +1098,104 @@ pub struct SprintReportArgs {
     /// Report page options.
     #[command(flatten)]
     pub page: ReportPageArgs,
+}
+
+/// Arguments for `project stats`: client-side aggregate summary of Work Items.
+#[derive(Args, Debug)]
+pub struct ProjectStatsArgs {
+    /// Project key (positional; overrides context).
+    pub project: String,
+    /// Free-text search over titles and descriptions.
+    #[arg(long = "search", value_name = "TEXT")]
+    pub search: Option<String>,
+    /// Filter by status (repeatable).
+    #[arg(long, value_enum)]
+    pub status: Vec<StatusArg>,
+    /// Status scope. When omitted, all statuses are included.
+    #[arg(long, value_enum)]
+    pub scope: Option<ScopeArg>,
+    /// Filter by type (repeatable).
+    #[arg(long = "type", value_enum)]
+    pub item_type: Vec<TypeArg>,
+    /// Filter by priority (repeatable).
+    #[arg(long, value_enum)]
+    pub priority: Vec<PriorityArg>,
+    /// Filter by assignee: me, none, a user UUID, or a public ID (usr_...).
+    #[arg(long, value_name = "ME|NONE|ID")]
+    pub assignee: Option<String>,
+    /// Filter by sprint: none or a sprint UUID.
+    #[arg(long, value_name = "NONE|UUID")]
+    pub sprint: Option<String>,
+    /// Filter by label UUID (repeatable).
+    #[arg(long)]
+    pub label: Vec<String>,
+    /// Filter by label name (repeatable).
+    #[arg(long = "label-name")]
+    pub label_name: Vec<String>,
+    /// Filter by parent work item key.
+    #[arg(long)]
+    pub parent: Option<String>,
+    /// Filter by top-level state (a bare flag means true).
+    #[arg(
+        long = "top-level",
+        value_name = "true|false",
+        num_args = 0..=1,
+        default_missing_value = "true"
+    )]
+    pub top_level: Option<bool>,
+    /// Only items updated at or after this time.
+    #[arg(long = "updated-after", value_name = "DATE")]
+    pub updated_after: Option<TimeArg>,
+    /// Only overdue items (true) or only on-track items (false).
+    #[arg(long, value_name = "true|false")]
+    pub overdue: Option<bool>,
+    /// Only items due strictly before this time.
+    #[arg(long = "due-before", value_name = "DATE")]
+    pub due_before: Option<TimeArg>,
+    /// Only items due strictly after this time.
+    #[arg(long = "due-after", value_name = "DATE")]
+    pub due_after: Option<TimeArg>,
+    /// Only archived (true) or only unarchived (false) items.
+    #[arg(long, value_name = "true|false")]
+    pub archived: Option<bool>,
+    /// Follow all pages (default: one page only).
+    #[arg(long)]
+    pub all: bool,
+    /// Maximum total items to aggregate (distinct from the server page size).
+    #[arg(long, value_name = "N", value_parser = clap::value_parser!(u32).range(1..))]
+    pub limit: Option<u32>,
+    /// Opaque cursor returned by a preceding page.
+    #[arg(
+        long,
+        visible_alias = "since-cursor",
+        value_name = "CURSOR",
+        value_parser = clap::builder::NonEmptyStringValueParser::new()
+    )]
+    pub cursor: Option<String>,
+}
+
+/// Arguments for `sprint stats`: client-side aggregate summary of Work Items.
+#[derive(Args, Debug)]
+pub struct SprintStatsArgs {
+    /// Sprint id (UUID; positional).
+    pub sprint: String,
+    /// Project key (overrides context).
+    #[arg(long)]
+    pub project: Option<String>,
+    /// Follow all pages (default: one page only).
+    #[arg(long)]
+    pub all: bool,
+    /// Maximum total items to aggregate (distinct from the server page size).
+    #[arg(long, value_name = "N", value_parser = clap::value_parser!(u32).range(1..))]
+    pub limit: Option<u32>,
+    /// Opaque cursor returned by a preceding page.
+    #[arg(
+        long,
+        visible_alias = "since-cursor",
+        value_name = "CURSOR",
+        value_parser = clap::builder::NonEmptyStringValueParser::new()
+    )]
+    pub cursor: Option<String>,
 }
 
 /// Arguments for the `label` command group.

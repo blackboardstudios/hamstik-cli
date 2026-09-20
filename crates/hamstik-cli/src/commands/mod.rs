@@ -36,6 +36,7 @@ pub mod project;
 pub mod report;
 pub mod sprint;
 pub mod squeakql;
+pub mod stats;
 pub mod user;
 pub mod work;
 pub mod work_context;
@@ -145,6 +146,7 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
             crate::args::ProjectCommand::List { .. }
             | crate::args::ProjectCommand::View { .. }
             | crate::args::ProjectCommand::Report { .. }
+            | crate::args::ProjectCommand::Stats { .. }
             | crate::args::ProjectCommand::Activity { .. }
             | crate::args::ProjectCommand::Use { .. } => false,
             crate::args::ProjectCommand::Create(_)
@@ -162,6 +164,7 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
             crate::args::SprintCommand::List { .. }
             | crate::args::SprintCommand::View { .. }
             | crate::args::SprintCommand::Report { .. }
+            | crate::args::SprintCommand::Stats { .. }
             | crate::args::SprintCommand::Transitions { .. } => false,
             crate::args::SprintCommand::Create { .. }
             | crate::args::SprintCommand::Transition { .. }

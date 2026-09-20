@@ -13,7 +13,7 @@ mod attachment;
 mod await_cmd;
 mod bulk;
 mod comment;
-mod common;
+pub(crate) mod common;
 mod create;
 mod edit;
 mod label;

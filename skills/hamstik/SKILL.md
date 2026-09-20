@@ -333,6 +333,32 @@ hamstik --json --no-input --org <ORG> --project <KEY> sprint report <SPRINT_ID>
   `items` collection only and there is no `--all`; continue from
   `page.nextCursor` in the JSON.
 
+Client-side aggregate summaries are the sanctioned exception to "never
+recompute a metric locally": `project stats <KEY>` and
+`sprint stats <SPRINT_ID>` page through the Work Item list endpoint and count
+the returned items by status, type, priority, and assignee, plus story-point
+totals:
+
+```bash
+hamstik --json --no-input --org <ORG> --project <KEY> project stats <KEY> --all
+hamstik --json --no-input --org <ORG> --project <KEY> sprint stats <SPRINT_ID> --all
+```
+
+- Prefer `project report`/`sprint report` for server-computed metrics
+  (velocity, burndown, scope changes); use `stats` only for simple
+  counts/sums over `work list` results.
+- The same filters as `work list` (`--status`, `--type`, `--priority`,
+  `--assignee`, `--sprint`, `--label`, `--scope`, …) apply server-side.
+- Without `--all` exactly one page is aggregated; `summary.truncated: true`
+  in the JSON (or a human-readable note) tells you the counts cover a partial
+  result, so use `--all` before quoting totals. `--limit` caps the total items
+  aggregated and also reports truncation when it cuts the traversal.
+- The `--json` document is `{"summary": {title, total, byStatus, byType,
+  byPriority, byAssignee, totalStoryPoints, estimatedItems, truncated},
+  "computed": "…client-side computed summary…", "itemsFetched": N}`. Say so in
+  answers built from it: these are counts over fetched data, not
+  server-reported metrics.
+
 Advanced Reports and Dashboards are a separate Organization-scoped,
 capability-gated surface. Use the typed commands and preserve the server's
 plan/App/capability/scope errors; never infer entitlement or recompute results:

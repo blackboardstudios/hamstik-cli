@@ -51,6 +51,7 @@ pub async fn run(session: &mut Session<'_>, args: &SprintArgs) -> Result<(), Cli
         SprintCommand::Report(args) => {
             report(session, &args.id, args.project.as_deref(), &args.page).await
         }
+        SprintCommand::Stats(args) => super::stats::sprint_stats(session, args).await,
         SprintCommand::Transitions { id, project } => {
             transitions(session, id, project.as_deref()).await
         }
@@ -111,7 +112,10 @@ pub async fn run(session: &mut Session<'_>, args: &SprintArgs) -> Result<(), Cli
 }
 
 /// Resolves the effective project key: explicit flag wins over context.
-fn require_project(session: &Session<'_>, explicit: Option<&str>) -> Result<String, CliError> {
+pub(crate) fn require_project(
+    session: &Session<'_>,
+    explicit: Option<&str>,
+) -> Result<String, CliError> {
     if let Some(project) = explicit {
         return Ok(project.to_string());
     }

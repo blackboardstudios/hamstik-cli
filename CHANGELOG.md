@@ -12,6 +12,22 @@ before upgrading.
 
 ### Added
 
+- Client-side aggregate summaries: `hamstik project stats <KEY>` and
+  `hamstik sprint stats <SPRINT_ID>` page through the Work Item list endpoint
+  (same filters as `work list`) and compute counts by status, type, priority,
+  and assignee plus story-point totals purely from returned fields. The output
+  is explicitly labeled a client-side computed summary, not a server-reported
+  metric. Without `--all` exactly one page is aggregated and a truncation
+  marker (human note, `summary.truncated: true` in JSON) is reported whenever
+  the server has more pages; `--all` follows every page and `--limit` caps the
+  total items aggregated (the wire page size stays within the endpoint
+  maximum). The `--json` document always carries `summary.total`,
+  `summary.byStatus`, `summary.byType`, `summary.byPriority`,
+  `summary.byAssignee`, `summary.totalStoryPoints`, `summary.estimatedItems`,
+  `summary.truncated`, `computed`, and `itemsFetched`.
+
+### Added
+
 - Git-style external subcommand plugins: an executable named `hamstik-<name>`
   on `PATH` is invoked for `hamstik <name> [args...]` when `<name>` is not a
   built-in command. The resolved context (`HAMSTIK_HOST`, `HAMSTIK_PROFILE`,

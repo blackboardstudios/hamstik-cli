@@ -1,0 +1,25 @@
+.TH HAMSTIK 1 "HAMSTIK SPRINT STATS"
+.SH NAME
+hamstik sprint stats \- Compute a client\-side aggregate summary of Work Items in the sprint
+.SH SYNOPSIS
+.B hamstik sprint stats [OPTIONS]
+.SH DESCRIPTION
+Compute a client\-side aggregate summary of Work Items in the sprint
+.SH ARGUMENTS
+.TP
+.I SPRINT
+Sprint id (UUID; positional)
+.SH OPTIONS
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --all
+Follow all pages (default: one page only)
+Choices: true, false
+.TP
+.B --limit
+Maximum total items to aggregate (distinct from the server page size)
+.TP
+.B --cursor
+Opaque cursor returned by a preceding page

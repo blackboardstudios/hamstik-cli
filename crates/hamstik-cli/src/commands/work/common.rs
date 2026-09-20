@@ -73,7 +73,7 @@ pub(super) fn read_long_text(
 /// Resolves the `--assignee` value into the preferred wire form: a `usr_`
 /// public ID goes to `assigneePublicId`, everything else to legacy
 /// `assigneeId` (UUID, `me`, or `none`).
-pub(super) fn assignee_fields(value: &Option<String>) -> (Option<String>, Option<String>) {
+pub(crate) fn assignee_fields(value: &Option<String>) -> (Option<String>, Option<String>) {
     match value {
         Some(id) if id.starts_with("usr_") => (None, Some(id.clone())),
         other => (other.clone(), None),

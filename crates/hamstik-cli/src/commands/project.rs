@@ -49,6 +49,7 @@ pub async fn run(session: &mut Session<'_>, args: &ProjectArgs) -> Result<(), Cl
             pagination,
         } => activity(session, project.as_deref(), since.as_ref(), pagination).await,
         ProjectCommand::Report(args) => report(session, args).await,
+        ProjectCommand::Stats(args) => super::stats::project_stats(session, args).await,
         ProjectCommand::Use { key } => use_project(session, key).await,
     }
 }

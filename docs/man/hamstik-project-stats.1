@@ -1,0 +1,77 @@
+.TH HAMSTIK 1 "HAMSTIK PROJECT STATS"
+.SH NAME
+hamstik project stats \- Compute a client\-side aggregate summary of Work Items in the project
+.SH SYNOPSIS
+.B hamstik project stats [OPTIONS]
+.SH DESCRIPTION
+Compute a client\-side aggregate summary of Work Items in the project
+.SH ARGUMENTS
+.TP
+.I PROJECT
+Project key (positional; overrides context)
+.SH OPTIONS
+.TP
+.B --search
+Free-text search over titles and descriptions
+.TP
+.B --status
+Filter by status (repeatable)
+Choices: backlog, todo, in_progress, in_review, done
+.TP
+.B --scope
+Status scope. When omitted, all statuses are included
+Choices: all, open, closed
+.TP
+.B --type
+Filter by type (repeatable)
+Choices: task, bug, story, feature, epic
+.TP
+.B --priority
+Filter by priority (repeatable)
+Choices: low, medium, high, urgent
+.TP
+.B --assignee
+Filter by assignee: me, none, a user UUID, or a public ID (usr_...)
+.TP
+.B --sprint
+Filter by sprint: none or a sprint UUID
+.TP
+.B --label
+Filter by label UUID (repeatable)
+.TP
+.B --label-name
+Filter by label name (repeatable)
+.TP
+.B --parent
+Filter by parent work item key
+.TP
+.B --top-level
+Filter by top-level state (a bare flag means true)
+Choices: true, false
+.TP
+.B --updated-after
+Only items updated at or after this time
+.TP
+.B --overdue
+Only overdue items (true) or only on-track items (false)
+Choices: true, false
+.TP
+.B --due-before
+Only items due strictly before this time
+.TP
+.B --due-after
+Only items due strictly after this time
+.TP
+.B --archived
+Only archived (true) or only unarchived (false) items
+Choices: true, false
+.TP
+.B --all
+Follow all pages (default: one page only)
+Choices: true, false
+.TP
+.B --limit
+Maximum total items to aggregate (distinct from the server page size)
+.TP
+.B --cursor
+Opaque cursor returned by a preceding page
