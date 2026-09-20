@@ -12,6 +12,18 @@ before upgrading.
 
 ### Added
 
+- `work create` convenience sources: `--from <KEY>` seeds a new Work Item from
+  an existing one and `--template <FILE>` reads a local Markdown file with YAML
+  frontmatter (`-` for stdin). Both copy the documented
+  title/type/priority/description/labels allow-list only — identity, ownership,
+  workflow state, revision, sprint, parent, story points, and due date are
+  never carried over, and unknown frontmatter keys are rejected locally. Any
+  explicit `create` flag overrides the copied value, the two flags are mutually
+  exclusive (usage error before any request), and `--dry-run` previews the
+  fully resolved create payload. Labels are attached through the existing
+  label endpoint after create because the Public API v1 create body does not
+  accept them.
+
 - Composed daily triage view: `hamstik work triage` merges three existing
   Public API v1 reads for the resolved Organization in one invocation — open
   Work Items assigned to the authenticated user (`assignedOpen`, the

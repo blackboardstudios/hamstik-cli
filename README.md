@@ -181,7 +181,12 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   unarchive/delete lifecycle, watcher state (`work watcher
   show|watch|unwatch|mute|unmute`), bulk operations
   (`work bulk create|update|transition`), and condition waiting
-  (`work await`);
+  (`work await`). `work create` also accepts `--from <KEY>` (copy the
+  documented title/type/priority/description/labels allow-list from an
+  existing Work Item; identity, ownership, and workflow state are never
+  copied) and `--template <FILE>` (a local Markdown file with YAML
+  frontmatter) as mutually exclusive starting points, both fully resolved by
+  `--dry-run`;
 - first-class My Work via `hamstik work mine` (`work my` alias), a composed
   daily triage view via `hamstik work triage` (open Work assigned to you,
   overdue Work, and recent Project activity in one command — each section
@@ -298,6 +303,9 @@ hamstik work search 'status = todo and priority >= high' --limit 100 --json
 
 # Work Item lifecycle and optimistic concurrency
 hamstik work create --title "Document API" --type task --assignee me
+# Start from an existing Work Item or a local Markdown/YAML-frontmatter template
+hamstik work create --from HAM-42 --title "Recurring bug report"
+hamstik work create --template bug-template.md
 hamstik work edit HAM-42 --priority high --parent HAM-7
 hamstik work transitions HAM-42
 hamstik work transition HAM-42 in_progress
@@ -457,6 +465,46 @@ can be supplied inline, from a file, from stdin, or through your editor:
   and final-newline semantics are not normalized.
 - A failed or unchanged editor session is a clean cancellation: nothing is
   sent.
+
+## Work Item starting points (`work create --from` / `--template`)
+
+`hamstik work create` can seed a new Work Item from an existing item or a
+local file. Both are client-side conveniences: the CLI still builds an ordinary
+`POST .../work-items` request, the server remains authoritative, and no
+template is persisted server-side.
+
+- `--from <KEY>` copies the documented allow-list — `title`, `type`,
+  `priority`, `description`, and `labels` — from an existing Work Item.
+  Identity, ownership, workflow state, revision, sprint, parent, story points,
+  and due date are never copied.
+- `--template <FILE>` reads a Markdown file with YAML frontmatter (`-` for
+  stdin). Recognized keys are `title`, `type`, `priority`, `labels`, and
+  `description`; the Markdown body is the description when the frontmatter
+  does not set one. Unknown keys (including `assignee`, `reporter`, and
+  `status`) are rejected locally rather than silently ignored.
+- Any explicit flag (`--title`, `--priority`, …) overrides the copied value.
+- `--from` and `--template` are mutually exclusive and fail locally (exit 2)
+  before any request.
+- `--dry-run` resolves the source and previews the exact create payload.
+  Labels are not part of the create body (the Public API v1 contract forbids
+  unknown properties), so the preview names them and a real invocation attaches
+  each copied label through the documented label endpoint after create.
+
+```markdown
+---
+title: Bug report
+type: bug
+priority: high
+labels:
+  - regression
+---
+
+## Steps to reproduce
+
+## Expected
+
+## Actual
+```
 
 ## Context and automation contract
 

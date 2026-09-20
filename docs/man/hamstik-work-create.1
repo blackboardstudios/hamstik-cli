@@ -8,7 +8,13 @@ Create a work item
 .SH OPTIONS
 .TP
 .B --title
-Work item title
+Work item title. Required unless `--from`/`--template` supplies one
+.TP
+.B --from
+Copy title/type/priority/description/labels from an existing Work Item as a starting point; explicit flags override the copied values
+.TP
+.B --template
+Read a local Markdown file with YAML frontmatter as a reusable starting point; explicit flags override the template's values (`-` reads stdin)
 .TP
 .B --description
 Description text

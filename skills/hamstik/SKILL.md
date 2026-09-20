@@ -210,6 +210,25 @@ hamstik --json --no-input --org <ORG> --project <KEY> work edit <ITEM-KEY> \
   --priority high
 ```
 
+To pre-fill a new Work Item, start from an existing item or a local Markdown
+template instead of repeating fields. Both copy only the documented
+title/type/priority/description/labels allow-list (never assignee, reporter,
+status, sprint, parent, story points, due date, or revision); any explicit flag
+overrides the copied value, and the two sources are mutually exclusive:
+
+```bash
+hamstik --json --no-input --org <ORG> --project <KEY> work create \
+  --from <ITEM-KEY> --title "Overridden title"
+hamstik --json --no-input --org <ORG> --project <KEY> work create \
+  --template <TEMPLATE.md>
+```
+
+`--template` reads Markdown with YAML frontmatter (`title`, `type`, `priority`,
+`labels`, and `description`; the Markdown body is the description). Preview
+either source with `--dry-run` before sending. The Public API v1 create body does
+not accept labels, so the preview names them and a real invocation attaches each
+copied label after create through the documented label endpoint.
+
 Date-like flags (`--due-date`, `--start-date`, and the `--updated-after` filter) accept
 RFC 3339, a plain `YYYY-MM-DD` calendar date, the keywords `today`, `yesterday`, and
 `tomorrow`, or a relative offset such as `30m`, `7d`, `2w`, `+3h`, `1mo`, or `1y`. The CLI

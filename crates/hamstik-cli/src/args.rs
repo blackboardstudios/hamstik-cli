@@ -1840,9 +1840,17 @@ pub struct WorkListArgs {
 /// Arguments for `work create`.
 #[derive(Args, Debug)]
 pub struct WorkCreateArgs {
-    /// Work item title.
+    /// Work item title. Required unless `--from`/`--template` supplies one.
     #[arg(long)]
     pub title: Option<String>,
+    /// Copy title/type/priority/description/labels from an existing Work Item
+    /// as a starting point; explicit flags override the copied values.
+    #[arg(long = "from", value_name = "KEY", conflicts_with = "template")]
+    pub from: Option<String>,
+    /// Read a local Markdown file with YAML frontmatter as a reusable starting
+    /// point; explicit flags override the template's values (`-` reads stdin).
+    #[arg(long = "template", value_name = "FILE", conflicts_with = "from")]
+    pub template: Option<String>,
     /// Description text.
     #[arg(long, conflicts_with_all = ["description_file", "description_editor"])]
     pub description: Option<String>,
@@ -2665,6 +2673,9 @@ pub enum PriorityArg {
 }
 
 impl PriorityArg {
+    /// Every accepted wire spelling, in CLI order.
+    pub const ALL: &[Self] = &[Self::Low, Self::Medium, Self::High, Self::Urgent];
+
     /// The wire value for this priority.
     #[must_use]
     pub fn as_str(self) -> &'static str {

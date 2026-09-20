@@ -4,7 +4,15 @@ Create a work item
 
 ### `--title`
 
-Work item title
+Work item title. Required unless `\-\-from`/`\-\-template` supplies one
+
+### `--from`
+
+Copy title/type/priority/description/labels from an existing Work Item as a starting point; explicit flags override the copied values
+
+### `--template`
+
+Read a local Markdown file with YAML frontmatter as a reusable starting point; explicit flags override the template's values (`\-` reads stdin)
 
 ### `--description`
 

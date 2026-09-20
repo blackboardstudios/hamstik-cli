@@ -3142,9 +3142,19 @@
    "aliases": [],
    "arguments": [
     {
-     "help": "Work item title",
+     "help": "Work item title. Required unless `--from`/`--template` supplies one",
      "kind": "option",
      "long": "--title"
+    },
+    {
+     "help": "Copy title/type/priority/description/labels from an existing Work Item as a starting point; explicit flags override the copied values",
+     "kind": "option",
+     "long": "--from"
+    },
+    {
+     "help": "Read a local Markdown file with YAML frontmatter as a reusable starting point; explicit flags override the template's values (`-` reads stdin)",
+     "kind": "option",
+     "long": "--template"
     },
     {
      "help": "Description text",
@@ -3239,6 +3249,8 @@
    "hasSubcommands": false,
    "options": [
     "--title",
+    "--from",
+    "--template",
     "--description",
     "--description-file",
     "--description-editor",

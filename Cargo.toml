@@ -51,6 +51,9 @@ rustls = { version = "0.23", default-features = false }
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4"
 toml = "1.1"
+# `work create --template` reads a local Markdown file with YAML frontmatter.
+# `serde_norway` is the maintained fork of `serde_yaml` (MIT OR Apache-2.0).
+serde_norway = "0.9"
 directories = "6"
 keyring = "3"
 rpassword = "7"

@@ -20,6 +20,7 @@ mod label;
 mod link;
 mod list;
 pub(crate) mod sort;
+mod template;
 mod transitions;
 mod triage;
 mod view;
