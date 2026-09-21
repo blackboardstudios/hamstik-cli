@@ -23,6 +23,7 @@ mod list;
 pub(crate) mod sort;
 mod template;
 mod transitions;
+mod tree;
 mod triage;
 mod view;
 mod watcher;
@@ -54,6 +55,7 @@ pub async fn run(session: &mut Session<'_>, args: &WorkArgs) -> Result<(), CliEr
         } => list::search(session, query, file, saved, pagination).await,
         WorkCommand::View(args) => view::view(session, args).await,
         WorkCommand::Context(args) => super::work_context::run(session, args).await,
+        WorkCommand::Tree(args) => tree::tree(session, args).await,
         WorkCommand::Create(create_args) => create::create(session, create_args).await,
         WorkCommand::Edit(edit_args) => edit::edit(session, edit_args).await,
         WorkCommand::Watcher(watcher_args) => watcher::watcher(session, watcher_args).await,

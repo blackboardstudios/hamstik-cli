@@ -179,6 +179,7 @@ hamstik --json --no-input --org <ORG> --project <KEY> work list \
   --status todo --status in_progress
 hamstik --json --no-input --org <ORG> work mine --scope open
 hamstik --json --no-input --org <ORG> --project <KEY> work triage
+hamstik --json --no-input --org <ORG> --project <KEY> work tree <ITEM-KEY>
 hamstik --json --no-input --org <ORG> org work --project <KEY> --overdue true
 hamstik --json --no-input --org <ORG> squeakql validate "status = 'backlog'"
 hamstik --json --no-input --org <ORG> work search "status = 'backlog'"
@@ -204,6 +205,17 @@ contains every section plus a `failedSections` array, and a failed section is
 `{"status": "error", "error": …}`. Public API v1 exposes no unread/mention/
 watched-items read, so there is no client-side "seen" state and the activity
 section is simply the Project feed.
+
+`work tree <KEY>` renders an item's parent/child hierarchy from existing reads
+in one invocation. `--depth N` (default `3`, cap `10`) bounds descendant levels
+and `--max-nodes N` (default `200`, cap `2000`) bounds the node count; a cut
+ends with an explicit truncation marker rather than silently dropping the
+subtree, and a parent/child cycle is detected and marked. `--links` adds each
+displayed node's server-reported `blocks` / `blocked_by` / `relates` links as
+annotations. Every `status`, `type`, and `priority` is the server's value
+verbatim; do not treat the tree as a readiness/blocking calculation. The
+stable `--json` document is `treeVersion: 1` with `root` nodes nested under
+`children` and per-node `truncated` reasons (`depth`, `nodes`, `cycle`).
 
 Resolve people before assigning: `org members --all` lists active members, and
 `user view <PUBLIC_ID>` / `user work <PUBLIC_ID>` inspect a profile and its visible

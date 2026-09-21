@@ -198,6 +198,11 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   hand-off, `--comments N` / `--activity N` / `--compact` size
   controls with explicit truncation markers) — data only, composed
   entirely from Public API v1 reads;
+- a bounded parent/child hierarchy via `hamstik work tree <KEY>
+  [--depth N] [--max-nodes N] [--links]` with explicit depth, node,
+  and cycle truncation markers, plus optional server-reported
+  `blocks`/`blocked_by`/`relates` annotations — no client-side
+  readiness or blocking is computed;
 - attachments — `work attachment list|upload|download|delete`;
 - the unauthenticated live contract via `hamstik api openapi`;
 - a `gh api`-style Public API v1 passthrough (`hamstik api /api/v1/...` /
@@ -297,6 +302,9 @@ hamstik work mine --scope open --project HAM --project WEB --all
 hamstik work triage --org acme --project HAM
 hamstik work triage --org acme --project HAM --since 7d --activity 20 --json
 
+# Parent/child hierarchy with bounded depth and server-reported link annotations
+hamstik work tree --org acme --project HAM HAM-42 --depth 4 --links --json
+
 # SqueakQL validation and read-only JSON-body search
 hamstik squeakql validate 'status = todo and priority >= high'
 hamstik work search 'status = todo and priority >= high' --limit 100 --json
@@ -368,6 +376,56 @@ hamstik user avatar usr_cPbfeqnghA-RLpDVOMQhHg --format webp --output avatar.web
 Downloads always write binary data to a file. In `--json` mode stdout contains
 only JSON metadata (path, size, content type, and available response headers),
 never the binary payload. Diagnostics and structured failures go to stderr.
+
+### Working the parent/child tree
+
+`hamstik work tree <KEY>` renders an item's descendants in one invocation,
+composed only from the existing Public API v1 reads (the root's full Work Item
+and each node's `parent=` child listing). `--depth N` (default `3`, maximum
+`10`) caps descendant levels below the root; `--max-nodes N` (default `200`,
+maximum `2000`) caps the total nodes rendered; `--links` adds each node's
+server-reported `blocks` / `blocked_by` / `relates` links as annotations. The
+CLI never computes whether an item is "ready" or "blocked".
+
+```bash
+hamstik --org acme --project HAM work tree HAM-42
+hamstik --org acme --project HAM work tree HAM-42 --depth 5 --links --json
+```
+
+A traversal that ends early says so explicitly: the human view appends a
+`[depth limit reached; children not expanded]`, `[node limit reached; …]`, or
+`[cycle detected; …]` line, and the JSON `truncated` array carries the same
+reasons. The `--json` document is stable and versioned
+(`treeVersion: 1`):
+
+```json
+{
+  "treeVersion": 1,
+  "organization": "acme",
+  "project": "HAM",
+  "depth": 3,
+  "maxNodes": 200,
+  "truncated": false,
+  "root": {
+    "key": "HAM-42",
+    "title": "Ship the release",
+    "type": "epic",
+    "status": "in_progress",
+    "priority": "high",
+    "parent": null,
+    "children": [],
+    "truncated": []
+  }
+}
+```
+
+Every `status`, `type`, and `priority` is the server's value verbatim. Each node
+has the same shape nested under `children`; `truncated` entries are
+`{"reason": "depth"|"nodes"|"cycle", "message": "…"}`. With `--links`, each
+node also carries a `links` array of the raw server link objects (the key is
+absent otherwise). `--json` reorders a node's children by Work Item key so
+repeated runs are byte-identical; the hierarchy itself (which items are nested
+under which) is server data.
 
 ### Advanced Reporting
 

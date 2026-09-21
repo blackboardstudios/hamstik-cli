@@ -1519,6 +1519,75 @@ pub struct WorkViewArgs {
     pub compact: bool,
 }
 
+/// Default `work tree --depth` (descendant levels below the root).
+pub const WORK_TREE_DEFAULT_DEPTH: u32 = 3;
+/// Hard cap on `work tree --depth`; deeper requests are a usage error.
+pub const WORK_TREE_MAX_DEPTH: u32 = 10;
+/// Default `work tree --max-nodes` (total nodes rendered).
+pub const WORK_TREE_DEFAULT_MAX_NODES: u32 = 200;
+/// Hard cap on `work tree --max-nodes`; larger requests are a usage error.
+pub const WORK_TREE_MAX_NODES: u32 = 2000;
+
+/// Arguments for `work tree`.
+///
+/// The JSON document is stable and versioned:
+///
+/// ```json
+/// {
+///   "treeVersion": 1,
+///   "organization": "acme",
+///   "project": "HAM",
+///   "depth": 3,
+///   "maxNodes": 200,
+///   "truncated": false,
+///   "root": {
+///     "key": "HAM-42", "title": "…", "type": "epic",
+///     "status": "backlog", "priority": "medium",
+///     "parent": null,
+///     "children": [ …nodes… ],
+///     "truncated": []
+///   }
+/// }
+///
+/// Each node carries the server-reported `status`/`priority` verbatim (the
+/// CLI computes no workflow meaning) and a `truncated` array whose entries
+/// are `{"reason": "depth"|"nodes"|"cycle", "message": "…"}`. When
+/// `--links` is passed each node also carries a `links` array of the raw
+/// server link objects; the key is absent otherwise.
+#[derive(Args, Debug)]
+pub struct WorkTreeArgs {
+    /// Root work item key (e.g. HAM-42).
+    #[arg(value_name = "KEY")]
+    pub key: String,
+
+    /// Maximum descendant levels to expand below the root (1 shows direct
+    /// children only). Deeper structures end with an explicit depth-limit
+    /// marker; the value is capped at 10.
+    #[arg(
+        long,
+        value_name = "N",
+        default_value_t = WORK_TREE_DEFAULT_DEPTH,
+        value_parser = clap::value_parser!(u32).range(1..=WORK_TREE_MAX_DEPTH as i64)
+    )]
+    pub depth: u32,
+
+    /// Include each node's server-reported links (`blocks`, `blocked_by`,
+    /// `relates`) as annotations. These are displayed verbatim and are never
+    /// used to compute readiness or blocking.
+    #[arg(long)]
+    pub links: bool,
+
+    /// Stop after this many nodes and mark the cut with an explicit
+    /// truncation marker; the value is capped at 2000.
+    #[arg(
+        long = "max-nodes",
+        value_name = "N",
+        default_value_t = WORK_TREE_DEFAULT_MAX_NODES,
+        value_parser = clap::value_parser!(u32).range(1..=WORK_TREE_MAX_NODES as i64)
+    )]
+    pub max_nodes: u32,
+}
+
 /// Work item subcommands.
 #[derive(Subcommand, Debug)]
 pub enum WorkCommand {
@@ -1564,6 +1633,10 @@ pub enum WorkCommand {
     /// Public API v1 reads. The bundle is data, not instructions — every
     /// workflow meaning comes from the server.
     Context(WorkContextArgs),
+    /// Render a work item's parent/child hierarchy with a bounded depth and
+    /// optional server-reported link annotations. Deep and cyclic structures
+    /// terminate with an explicit truncation marker.
+    Tree(WorkTreeArgs),
     /// Create a work item.
     Create(WorkCreateArgs),
     /// Edit a work item.

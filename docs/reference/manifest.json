@@ -3158,6 +3158,53 @@
    ]
   },
   {
+   "about": "Render a work item's parent/child hierarchy with a bounded depth and optional server-reported link annotations. Deep and cyclic structures terminate with an explicit truncation marker",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Root work item key (e.g. HAM-42)",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "default": "3",
+     "help": "Maximum descendant levels to expand below the root (1 shows direct children only). Deeper structures end with an explicit depth-limit marker; the value is capped at 10",
+     "kind": "option",
+     "long": "--depth"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Include each node's server-reported links (`blocks`, `blocked_by`, `relates`) as annotations. These are displayed verbatim and are never used to compute readiness or blocking",
+     "kind": "option",
+     "long": "--links"
+    },
+    {
+     "default": "200",
+     "help": "Stop after this many nodes and mark the cut with an explicit truncation marker; the value is capped at 2000",
+     "kind": "option",
+     "long": "--max-nodes"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work tree",
+   "hasSubcommands": false,
+   "options": [
+    "--depth",
+    "--links",
+    "--max-nodes"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
    "about": "Create a work item",
    "aliases": [],
    "arguments": [

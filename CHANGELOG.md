@@ -23,6 +23,16 @@ before upgrading.
 
 ### Added
 
+- `work tree <KEY>` renders a Work Item's parent/child hierarchy from existing
+  Public API v1 reads with a bounded `--depth` (default 3, maximum 10) and
+  `--max-nodes` (default 200, maximum 2000), plus optional `--links`
+  annotations of the server-reported `blocks` / `blocked_by` / `relates`
+  relationships. Deep or cyclic structures terminate with an explicit
+  truncation marker in both the human tree and the stable versioned `--json`
+  document (`treeVersion: 1`), whose per-node `status`/`type`/`priority` are
+  the server's values verbatim. No client-side readiness or blocking is
+  computed.
+
 - Global `--confirm-destructive` and `--yes` flags express local consent for
   destructive commands (`work delete`, `project archive`, completing a Sprint)
   without changing server-side authorization. Consent failures name the flag
