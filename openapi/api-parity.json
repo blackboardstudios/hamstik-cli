@@ -2,6 +2,356 @@
   "schemaVersion": 1,
   "operations": [
     {
+      "operationId": "archiveProject",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/archive",
+      "client": "archive_project",
+      "cli": [
+        "project archive"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "archiveWorkItem",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/archive",
+      "client": "archive_work_item",
+      "cli": [
+        "work archive"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "bulkCreateWorkItems",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/bulk-work-items",
+      "client": "bulk_create_work_items",
+      "cli": [
+        "work bulk create"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "bulkTransitionWorkItems",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/bulk-work-item-transitions",
+      "client": "bulk_transition_work_items",
+      "cli": [
+        "work bulk transition"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "bulkUpdateWorkItems",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/bulk-work-items",
+      "client": "bulk_update_work_items",
+      "cli": [
+        "work bulk update"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createAdvancedReport",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports",
+      "client": "create_advanced_report",
+      "cli": [
+        "report create"
+      ],
+      "tests": [
+        "advanced_reporting"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createOrganizationAttribute",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/attributes",
+      "client": "create_organization_attribute",
+      "cli": [
+        "attribute create"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createOrganizationAttributeOption",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/attributes/{attributeKey}/options",
+      "client": "create_organization_attribute_option",
+      "cli": [
+        "attribute option add"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createProject",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects",
+      "client": "create_project",
+      "cli": [
+        "project create"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createProjectLabel",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/labels",
+      "client": "create_label",
+      "cli": [
+        "label create"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createProjectSprint",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints",
+      "client": "create_sprint",
+      "cli": [
+        "sprint create"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createWorkItem",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items",
+      "client": "create_work_item",
+      "cli": [
+        "work create"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createWorkItemAttachment",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments",
+      "client": "upload_attachment",
+      "cli": [
+        "work attachment upload"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createWorkItemComment",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments",
+      "client": "create_comment",
+      "cli": [
+        "work comment add"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createWorkItemLabelAssignment",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/labels",
+      "client": "attach_label",
+      "cli": [
+        "work label add"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createWorkItemLink",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/links",
+      "client": "create_work_item_link",
+      "cli": [
+        "work link add"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteAdvancedReport",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports/{reportId}",
+      "client": "delete_advanced_report",
+      "cli": [
+        "report delete"
+      ],
+      "tests": [
+        "advanced_reporting"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteWorkItem",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}",
+      "client": "delete_work_item",
+      "cli": [
+        "work delete"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteWorkItemAttachment",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments/{attachmentId}",
+      "client": "delete_attachment",
+      "cli": [
+        "work attachment delete"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteWorkItemComment",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments/{commentId}",
+      "client": "delete_comment",
+      "cli": [
+        "work comment delete"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteWorkItemLabelAssignment",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/labels/{labelId}",
+      "client": "detach_label",
+      "cli": [
+        "work label remove"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteWorkItemLink",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/links/{linkId}",
+      "client": "delete_work_item_link",
+      "cli": [
+        "work link delete"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "downloadWorkItemAttachment",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments/{attachmentId}",
+      "client": "download_attachment",
+      "cli": [
+        "work attachment download"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getAdvancedDashboard",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-dashboards/{dashboardId}",
+      "client": "get_advanced_dashboard",
+      "cli": [
+        "dashboard view",
+        "dashboard run"
+      ],
+      "tests": [
+        "advanced_reporting"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getAdvancedReport",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports/{reportId}",
+      "client": "get_advanced_report",
+      "cli": [
+        "report view",
+        "report edit",
+        "report delete",
+        "report run"
+      ],
+      "tests": [
+        "advanced_reporting"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "getMe",
       "method": "GET",
       "path": "/api/v1/me",
@@ -31,76 +381,6 @@
       "status": "Complete"
     },
     {
-      "operationId": "getUserProfile",
-      "method": "GET",
-      "path": "/api/v1/users/{publicId}",
-      "client": "get_user_profile",
-      "cli": [
-        "user view"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listUserProfileWork",
-      "method": "GET",
-      "path": "/api/v1/users/{publicId}/work",
-      "client": "list_user_profile_work",
-      "cli": [
-        "user work"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listUserProfileActivity",
-      "method": "GET",
-      "path": "/api/v1/users/{publicId}/activity",
-      "client": "list_user_profile_activity",
-      "cli": [
-        "user activity"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "getUserProfileAvatar",
-      "method": "GET",
-      "path": "/api/v1/users/{publicId}/avatar",
-      "client": "get_user_profile_avatar",
-      "cli": [
-        "user avatar"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listOrganizations",
-      "method": "GET",
-      "path": "/api/v1/organizations",
-      "client": "list_organizations",
-      "cli": [
-        "org list"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
       "operationId": "getOrganization",
       "method": "GET",
       "path": "/api/v1/organizations/{organizationSlug}",
@@ -115,40 +395,20 @@
       "status": "Complete"
     },
     {
-      "operationId": "listOrganizationUsers",
+      "operationId": "getOrganizationAttribute",
       "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/users",
-      "client": "list_organization_users",
+      "path": "/api/v1/organizations/{organizationSlug}/attributes/{attributeKey}",
+      "client": "get_organization_attribute",
       "cli": [
-        "org members"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listProjects",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/projects",
-      "client": "list_projects",
-      "cli": [
-        "project list"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "createProject",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/projects",
-      "client": "create_project",
-      "cli": [
-        "project create"
+        "attribute view",
+        "attribute rename",
+        "attribute transition",
+        "attribute option add",
+        "attribute option rename",
+        "attribute option reorder",
+        "attribute option retire",
+        "attribute project enable",
+        "attribute project disable"
       ],
       "tests": [
         "client",
@@ -171,82 +431,12 @@
       "status": "Complete"
     },
     {
-      "operationId": "updateProject",
-      "method": "PATCH",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}",
-      "client": "update_project",
-      "cli": [
-        "project edit"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "archiveProject",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/archive",
-      "client": "archive_project",
-      "cli": [
-        "project archive"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "unarchiveProject",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/unarchive",
-      "client": "unarchive_project",
-      "cli": [
-        "project unarchive"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
       "operationId": "getProjectReport",
       "method": "GET",
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/reports/{reportType}",
       "client": "get_project_report",
       "cli": [
         "project report"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listProjectSprints",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints",
-      "client": "list_sprints",
-      "cli": [
-        "sprint list"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "createProjectSprint",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints",
-      "client": "create_sprint",
-      "cli": [
-        "sprint create"
       ],
       "tests": [
         "client",
@@ -283,12 +473,12 @@
       "status": "Complete"
     },
     {
-      "operationId": "listProjectSprintTransitions",
+      "operationId": "getUserProfile",
       "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}/transitions",
-      "client": "list_sprint_transitions",
+      "path": "/api/v1/users/{publicId}",
+      "client": "get_user_profile",
       "cli": [
-        "sprint transitions"
+        "user view"
       ],
       "tests": [
         "client",
@@ -297,167 +487,12 @@
       "status": "Complete"
     },
     {
-      "operationId": "transitionProjectSprint",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}/transitions",
-      "client": "transition_sprint",
-      "cli": [
-        "sprint transition"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listWorkItems",
+      "operationId": "getUserProfileAvatar",
       "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items",
-      "client": "list_work_items",
+      "path": "/api/v1/users/{publicId}/avatar",
+      "client": "get_user_profile_avatar",
       "cli": [
-        "work list"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "createWorkItem",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items",
-      "client": "create_work_item",
-      "cli": [
-        "work create"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listOrganizationWorkItems",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/work-items",
-      "client": "list_organization_work_items",
-      "cli": [
-        "org work"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "searchOrganizationWorkItemsWithSqueakQL",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/work-items/search",
-      "client": "search_organization_work_items_with_squeakql",
-      "cli": [
-        "work search"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "validateSqueakQL",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/squeakql/validate",
-      "client": "validate_squeakql",
-      "cli": [
-        "squeakql validate"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listMyWork",
-      "method": "GET",
-      "path": "/api/v1/my/work",
-      "client": "list_my_work",
-      "cli": [
-        "work mine",
-        "work my"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "bulkCreateWorkItems",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/bulk-work-items",
-      "client": "bulk_create_work_items",
-      "cli": [
-        "work bulk create"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "bulkUpdateWorkItems",
-      "method": "PATCH",
-      "path": "/api/v1/organizations/{organizationSlug}/bulk-work-items",
-      "client": "bulk_update_work_items",
-      "cli": [
-        "work bulk update"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "bulkTransitionWorkItems",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/bulk-work-item-transitions",
-      "client": "bulk_transition_work_items",
-      "cli": [
-        "work bulk transition"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listProjectLabels",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/labels",
-      "client": "list_labels",
-      "cli": [
-        "label list"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "createProjectLabel",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/labels",
-      "client": "create_label",
-      "cli": [
-        "label create"
+        "user avatar"
       ],
       "tests": [
         "client",
@@ -494,12 +529,52 @@
       "status": "Complete"
     },
     {
-      "operationId": "updateWorkItem",
-      "method": "PATCH",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}",
-      "client": "update_work_item",
+      "operationId": "listAdvancedDashboards",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-dashboards",
+      "client": "list_advanced_dashboards",
       "cli": [
-        "work edit"
+        "dashboard list"
+      ],
+      "tests": [
+        "advanced_reporting"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listAdvancedReports",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports",
+      "client": "list_advanced_reports",
+      "cli": [
+        "report list"
+      ],
+      "tests": [
+        "advanced_reporting"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listAdvancedSelectionItems",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-report-runs/{runId}/cells/{cellId}/items",
+      "client": "list_advanced_selection_items",
+      "cli": [
+        "report selection-items"
+      ],
+      "tests": [
+        "advanced_reporting"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listMyWork",
+      "method": "GET",
+      "path": "/api/v1/my/work",
+      "client": "list_my_work",
+      "cli": [
+        "work mine",
+        "work my"
       ],
       "tests": [
         "client",
@@ -508,12 +583,12 @@
       "status": "Complete"
     },
     {
-      "operationId": "deleteWorkItem",
-      "method": "DELETE",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}",
-      "client": "delete_work_item",
+      "operationId": "listOrganizationAttributes",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/attributes",
+      "client": "list_organization_attributes",
       "cli": [
-        "work delete"
+        "attribute list"
       ],
       "tests": [
         "client",
@@ -522,12 +597,12 @@
       "status": "Complete"
     },
     {
-      "operationId": "archiveWorkItem",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/archive",
-      "client": "archive_work_item",
+      "operationId": "listOrganizationUsers",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/users",
+      "client": "list_organization_users",
       "cli": [
-        "work archive"
+        "org members"
       ],
       "tests": [
         "client",
@@ -536,12 +611,194 @@
       "status": "Complete"
     },
     {
-      "operationId": "unarchiveWorkItem",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/unarchive",
-      "client": "unarchive_work_item",
+      "operationId": "listOrganizationWorkItems",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/work-items",
+      "client": "list_organization_work_items",
       "cli": [
-        "work unarchive"
+        "org work"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listOrganizations",
+      "method": "GET",
+      "path": "/api/v1/organizations",
+      "client": "list_organizations",
+      "cli": [
+        "org list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listProjectActivity",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/activity",
+      "client": "list_project_activity",
+      "cli": [
+        "project activity"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listProjectAttributes",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/attributes",
+      "client": "list_project_attributes",
+      "cli": [
+        "attribute project list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listProjectLabels",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/labels",
+      "client": "list_labels",
+      "cli": [
+        "label list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listProjectSprintTransitions",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}/transitions",
+      "client": "list_sprint_transitions",
+      "cli": [
+        "sprint transitions"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listProjectSprints",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints",
+      "client": "list_sprints",
+      "cli": [
+        "sprint list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listProjects",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects",
+      "client": "list_projects",
+      "cli": [
+        "project list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listUserProfileActivity",
+      "method": "GET",
+      "path": "/api/v1/users/{publicId}/activity",
+      "client": "list_user_profile_activity",
+      "cli": [
+        "user activity"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listUserProfileWork",
+      "method": "GET",
+      "path": "/api/v1/users/{publicId}/work",
+      "client": "list_user_profile_work",
+      "cli": [
+        "user work"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listWorkItemActivity",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/activity",
+      "client": "list_work_item_activity",
+      "cli": [
+        "work activity"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listWorkItemAttachments",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments",
+      "client": "list_attachments",
+      "cli": [
+        "work attachment list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listWorkItemComments",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments",
+      "client": "list_comments",
+      "cli": [
+        "work comment list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listWorkItemLinks",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/links",
+      "client": "list_work_item_links",
+      "cli": [
+        "work link list"
       ],
       "tests": [
         "client",
@@ -556,6 +813,159 @@
       "client": "list_transitions",
       "cli": [
         "work transitions"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listWorkItems",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items",
+      "client": "list_work_items",
+      "cli": [
+        "work list"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "renameOrganizationAttribute",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/attributes/{attributeKey}",
+      "client": "rename_organization_attribute",
+      "cli": [
+        "attribute rename"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "renameOrganizationAttributeOption",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/attributes/{attributeKey}/options/{optionKey}",
+      "client": "rename_organization_attribute_option",
+      "cli": [
+        "attribute option rename"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "reorderOrganizationAttributeOptions",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/attributes/{attributeKey}/options/reorder",
+      "client": "reorder_organization_attribute_options",
+      "cli": [
+        "attribute option reorder"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "retireOrganizationAttributeOption",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/attributes/{attributeKey}/options/{optionKey}/retire",
+      "client": "retire_organization_attribute_option",
+      "cli": [
+        "attribute option retire"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "runAdvancedDashboard",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-dashboards/{dashboardId}/runs",
+      "client": "run_advanced_dashboard",
+      "cli": [
+        "dashboard run"
+      ],
+      "tests": [
+        "advanced_reporting"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "runAdvancedReport",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports/{reportId}/runs",
+      "client": "run_advanced_report",
+      "cli": [
+        "report run"
+      ],
+      "tests": [
+        "advanced_reporting"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "searchOrganizationWorkItemsWithSqueakQL",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/work-items/search",
+      "client": "search_organization_work_items_with_squeakql",
+      "cli": [
+        "work search"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "setProjectAttributeEnablement",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/attributes/{attributeKey}/enablement",
+      "client": "set_project_attribute_enablement",
+      "cli": [
+        "attribute project enable",
+        "attribute project disable"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "transitionOrganizationAttribute",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/attributes/{attributeKey}/transitions",
+      "client": "transition_organization_attribute",
+      "cli": [
+        "attribute transition"
+      ],
+      "tests": [
+        "client",
+        "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "transitionProjectSprint",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}/transitions",
+      "client": "transition_sprint",
+      "cli": [
+        "sprint transition"
       ],
       "tests": [
         "client",
@@ -580,12 +990,12 @@
       "status": "Complete"
     },
     {
-      "operationId": "createWorkItemLabelAssignment",
+      "operationId": "unarchiveProject",
       "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/labels",
-      "client": "attach_label",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/unarchive",
+      "client": "unarchive_project",
       "cli": [
-        "work label add"
+        "project unarchive"
       ],
       "tests": [
         "client",
@@ -594,40 +1004,12 @@
       "status": "Complete"
     },
     {
-      "operationId": "deleteWorkItemLabelAssignment",
-      "method": "DELETE",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/labels/{labelId}",
-      "client": "detach_label",
-      "cli": [
-        "work label remove"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listWorkItemLinks",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/links",
-      "client": "list_work_item_links",
-      "cli": [
-        "work link list"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "createWorkItemLink",
+      "operationId": "unarchiveWorkItem",
       "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/links",
-      "client": "create_work_item_link",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/unarchive",
+      "client": "unarchive_work_item",
       "cli": [
-        "work link add"
+        "work unarchive"
       ],
       "tests": [
         "client",
@@ -636,12 +1018,25 @@
       "status": "Complete"
     },
     {
-      "operationId": "deleteWorkItemLink",
-      "method": "DELETE",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/links/{linkId}",
-      "client": "delete_work_item_link",
+      "operationId": "updateAdvancedReport",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports/{reportId}",
+      "client": "update_advanced_report",
       "cli": [
-        "work link delete"
+        "report edit"
+      ],
+      "tests": [
+        "advanced_reporting"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "updateProject",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}",
+      "client": "update_project",
+      "cli": [
+        "project edit"
       ],
       "tests": [
         "client",
@@ -650,68 +1045,12 @@
       "status": "Complete"
     },
     {
-      "operationId": "listWorkItemActivity",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/activity",
-      "client": "list_work_item_activity",
+      "operationId": "updateWorkItem",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}",
+      "client": "update_work_item",
       "cli": [
-        "work activity"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listProjectActivity",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/activity",
-      "client": "list_project_activity",
-      "cli": [
-        "project activity"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listWorkItemComments",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments",
-      "client": "list_comments",
-      "cli": [
-        "work comment list"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "createWorkItemComment",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments",
-      "client": "create_comment",
-      "cli": [
-        "work comment add"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "deleteWorkItemComment",
-      "method": "DELETE",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments/{commentId}",
-      "client": "delete_comment",
-      "cli": [
-        "work comment delete"
+        "work edit"
       ],
       "tests": [
         "client",
@@ -751,149 +1090,17 @@
       "status": "Complete"
     },
     {
-      "operationId": "listWorkItemAttachments",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments",
-      "client": "list_attachments",
+      "operationId": "validateSqueakQL",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/squeakql/validate",
+      "client": "validate_squeakql",
       "cli": [
-        "work attachment list"
+        "squeakql validate"
       ],
       "tests": [
         "client",
         "cli"
       ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "createWorkItemAttachment",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments",
-      "client": "upload_attachment",
-      "cli": [
-        "work attachment upload"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "downloadWorkItemAttachment",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments/{attachmentId}",
-      "client": "download_attachment",
-      "cli": [
-        "work attachment download"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "deleteWorkItemAttachment",
-      "method": "DELETE",
-      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments/{attachmentId}",
-      "client": "delete_attachment",
-      "cli": [
-        "work attachment delete"
-      ],
-      "tests": [
-        "client",
-        "cli"
-      ],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listAdvancedReports",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports",
-      "client": "list_advanced_reports",
-      "cli": ["report list"],
-      "tests": ["advanced_reporting"],
-      "status": "Complete"
-    },
-    {
-      "operationId": "createAdvancedReport",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports",
-      "client": "create_advanced_report",
-      "cli": ["report create"],
-      "tests": ["advanced_reporting"],
-      "status": "Complete"
-    },
-    {
-      "operationId": "getAdvancedReport",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports/{reportId}",
-      "client": "get_advanced_report",
-      "cli": ["report view", "report edit", "report delete", "report run"],
-      "tests": ["advanced_reporting"],
-      "status": "Complete"
-    },
-    {
-      "operationId": "updateAdvancedReport",
-      "method": "PATCH",
-      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports/{reportId}",
-      "client": "update_advanced_report",
-      "cli": ["report edit"],
-      "tests": ["advanced_reporting"],
-      "status": "Complete"
-    },
-    {
-      "operationId": "deleteAdvancedReport",
-      "method": "DELETE",
-      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports/{reportId}",
-      "client": "delete_advanced_report",
-      "cli": ["report delete"],
-      "tests": ["advanced_reporting"],
-      "status": "Complete"
-    },
-    {
-      "operationId": "runAdvancedReport",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/advanced-reports/{reportId}/runs",
-      "client": "run_advanced_report",
-      "cli": ["report run"],
-      "tests": ["advanced_reporting"],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listAdvancedSelectionItems",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/advanced-report-runs/{runId}/cells/{cellId}/items",
-      "client": "list_advanced_selection_items",
-      "cli": ["report selection-items"],
-      "tests": ["advanced_reporting"],
-      "status": "Complete"
-    },
-    {
-      "operationId": "listAdvancedDashboards",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/advanced-dashboards",
-      "client": "list_advanced_dashboards",
-      "cli": ["dashboard list"],
-      "tests": ["advanced_reporting"],
-      "status": "Complete"
-    },
-    {
-      "operationId": "getAdvancedDashboard",
-      "method": "GET",
-      "path": "/api/v1/organizations/{organizationSlug}/advanced-dashboards/{dashboardId}",
-      "client": "get_advanced_dashboard",
-      "cli": ["dashboard view", "dashboard run"],
-      "tests": ["advanced_reporting"],
-      "status": "Complete"
-    },
-    {
-      "operationId": "runAdvancedDashboard",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationSlug}/advanced-dashboards/{dashboardId}/runs",
-      "client": "run_advanced_dashboard",
-      "cli": ["dashboard run"],
-      "tests": ["advanced_reporting"],
       "status": "Complete"
     }
   ]

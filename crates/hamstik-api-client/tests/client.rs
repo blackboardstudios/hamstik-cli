@@ -269,7 +269,10 @@ async fn does_not_retry_patch() {
         .unwrap_err();
     assert_eq!(err.as_api().unwrap().status, 503);
     // PATCH must be attempted exactly once.
-    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 1);
+    let sent: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+    assert!(sent.get("attributes").is_none());
 }
 
 /// A `DELETE` is idempotent: when the first attempt fails transiently and the
@@ -510,6 +513,462 @@ async fn captures_etag_and_idempotency_replay() {
 }
 
 #[tokio::test]
+async fn attribute_routes_use_stable_keys_etags_and_idempotency() {
+    let server = MockServer::start().await;
+    let definition = attribute_definition_json(5);
+    Mock::given(method("GET"))
+        .and(path("/api/v1/organizations/acme/attributes"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "supportedTypes": ["single_select", "multi_select", "boolean"],
+            "limits": {"definitionsPerOrganization": 25, "optionsPerDefinition": 50, "multiSelectSelections": 10},
+            "items": [definition.clone()]
+        })))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/organizations/acme/attributes/customer"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("ETag", "\"attribute-5\"")
+                .set_body_json(definition.clone()),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/api/v1/organizations/acme/attributes"))
+        .respond_with(
+            ResponseTemplate::new(201)
+                .insert_header("ETag", "\"attribute-1\"")
+                .set_body_json(definition.clone()),
+        )
+        .mount(&server)
+        .await;
+    for (route, verb) in [
+        ("/api/v1/organizations/acme/attributes/customer", "PATCH"),
+        (
+            "/api/v1/organizations/acme/attributes/customer/transitions",
+            "POST",
+        ),
+        (
+            "/api/v1/organizations/acme/attributes/customer/options",
+            "POST",
+        ),
+        (
+            "/api/v1/organizations/acme/attributes/customer/options/acme",
+            "PATCH",
+        ),
+        (
+            "/api/v1/organizations/acme/attributes/customer/options/reorder",
+            "POST",
+        ),
+        (
+            "/api/v1/organizations/acme/attributes/customer/options/acme/retire",
+            "POST",
+        ),
+    ] {
+        Mock::given(method(verb))
+            .and(path(route))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("ETag", "\"attribute-6\"")
+                    .set_body_json(definition.clone()),
+            )
+            .mount(&server)
+            .await;
+    }
+    Mock::given(method("GET"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/attributes",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "supportedTypes": ["single_select", "multi_select", "boolean"],
+            "available": [definition.clone()],
+            "enabled": [{"definitionId":"d1","key":"customer","name":"Customer","type":"single_select","state":"active","enabledAt":"2026-01-01T00:00:00Z"}]
+        })))
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/attributes/customer/enablement",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("ETag", "\"attribute-6\"")
+                .set_body_json(json!({"key":"customer","enabled":true,"revision":6})),
+        )
+        .mount(&server)
+        .await;
+
+    let client = client_for(&server.uri());
+    let catalog = client
+        .list_organization_attributes(
+            "acme",
+            hamstik_api_client::ListAttributesOptions {
+                include_retired: true,
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(catalog.value.items[0].key, "customer");
+    let fetched = client
+        .get_organization_attribute("acme", "customer")
+        .await
+        .unwrap();
+    assert_eq!(fetched.etag.as_deref(), Some("\"attribute-5\""));
+    client
+        .create_organization_attribute(
+            "acme",
+            &hamstik_api_client::CreateAttributeDefinitionRequest {
+                key: "customer".into(),
+                name: "Customer".into(),
+                attribute_type: hamstik_api_client::AttributeType::SingleSelect,
+            },
+            "attribute-create-1",
+        )
+        .await
+        .unwrap();
+    client
+        .rename_organization_attribute(
+            "acme",
+            "customer",
+            &hamstik_api_client::RenameAttributeDefinitionRequest {
+                name: "Client".into(),
+                reason: Some("display update".into()),
+            },
+            "\"attribute-5\"",
+            "attribute-rename-1",
+        )
+        .await
+        .unwrap();
+    client
+        .transition_organization_attribute(
+            "acme",
+            "customer",
+            &hamstik_api_client::TransitionAttributeDefinitionRequest {
+                target_state: hamstik_api_client::AttributeState::Disabled,
+                reason: Some("pause".into()),
+            },
+            "\"attribute-5\"",
+            "attribute-transition-1",
+        )
+        .await
+        .unwrap();
+    client
+        .create_organization_attribute_option(
+            "acme",
+            "customer",
+            &hamstik_api_client::CreateAttributeOptionRequest {
+                key: "acme".into(),
+                label: "Acme".into(),
+            },
+            "\"attribute-5\"",
+            "attribute-option-add-1",
+        )
+        .await
+        .unwrap();
+    client
+        .rename_organization_attribute_option(
+            "acme",
+            "customer",
+            "acme",
+            &hamstik_api_client::RenameAttributeOptionRequest {
+                label: "ACME".into(),
+                reason: None,
+            },
+            "\"attribute-5\"",
+            "attribute-option-rename-1",
+        )
+        .await
+        .unwrap();
+    client
+        .reorder_organization_attribute_options(
+            "acme",
+            "customer",
+            &hamstik_api_client::ReorderAttributeOptionsRequest {
+                option_keys: vec!["acme".into()],
+                reason: None,
+            },
+            "\"attribute-5\"",
+            "attribute-option-reorder-1",
+        )
+        .await
+        .unwrap();
+    client
+        .retire_organization_attribute_option(
+            "acme",
+            "customer",
+            "acme",
+            "\"attribute-5\"",
+            "attribute-option-retire-1",
+        )
+        .await
+        .unwrap();
+    let project_catalog = client.list_project_attributes("acme", "HAM").await.unwrap();
+    assert_eq!(project_catalog.value.available[0].revision, 5);
+    client
+        .set_project_attribute_enablement(
+            "acme",
+            "HAM",
+            "customer",
+            &hamstik_api_client::SetProjectAttributeEnablementRequest {
+                enabled: true,
+                reason: Some("use it here".into()),
+            },
+            "\"attribute-5\"",
+            "attribute-project-enable-1",
+        )
+        .await
+        .unwrap();
+
+    let received = server.received_requests().await.unwrap();
+    assert_eq!(received.len(), 11);
+    assert!(
+        received[0]
+            .url
+            .query_pairs()
+            .any(|(key, value)| { key == "includeRetired" && value == "true" })
+    );
+    for request in &received[3..9] {
+        assert_eq!(
+            request.headers.get("if-match").unwrap().to_str().unwrap(),
+            "\"attribute-5\""
+        );
+        assert!(
+            request
+                .headers
+                .get("idempotency-key")
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .starts_with("attribute-")
+        );
+    }
+    let enablement = &received[10];
+    assert_eq!(
+        enablement
+            .headers
+            .get("if-match")
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "\"attribute-5\""
+    );
+    assert_eq!(
+        enablement
+            .headers
+            .get("idempotency-key")
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "attribute-project-enable-1"
+    );
+}
+
+#[tokio::test]
+async fn single_and_bulk_work_item_writes_carry_typed_attribute_changes() {
+    let server = MockServer::start().await;
+    let item = work_item_with_attributes_json();
+    Mock::given(method("POST"))
+        .and(path("/api/v1/organizations/acme/projects/HAM/work-items"))
+        .respond_with(ResponseTemplate::new(201).set_body_json(item.clone()))
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(item.clone()))
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/api/v1/organizations/acme/bulk-work-items"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "results":[{"index":0,"status":201,"workItem":item.clone()}]
+        })))
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .and(path("/api/v1/organizations/acme/bulk-work-items"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "results":[{"index":0,"status":200}]
+        })))
+        .mount(&server)
+        .await;
+
+    let client = client_for(&server.uri());
+    let created = client
+        .create_work_item(
+            "acme",
+            "HAM",
+            &CreateWorkItemRequest {
+                title: "T".into(),
+                attributes: Some(vec![hamstik_api_client::WorkItemAttributeChange {
+                    key: "verified".into(),
+                    clear: None,
+                    boolean_value: Some(false),
+                    option_keys: None,
+                }]),
+                ..Default::default()
+            },
+            "attribute-work-create-1",
+        )
+        .await
+        .unwrap();
+    assert_eq!(created.value.attributes[0].boolean_value, Some(false));
+    assert_eq!(created.value.attributes[1].options[0].state, "retired");
+
+    client
+        .update_work_item_with_idempotency(
+            "acme",
+            "HAM",
+            "HAM-1",
+            &UpdateWorkItemRequest {
+                attributes: Some(vec![hamstik_api_client::WorkItemAttributeChange {
+                    key: "product_area".into(),
+                    clear: None,
+                    boolean_value: None,
+                    option_keys: Some(vec!["active".into(), "legacy".into()]),
+                }]),
+                ..Default::default()
+            },
+            "\"wi-4\"",
+            "attribute-work-update-1",
+        )
+        .await
+        .unwrap();
+
+    client
+        .bulk_create_work_items(
+            "acme",
+            &hamstik_api_client::BulkCreateEnvelope {
+                operations: vec![BulkCreateWorkItemOperation {
+                    project_key: "HAM".into(),
+                    title: "Bulk".into(),
+                    attributes: Some(vec![hamstik_api_client::WorkItemAttributeChange {
+                        key: "verified".into(),
+                        clear: None,
+                        boolean_value: Some(false),
+                        option_keys: None,
+                    }]),
+                }],
+            },
+            "attribute-bulk-create-1",
+        )
+        .await
+        .unwrap();
+
+    client
+        .bulk_update_work_items(
+            "acme",
+            &hamstik_api_client::BulkUpdateEnvelope {
+                concurrency: "require-revision".into(),
+                operations: vec![BulkUpdateWorkItemOperation {
+                    project_key: "HAM".into(),
+                    work_item_key: "HAM-1".into(),
+                    revision: Some(4),
+                    changes: UpdateWorkItemRequest {
+                        attributes: Some(vec![hamstik_api_client::WorkItemAttributeChange {
+                            key: "customer".into(),
+                            clear: Some(true),
+                            boolean_value: None,
+                            option_keys: None,
+                        }]),
+                        ..Default::default()
+                    },
+                }],
+            },
+            "attribute-bulk-update-1",
+        )
+        .await
+        .unwrap();
+
+    let received = server.received_requests().await.unwrap();
+    assert_eq!(received.len(), 4);
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&received[0].body).unwrap()["attributes"][0]["booleanValue"],
+        false
+    );
+    assert_eq!(
+        received[1]
+            .headers
+            .get("idempotency-key")
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "attribute-work-update-1"
+    );
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&received[1].body).unwrap()["attributes"][0]["optionKeys"],
+        json!(["active", "legacy"])
+    );
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&received[2].body).unwrap()["operations"][0]["attributes"]
+            [0]["booleanValue"],
+        false
+    );
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&received[3].body).unwrap()["operations"][0]["changes"]
+            ["attributes"][0]["clear"],
+        true
+    );
+}
+
+#[tokio::test]
+async fn attribute_work_item_patch_retries_with_the_same_key_and_body() {
+    let server = MockServer::start().await;
+    let attempts = Arc::new(AtomicUsize::new(0));
+    let counter = attempts.clone();
+    Mock::given(method("PATCH"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1",
+        ))
+        .respond_with(move |_: &Request| {
+            if counter.fetch_add(1, Ordering::SeqCst) == 0 {
+                ResponseTemplate::new(503)
+            } else {
+                ResponseTemplate::new(200).set_body_json(work_item_json())
+            }
+        })
+        .mount(&server)
+        .await;
+
+    let client = client_for(&server.uri());
+    client
+        .update_work_item_with_idempotency(
+            "acme",
+            "HAM",
+            "HAM-1",
+            &UpdateWorkItemRequest {
+                attributes: Some(vec![hamstik_api_client::WorkItemAttributeChange {
+                    key: "verified".into(),
+                    clear: None,
+                    boolean_value: Some(false),
+                    option_keys: None,
+                }]),
+                ..Default::default()
+            },
+            "\"wi-4\"",
+            "attribute-retry-key-1",
+        )
+        .await
+        .unwrap();
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[0].body, requests[1].body);
+    for request in &requests {
+        assert_eq!(
+            request
+                .headers
+                .get("idempotency-key")
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "attribute-retry-key-1"
+        );
+    }
+}
+
+#[tokio::test]
 async fn creates_comment_with_idempotency_key() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
@@ -627,6 +1086,31 @@ fn work_item_json() -> serde_json::Value {
         "sprint":null,"parent":null,"labels":[],
         "storyPoints":null,"dueDate":null,"archivedAt":null,
         "createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-02T00:00:00Z","revision":4
+    })
+}
+
+fn work_item_with_attributes_json() -> serde_json::Value {
+    let mut item = work_item_json();
+    item["attributes"] = json!([
+        {
+            "definitionId":"d1","key":"verified","name":"Verified","type":"boolean","state":"active",
+            "projectEnabled":true,"booleanValue":false,"setAt":"2026-01-01T00:00:00Z","options":[]
+        },
+        {
+            "definitionId":"d2","key":"product_area","name":"Product Area","type":"multi_select","state":"active",
+            "projectEnabled":true,"booleanValue":null,"setAt":"2026-01-01T00:00:00Z",
+            "options":[{"id":"o1","key":"legacy","label":"Legacy","state":"retired","position":0}]
+        }
+    ]);
+    item
+}
+
+fn attribute_definition_json(revision: i64) -> serde_json::Value {
+    json!({
+        "id":"d1","organizationId":"o1","key":"customer","name":"Customer",
+        "type":"single_select","state":"active","disabledAt":null,"retiredAt":null,
+        "revision":revision,"createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z",
+        "options":[{"id":"o1","key":"acme","label":"Acme","position":0,"state":"active","retiredAt":null,"createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z"}]
     })
 }
 
@@ -1965,6 +2449,7 @@ async fn bulk_routes_send_envelopes_and_parse_results() {
                 operations: vec![BulkCreateWorkItemOperation {
                     project_key: "HAM".into(),
                     title: "First".into(),
+                    attributes: None,
                 }],
             },
             "bulk-create-01",

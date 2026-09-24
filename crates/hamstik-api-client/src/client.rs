@@ -72,6 +72,10 @@ fn header_content_type() -> HeaderName {
     HeaderName::from_static("content-type")
 }
 
+fn unsupported_attribute_operation() -> ClientError {
+    ClientError::Protocol("this API client does not support Attribute operations".to_string())
+}
+
 /// Extracts a UTF-8 file name from a `Content-Disposition` header value
 /// (`filename=...` or RFC 5987 `filename*=UTF-8''...`).
 fn file_name_from_disposition(value: Option<&str>) -> Option<String> {
@@ -996,6 +1000,98 @@ pub trait HamstikApi: Send + Sync {
         &self,
         org_slug: &str,
     ) -> Result<ApiResponse<Organization>, ClientError>;
+    /// `GET .../attributes`: Organization-governed Attribute catalog.
+    async fn list_organization_attributes(
+        &self,
+        _org_slug: &str,
+        _opts: ListAttributesOptions,
+    ) -> Result<ApiResponse<AttributeCatalog>, ClientError> {
+        Err(unsupported_attribute_operation())
+    }
+    /// `GET .../attributes/{key}`: one Attribute definition and its ETag.
+    async fn get_organization_attribute(
+        &self,
+        _org_slug: &str,
+        _key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        Err(unsupported_attribute_operation())
+    }
+    /// `POST .../attributes`: create an Organization Attribute.
+    async fn create_organization_attribute(
+        &self,
+        _org_slug: &str,
+        _body: &CreateAttributeDefinitionRequest,
+        _idempotency_key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        Err(unsupported_attribute_operation())
+    }
+    /// `PATCH .../attributes/{key}`: rename a definition using its ETag.
+    async fn rename_organization_attribute(
+        &self,
+        _org_slug: &str,
+        _key: &str,
+        _body: &RenameAttributeDefinitionRequest,
+        _if_match: &str,
+        _idempotency_key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        Err(unsupported_attribute_operation())
+    }
+    /// `POST .../attributes/{key}/transitions`: update definition lifecycle.
+    async fn transition_organization_attribute(
+        &self,
+        _org_slug: &str,
+        _key: &str,
+        _body: &TransitionAttributeDefinitionRequest,
+        _if_match: &str,
+        _idempotency_key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        Err(unsupported_attribute_operation())
+    }
+    /// `POST .../attributes/{key}/options`: add an option using the definition ETag.
+    async fn create_organization_attribute_option(
+        &self,
+        _org_slug: &str,
+        _key: &str,
+        _body: &CreateAttributeOptionRequest,
+        _if_match: &str,
+        _idempotency_key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        Err(unsupported_attribute_operation())
+    }
+    /// `PATCH .../attributes/{key}/options/{option}`: rename an option.
+    async fn rename_organization_attribute_option(
+        &self,
+        _org_slug: &str,
+        _key: &str,
+        _option_key: &str,
+        _body: &RenameAttributeOptionRequest,
+        _if_match: &str,
+        _idempotency_key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        Err(unsupported_attribute_operation())
+    }
+    /// `POST .../attributes/{key}/options/reorder`: replace option ordering.
+    async fn reorder_organization_attribute_options(
+        &self,
+        _org_slug: &str,
+        _key: &str,
+        _body: &ReorderAttributeOptionsRequest,
+        _if_match: &str,
+        _idempotency_key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        Err(unsupported_attribute_operation())
+    }
+    /// `POST .../attributes/{key}/options/{option}/retire`: retire an option.
+    async fn retire_organization_attribute_option(
+        &self,
+        _org_slug: &str,
+        _key: &str,
+        _option_key: &str,
+        _if_match: &str,
+        _idempotency_key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        Err(unsupported_attribute_operation())
+    }
     /// `GET /organizations/{slug}/projects`: the organization's projects.
     async fn list_projects(
         &self,
@@ -1008,6 +1104,26 @@ pub trait HamstikApi: Send + Sync {
         org_slug: &str,
         project_key: &str,
     ) -> Result<ApiResponse<Project>, ClientError>;
+    /// `GET .../projects/{key}/attributes`: only this Project's usable catalog.
+    async fn list_project_attributes(
+        &self,
+        _org_slug: &str,
+        _project_key: &str,
+    ) -> Result<ApiResponse<ProjectAttributeCatalog>, ClientError> {
+        Err(unsupported_attribute_operation())
+    }
+    /// `POST .../projects/{key}/attributes/{attribute}/enablement`.
+    async fn set_project_attribute_enablement(
+        &self,
+        _org_slug: &str,
+        _project_key: &str,
+        _attribute_key: &str,
+        _body: &SetProjectAttributeEnablementRequest,
+        _if_match: &str,
+        _idempotency_key: &str,
+    ) -> Result<ApiResponse<ProjectAttributeEnablement>, ClientError> {
+        Err(unsupported_attribute_operation())
+    }
     /// `GET .../work-items`: query work items with filters.
     async fn list_work_items(
         &self,
@@ -1030,7 +1146,8 @@ pub trait HamstikApi: Send + Sync {
         project_key: &str,
         key: &str,
     ) -> Result<ApiResponse<WorkItem>, ClientError>;
-    /// `PATCH .../work-items/{key}`: conditional update via `If-Match`.
+    /// `PATCH .../work-items/{key}`: conditional update via `If-Match`; an
+    /// idempotency key is required by the API when the body changes Attributes.
     async fn update_work_item(
         &self,
         org_slug: &str,
@@ -1039,6 +1156,23 @@ pub trait HamstikApi: Send + Sync {
         body: &UpdateWorkItemRequest,
         if_match: &str,
     ) -> Result<ApiResponse<WorkItem>, ClientError>;
+    /// `PATCH .../work-items/{key}` using a required idempotency key. Use for
+    /// Attribute-bearing updates, whose Public API contract requires the key.
+    /// The default keeps existing third-party `HamstikApi` implementations
+    /// source-compatible while failing closed until they implement retries.
+    async fn update_work_item_with_idempotency(
+        &self,
+        _org_slug: &str,
+        _project_key: &str,
+        _key: &str,
+        _body: &UpdateWorkItemRequest,
+        _if_match: &str,
+        _idempotency_key: &str,
+    ) -> Result<ApiResponse<WorkItem>, ClientError> {
+        Err(ClientError::Protocol(
+            "this API client does not support idempotent Work Item updates".to_string(),
+        ))
+    }
     /// `GET .../work-items/{key}/transitions`: permitted status transitions.
     async fn list_transitions(
         &self,
@@ -1625,6 +1759,258 @@ impl HamstikApi for HamstikClient {
         .await
     }
 
+    async fn list_organization_attributes(
+        &self,
+        org_slug: &str,
+        opts: ListAttributesOptions,
+    ) -> Result<ApiResponse<AttributeCatalog>, ClientError> {
+        let query = if opts.include_retired {
+            vec![("includeRetired".to_string(), "true".to_string())]
+        } else {
+            Vec::new()
+        };
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "attributes".to_string(),
+            ],
+            query,
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn get_organization_attribute(
+        &self,
+        org_slug: &str,
+        key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "attributes".to_string(),
+                key.to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn create_organization_attribute(
+        &self,
+        org_slug: &str,
+        body: &CreateAttributeDefinitionRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "attributes".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![(header_idempotency_key(), idempotency_key.to_string())],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn rename_organization_attribute(
+        &self,
+        org_slug: &str,
+        key: &str,
+        body: &RenameAttributeDefinitionRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::PATCH,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "attributes".to_string(),
+                key.to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn transition_organization_attribute(
+        &self,
+        org_slug: &str,
+        key: &str,
+        body: &TransitionAttributeDefinitionRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "attributes".to_string(),
+                key.to_string(),
+                "transitions".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn create_organization_attribute_option(
+        &self,
+        org_slug: &str,
+        key: &str,
+        body: &CreateAttributeOptionRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "attributes".to_string(),
+                key.to_string(),
+                "options".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn rename_organization_attribute_option(
+        &self,
+        org_slug: &str,
+        key: &str,
+        option_key: &str,
+        body: &RenameAttributeOptionRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::PATCH,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "attributes".to_string(),
+                key.to_string(),
+                "options".to_string(),
+                option_key.to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn reorder_organization_attribute_options(
+        &self,
+        org_slug: &str,
+        key: &str,
+        body: &ReorderAttributeOptionsRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "attributes".to_string(),
+                key.to_string(),
+                "options".to_string(),
+                "reorder".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn retire_organization_attribute_option(
+        &self,
+        org_slug: &str,
+        key: &str,
+        option_key: &str,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<AttributeDefinition>, ClientError> {
+        let payload = Value::Object(Default::default());
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "attributes".to_string(),
+                key.to_string(),
+                "options".to_string(),
+                option_key.to_string(),
+                "retire".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
     async fn list_projects(
         &self,
         org_slug: &str,
@@ -1670,6 +2056,61 @@ impl HamstikApi for HamstikClient {
             query: Vec::new(),
             headers: Vec::new(),
             body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn list_project_attributes(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+    ) -> Result<ApiResponse<ProjectAttributeCatalog>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "attributes".to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn set_project_attribute_enablement(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        attribute_key: &str,
+        body: &SetProjectAttributeEnablementRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ProjectAttributeEnablement>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "attributes".to_string(),
+                attribute_key.to_string(),
+                "enablement".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
             retryable: true,
         })
         .await
@@ -1825,8 +2266,39 @@ impl HamstikApi for HamstikClient {
             query: Vec::new(),
             headers: vec![(IF_MATCH.clone(), if_match.to_string())],
             body: Some(&payload),
-            // This revision-sensitive PATCH has no idempotency mechanism.
             retryable: false,
+        })
+        .await
+    }
+
+    async fn update_work_item_with_idempotency(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        key: &str,
+        body: &UpdateWorkItemRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<WorkItem>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::PATCH,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "work-items".to_string(),
+                key.to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
         })
         .await
     }

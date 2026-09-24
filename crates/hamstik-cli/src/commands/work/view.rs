@@ -431,6 +431,39 @@ pub(super) fn render_work_item(
         ("revision", item.revision.to_string()),
     ];
     render_lines(session, &lines)?;
+    for attribute in &item.attributes {
+        let value = if let Some(boolean) = attribute.boolean_value {
+            boolean.to_string()
+        } else if attribute.options.is_empty() {
+            "(set; no option values)".to_string()
+        } else {
+            attribute
+                .options
+                .iter()
+                .map(|option| {
+                    let retired = if option.state == "retired" {
+                        " (retired)"
+                    } else {
+                        ""
+                    };
+                    format!("{} [{}]{}", option.label, option.key, retired)
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        let lifecycle = if attribute.state != hamstik_api_client::AttributeState::Active {
+            format!(" [{}]", attribute.state.as_str())
+        } else {
+            String::new()
+        };
+        session
+            .out
+            .line(&format!(
+                "attribute {} ({}){}  {value}",
+                attribute.key, attribute.name, lifecycle
+            ))
+            .map_err(CliError::general)?;
+    }
     session.out.line("").map_err(CliError::general)?;
     if compact {
         session

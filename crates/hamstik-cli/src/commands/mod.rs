@@ -18,6 +18,7 @@ pub mod advanced_dashboard;
 pub mod advanced_report;
 pub mod agent_skill;
 pub mod api;
+pub mod attributes;
 pub mod auth;
 pub mod bulk_preflight;
 pub mod commands_manifest;
@@ -126,6 +127,7 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
         Command::Context(args) => context_cmd::run(session, args).await,
         Command::Config(args) => config::run(session, args).await,
         Command::Org(args) => org::run(session, args).await,
+        Command::Attribute(args) => attributes::run(session, args).await,
         Command::Project(args) => project::run(session, args).await,
         Command::Report(args) => advanced_report::run(session, args).await,
         Command::Dashboard(args) => advanced_dashboard::run(session, args).await,
@@ -242,6 +244,21 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
         Command::Label(args) => {
             matches!(args.command, crate::args::LabelCommand::Create { .. })
         }
+        Command::Attribute(args) => match &args.command {
+            crate::args::AttributeCommand::List { .. }
+            | crate::args::AttributeCommand::View { .. } => false,
+            crate::args::AttributeCommand::Project(project) => {
+                matches!(
+                    project.command,
+                    crate::args::AttributeProjectCommand::Enable { .. }
+                        | crate::args::AttributeProjectCommand::Disable { .. }
+                )
+            }
+            crate::args::AttributeCommand::Create { .. }
+            | crate::args::AttributeCommand::Rename { .. }
+            | crate::args::AttributeCommand::Transition { .. }
+            | crate::args::AttributeCommand::Option(_) => true,
+        },
         // the passthrough previews mutations; the api handler
         // rejects --dry-run on GET (reads have nothing to preview).
         Command::Api(args) => {

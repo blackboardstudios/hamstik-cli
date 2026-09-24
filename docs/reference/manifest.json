@@ -2564,6 +2564,472 @@
    "positionals": []
   },
   {
+   "about": "Discover and administer Organization Attributes",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List Organization definitions and product limits",
+   "aliases": [],
+   "arguments": [
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Include retired definitions",
+     "kind": "option",
+     "long": "--include-retired"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute list",
+   "hasSubcommands": false,
+   "options": [
+    "--include-retired"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "View one definition and its ordered options",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Stable Attribute key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute view",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Create a governed Attribute definition",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Stable machine key (immutable after creation)",
+     "kind": "option",
+     "long": "--key"
+    },
+    {
+     "help": "Display name",
+     "kind": "option",
+     "long": "--name"
+    },
+    {
+     "choices": [
+      "single_select",
+      "multi_select",
+      "boolean"
+     ],
+     "help": "Supported Attribute type",
+     "kind": "option",
+     "long": "--type"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute create",
+   "hasSubcommands": false,
+   "options": [
+    "--key",
+    "--name",
+    "--type",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Rename a definition without changing its stable key or type",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Stable Attribute key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "New display name",
+     "kind": "option",
+     "long": "--name"
+    },
+    {
+     "help": "Optional audit reason",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute rename",
+   "hasSubcommands": false,
+   "options": [
+    "--name",
+    "--reason",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Change a definition's lifecycle state",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Stable Attribute key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "choices": [
+      "active",
+      "disabled",
+      "retired"
+     ],
+     "help": "Target lifecycle state",
+     "kind": "option",
+     "long": "--state"
+    },
+    {
+     "help": "Optional audit reason",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute transition",
+   "hasSubcommands": false,
+   "options": [
+    "--state",
+    "--reason",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Manage select options",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute option",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Add an option to a select definition",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Stable Attribute key",
+     "kind": "positional",
+     "name": "attribute_key",
+     "valueName": "ATTRIBUTE_KEY"
+    },
+    {
+     "help": "Stable option key (immutable after creation)",
+     "kind": "option",
+     "long": "--key"
+    },
+    {
+     "help": "Display label",
+     "kind": "option",
+     "long": "--label"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute option add",
+   "hasSubcommands": false,
+   "options": [
+    "--key",
+    "--label",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "attribute_key"
+   ]
+  },
+  {
+   "about": "Rename an option's display label without changing its key",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Stable Attribute key",
+     "kind": "positional",
+     "name": "attribute_key",
+     "valueName": "ATTRIBUTE_KEY"
+    },
+    {
+     "help": "Stable option key",
+     "kind": "positional",
+     "name": "option_key",
+     "valueName": "OPTION_KEY"
+    },
+    {
+     "help": "New display label",
+     "kind": "option",
+     "long": "--label"
+    },
+    {
+     "help": "Optional audit reason",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute option rename",
+   "hasSubcommands": false,
+   "options": [
+    "--label",
+    "--reason",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "attribute_key",
+    "option_key"
+   ]
+  },
+  {
+   "about": "Set the complete option order, including retired options",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Stable Attribute key",
+     "kind": "positional",
+     "name": "attribute_key",
+     "valueName": "ATTRIBUTE_KEY"
+    },
+    {
+     "help": "Complete comma-separated sequence of stable option keys",
+     "kind": "option",
+     "long": "--option-keys"
+    },
+    {
+     "help": "Optional audit reason",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute option reorder",
+   "hasSubcommands": false,
+   "options": [
+    "--option-keys",
+    "--reason",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "attribute_key"
+   ]
+  },
+  {
+   "about": "Retire an option while preserving already assigned values",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Stable Attribute key",
+     "kind": "positional",
+     "name": "attribute_key",
+     "valueName": "ATTRIBUTE_KEY"
+    },
+    {
+     "help": "Stable option key",
+     "kind": "positional",
+     "name": "option_key",
+     "valueName": "OPTION_KEY"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute option retire",
+   "hasSubcommands": false,
+   "options": [
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "attribute_key",
+    "option_key"
+   ]
+  },
+  {
+   "about": "View or change enablement for one Project only",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute project",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List definitions available to, and enabled on, the selected Project",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute project list",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Enable one Attribute for the selected Project",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Stable Attribute key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Optional audit reason",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute project enable",
+   "hasSubcommands": false,
+   "options": [
+    "--reason",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Opt out of one Attribute for the selected Project; existing assignments remain",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Stable Attribute key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Optional audit reason",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik attribute project disable",
+   "hasSubcommands": false,
+   "options": [
+    "--reason",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
    "about": "Work with work items",
    "aliases": [],
    "arguments": [],
@@ -3303,6 +3769,16 @@
      "long": "--due-date"
     },
     {
+     "help": "Assign a select option as ATTRIBUTE_KEY=OPTION_KEY (repeat the key for multi-select values)",
+     "kind": "option",
+     "long": "--attribute-option"
+    },
+    {
+     "help": "Assign a boolean Attribute as ATTRIBUTE_KEY=true|false",
+     "kind": "option",
+     "long": "--attribute-boolean"
+    },
+    {
      "help": "Explicit idempotency key",
      "kind": "option",
      "long": "--idempotency-key"
@@ -3329,6 +3805,8 @@
     "--parent",
     "--story-points",
     "--due-date",
+    "--attribute-option",
+    "--attribute-boolean",
     "--idempotency-key"
    ],
    "positionals": []
@@ -3416,6 +3894,21 @@
      "long": "--due-date"
     },
     {
+     "help": "Set a select option as ATTRIBUTE_KEY=OPTION_KEY (repeat the key for multi-select values)",
+     "kind": "option",
+     "long": "--attribute-option"
+    },
+    {
+     "help": "Set a boolean Attribute as ATTRIBUTE_KEY=true|false",
+     "kind": "option",
+     "long": "--attribute-boolean"
+    },
+    {
+     "help": "Explicitly clear an existing Attribute assignment",
+     "kind": "option",
+     "long": "--clear-attribute"
+    },
+    {
      "choices": [
       "true",
       "false"
@@ -3477,6 +3970,11 @@
      "help": "Bypass revision conflict protection (If-Match: *)",
      "kind": "option",
      "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key (used for Attribute-bearing updates)",
+     "kind": "option",
+     "long": "--idempotency-key"
     }
    ],
    "capabilities": {
@@ -3497,13 +3995,17 @@
     "--parent",
     "--story-points",
     "--due-date",
+    "--attribute-option",
+    "--attribute-boolean",
+    "--clear-attribute",
     "--clear-description",
     "--clear-assignee",
     "--clear-sprint",
     "--clear-parent",
     "--clear-story-points",
     "--clear-due-date",
-    "--force"
+    "--force",
+    "--idempotency-key"
    ],
    "positionals": [
     "key"

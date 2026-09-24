@@ -1,0 +1,22 @@
+.TH HAMSTIK 1 "HAMSTIK ATTRIBUTE TRANSITION"
+.SH NAME
+hamstik attribute transition \- Change a definition's lifecycle state
+.SH SYNOPSIS
+.B hamstik attribute transition [OPTIONS]
+.SH DESCRIPTION
+Change a definition's lifecycle state
+.SH ARGUMENTS
+.TP
+.I KEY
+Stable Attribute key
+.SH OPTIONS
+.TP
+.B --state
+Target lifecycle state
+Choices: active, disabled, retired
+.TP
+.B --reason
+Optional audit reason
+.TP
+.B --idempotency-key
+Explicit idempotency key

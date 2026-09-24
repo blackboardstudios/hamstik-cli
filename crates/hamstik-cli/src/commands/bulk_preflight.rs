@@ -55,6 +55,8 @@ struct OperationRules {
     required: &'static [&'static str],
     /// Optional per-operation fields that must be positive integers when present.
     positive_integer_optional: &'static [&'static str],
+    /// Optional fields allowed by this operation's frozen schema.
+    allowed_optional_fields: &'static [&'static str],
 }
 
 /// Per-kind bulk operation rules derived from the OpenAPI schemas
@@ -63,14 +65,17 @@ struct OperationRules {
 const CREATE_RULES: OperationRules = OperationRules {
     required: &["projectKey", "title"],
     positive_integer_optional: &[],
+    allowed_optional_fields: &["attributes"],
 };
 const UPDATE_RULES: OperationRules = OperationRules {
     required: &["projectKey", "workItemKey", "changes"],
     positive_integer_optional: &["revision"],
+    allowed_optional_fields: &[],
 };
 const TRANSITION_RULES: OperationRules = OperationRules {
     required: &["projectKey", "workItemKey", "targetStatus"],
     positive_integer_optional: &["revision"],
+    allowed_optional_fields: &[],
 };
 
 /// Work Item statuses accepted by the Public API contract.
@@ -191,6 +196,7 @@ fn validate_operation(
     for key in object.keys() {
         if !rules.required.contains(&key.as_str())
             && !rules.positive_integer_optional.contains(&key.as_str())
+            && !rules.allowed_optional_fields.contains(&key.as_str())
         {
             findings.push(Finding::operation(
                 index,
@@ -233,7 +239,160 @@ fn validate_operation(
                 ),
             ));
         }
+        if let Some(attributes) = changes.get("attributes") {
+            validate_attributes(index, "changes.attributes", attributes, findings);
+        }
     }
+    if let Some(attributes) = object.get("attributes") {
+        validate_attributes(index, "attributes", attributes, findings);
+    }
+}
+
+/// Validates the closed, type-independent shape of Attribute assignments.
+/// Definition/type/Project/option existence and lifecycle remain server-side
+/// authorized checks during execution.
+fn validate_attributes(index: usize, path: &str, value: &Value, findings: &mut Vec<Finding>) {
+    let Value::Array(changes) = value else {
+        findings.push(Finding::operation(index, Some(path), "must be an array"));
+        return;
+    };
+    if changes.is_empty() || changes.len() > 25 {
+        findings.push(Finding::operation(
+            index,
+            Some(path),
+            "must contain between 1 and 25 Attribute assignments",
+        ));
+    }
+    let mut attribute_keys = std::collections::BTreeSet::new();
+    for (change_index, change) in changes.iter().enumerate() {
+        let field = format!("{path}[{change_index}]");
+        let Value::Object(object) = change else {
+            findings.push(Finding::operation(index, Some(&field), "must be an object"));
+            continue;
+        };
+        let allowed = ["key", "clear", "booleanValue", "optionKeys"];
+        for key in object.keys() {
+            if !allowed.contains(&key.as_str()) {
+                findings.push(Finding::operation(
+                    index,
+                    Some(&format!("{field}.{key}")),
+                    "is not part of the Attribute assignment schema",
+                ));
+            }
+        }
+        let Some(attribute_key) = object.get("key").and_then(Value::as_str) else {
+            findings.push(Finding::operation(
+                index,
+                Some(&format!("{field}.key")),
+                "is required and must be a stable Attribute key",
+            ));
+            continue;
+        };
+        if !valid_attribute_key(attribute_key) {
+            findings.push(Finding::operation(
+                index,
+                Some(&format!("{field}.key")),
+                "must be a stable lowercase Attribute key",
+            ));
+        }
+        if !attribute_keys.insert(attribute_key) {
+            findings.push(Finding::operation(
+                index,
+                Some(&format!("{field}.key")),
+                "may appear only once in one Work Item operation",
+            ));
+        }
+        let clear = object.get("clear");
+        let boolean = object.get("booleanValue");
+        let options = object.get("optionKeys");
+        let kinds = [clear.is_some(), boolean.is_some(), options.is_some()]
+            .into_iter()
+            .filter(|present| *present)
+            .count();
+        if kinds != 1 {
+            findings.push(Finding::operation(
+                index,
+                Some(&field),
+                "must specify exactly one of clear, booleanValue, or optionKeys",
+            ));
+        }
+        if let Some(clear) = clear
+            && !clear.as_bool().unwrap_or(false)
+        {
+            findings.push(Finding::operation(
+                index,
+                Some(&format!("{field}.clear")),
+                "must be true when explicitly clearing an assignment",
+            ));
+        }
+        if let Some(boolean) = boolean
+            && !boolean.is_boolean()
+        {
+            findings.push(Finding::operation(
+                index,
+                Some(&format!("{field}.booleanValue")),
+                "must be a boolean",
+            ));
+        }
+        if let Some(options) = options {
+            let Value::Array(options) = options else {
+                findings.push(Finding::operation(
+                    index,
+                    Some(&format!("{field}.optionKeys")),
+                    "must be an array of stable option keys",
+                ));
+                continue;
+            };
+            if options.is_empty() || options.len() > 10 {
+                findings.push(Finding::operation(
+                    index,
+                    Some(&format!("{field}.optionKeys")),
+                    "must contain between 1 and 10 option keys; use clear to remove an assignment",
+                ));
+            }
+            let mut option_keys = std::collections::BTreeSet::new();
+            for (option_index, option) in options.iter().enumerate() {
+                let Some(option_key) = option.as_str() else {
+                    findings.push(Finding::operation(
+                        index,
+                        Some(&format!("{field}.optionKeys[{option_index}]")),
+                        "must be a stable option key string",
+                    ));
+                    continue;
+                };
+                if !valid_option_key(option_key) {
+                    findings.push(Finding::operation(
+                        index,
+                        Some(&format!("{field}.optionKeys[{option_index}]")),
+                        "must be a stable lowercase option key",
+                    ));
+                }
+                if !option_keys.insert(option_key) {
+                    findings.push(Finding::operation(
+                        index,
+                        Some(&format!("{field}.optionKeys[{option_index}]")),
+                        "duplicates an option key",
+                    ));
+                }
+            }
+        }
+    }
+}
+
+fn valid_attribute_key(value: &str) -> bool {
+    (2..=40).contains(&value.len())
+        && value.as_bytes()[0].is_ascii_lowercase()
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
+}
+
+fn valid_option_key(value: &str) -> bool {
+    (1..=40).contains(&value.len())
+        && value.as_bytes()[0].is_ascii_lowercase()
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
 }
 
 /// Builds the aggregated preflight failure: usage-kind (exit 2), one line per

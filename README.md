@@ -161,6 +161,11 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   before they are written, and credentials are never accepted;
 - organizations and projects — `hamstik org list|view|use` and
   `hamstik project list|view|create|edit|archive|unarchive|activity|report|stats|use`;
+- Organization Attributes — `hamstik attribute list|view|create|rename|transition`,
+  `attribute option add|rename|reorder|retire`, and `attribute project
+  list|enable|disable`; definitions and options use stable keys, while the
+  server remains authoritative for Organization governance and Project
+  authorization;
 - Advanced Reporting — `hamstik report list|view|create|edit|delete|run|selection-items`
   and `hamstik dashboard list|view|run`, including JSON definition/filter
   files, cursor traversal, automatic revision reads, and report ETag protection;
@@ -315,6 +320,20 @@ hamstik work create --title "Document API" --type task --assignee me
 hamstik work create --from HAM-42 --title "Recurring bug report"
 hamstik work create --template bug-template.md
 hamstik work edit HAM-42 --priority high --parent HAM-7
+# Organization-governed Attributes; use stable keys in API, CLI and queries.
+hamstik attribute list --org acme --include-retired --json
+hamstik attribute create --org acme --key product_area --name "Product Area" --type multi_select
+hamstik attribute option add --org acme product_area --key mobile --label "Mobile"
+hamstik attribute project list --org acme --project HAM --json
+hamstik attribute project enable --org acme --project HAM product_area --reason "Used by this Project"
+hamstik work create --org acme --project HAM --title "Classify request" \
+  --attribute-option product_area=search --attribute-option product_area=mobile
+hamstik work edit --org acme --project HAM HAM-42 --attribute-boolean verified=false
+hamstik work edit --org acme --project HAM HAM-42 --clear-attribute customer
+hamstik work search --org acme "attribute_verified = FALSE OR attribute_customer IS NULL"
+hamstik work search --org acme \
+  "attribute_has_any('product_area', 'search', 'mobile') OR attribute_has_all('product_area', 'search', 'mobile')"
+hamstik work list --org acme --project HAM --fields key,title,attributes --json
 hamstik work transitions HAM-42
 hamstik work transition HAM-42 in_progress
 hamstik work archive HAM-42

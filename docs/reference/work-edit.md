@@ -58,6 +58,18 @@ New story point estimate
 
 New due date. Accepts RFC 3339, `YYYY\-MM\-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone
 
+### `--attribute-option`
+
+Set a select option as ATTRIBUTE_KEY=OPTION_KEY (repeat the key for multi\-select values)
+
+### `--attribute-boolean`
+
+Set a boolean Attribute as ATTRIBUTE_KEY=true|false
+
+### `--clear-attribute`
+
+Explicitly clear an existing Attribute assignment
+
 ### `--clear-description`
 
 Clear the description
@@ -99,6 +111,10 @@ Choices: `true`, `false`
 Bypass revision conflict protection (If\-Match: *)
 
 Choices: `true`, `false`
+
+### `--idempotency-key`
+
+Explicit idempotency key (used for Attribute\-bearing updates)
 
 
 Supports: `--json`, `--no-input`

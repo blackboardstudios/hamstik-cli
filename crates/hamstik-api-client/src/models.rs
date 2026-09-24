@@ -562,6 +562,307 @@ pub struct ProjectLabelList {
     pub page: Page,
 }
 
+/// One of the three Organization-governed Attribute types supported by v1.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AttributeType {
+    /// Exactly one stable option key may be assigned.
+    SingleSelect,
+    /// A bounded set of stable option keys may be assigned.
+    MultiSelect,
+    /// A stored true or false value.
+    Boolean,
+}
+
+impl AttributeType {
+    /// The Public API v1 value.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::SingleSelect => "single_select",
+            Self::MultiSelect => "multi_select",
+            Self::Boolean => "boolean",
+        }
+    }
+}
+
+/// Attribute definition lifecycle state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AttributeState {
+    /// Available for assignment, subject to Project enablement.
+    Active,
+    /// Temporarily unavailable for new assignments.
+    Disabled,
+    /// Retired and immutable, but retained assignments remain readable.
+    Retired,
+}
+
+impl AttributeState {
+    /// The Public API v1 value.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::Disabled => "disabled",
+            Self::Retired => "retired",
+        }
+    }
+}
+
+/// One Organization-governed option in configured order.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttributeOption {
+    /// Database identity; use `key` for portable references.
+    pub id: String,
+    /// Immutable stable machine key.
+    pub key: String,
+    /// Administrator-controlled display label.
+    pub label: String,
+    /// Zero-based configured order.
+    pub position: i64,
+    /// Whether this option accepts new assignments.
+    pub state: String,
+    /// Retirement timestamp; null while active.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub retired_at: Option<String>,
+    /// Creation timestamp (RFC 3339).
+    pub created_at: String,
+    /// Last-update timestamp (RFC 3339).
+    pub updated_at: String,
+}
+
+/// Organization-scoped Attribute definition and ordered options.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttributeDefinition {
+    /// Database identity; use `key` for portable references.
+    pub id: String,
+    /// Owning Organization UUID.
+    pub organization_id: String,
+    /// Immutable stable machine key.
+    pub key: String,
+    /// Display name; changing it does not change query or assignment identity.
+    pub name: String,
+    /// Supported Attribute type.
+    #[serde(rename = "type")]
+    pub attribute_type: AttributeType,
+    /// Current lifecycle state.
+    pub state: AttributeState,
+    /// Disable timestamp; null unless disabled.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub disabled_at: Option<String>,
+    /// Retirement timestamp; null unless retired.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub retired_at: Option<String>,
+    /// Optimistic-concurrency revision.
+    pub revision: i64,
+    /// Exact ETag when supplied by an authorized Project catalog.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub etag: Option<String>,
+    /// Creation timestamp (RFC 3339).
+    pub created_at: String,
+    /// Last-update timestamp (RFC 3339).
+    pub updated_at: String,
+    /// Options in configured order; empty for boolean definitions.
+    pub options: Vec<AttributeOption>,
+}
+
+/// Fixed product limits advertised by the Organization Attribute catalog.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttributeLimits {
+    /// Maximum definitions governed by one Organization.
+    pub definitions_per_organization: u32,
+    /// Maximum options on one select definition.
+    pub options_per_definition: u32,
+    /// Maximum options in a multi-select Work Item assignment.
+    pub multi_select_selections: u32,
+}
+
+/// Organization Attribute catalog.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttributeCatalog {
+    /// Types currently supported by Public API v1.
+    pub supported_types: Vec<AttributeType>,
+    /// Fixed product bounds.
+    pub limits: AttributeLimits,
+    /// Governed definitions, with retired entries controlled by the query.
+    pub items: Vec<AttributeDefinition>,
+}
+
+/// Query options for `GET .../attributes`.
+#[derive(Debug, Clone, Default)]
+pub struct ListAttributesOptions {
+    /// Include retired definitions.
+    pub include_retired: bool,
+}
+
+/// A definition enabled for a specific Project.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnabledProjectAttribute {
+    /// Definition database identity.
+    pub definition_id: String,
+    /// Stable Organization-scoped machine key.
+    pub key: String,
+    /// Current display name.
+    pub name: String,
+    /// Supported type.
+    #[serde(rename = "type")]
+    pub attribute_type: AttributeType,
+    /// Definition lifecycle state.
+    pub state: AttributeState,
+    /// When this Project enabled the definition.
+    pub enabled_at: String,
+}
+
+/// Attribute definitions and enablement visible for one authorized Project.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectAttributeCatalog {
+    /// Types currently supported by Public API v1.
+    pub supported_types: Vec<AttributeType>,
+    /// Active definitions available for this Project.
+    pub available: Vec<AttributeDefinition>,
+    /// Definitions currently enabled on this Project.
+    pub enabled: Vec<EnabledProjectAttribute>,
+}
+
+/// Result of changing one Project's Attribute enablement.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectAttributeEnablement {
+    /// Stable Organization-scoped Attribute key.
+    pub key: String,
+    /// Whether the Attribute is available for new assignments on this Project.
+    pub enabled: bool,
+    /// Definition revision used by the operation.
+    pub revision: i64,
+}
+
+/// Definition create body.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateAttributeDefinitionRequest {
+    /// Stable machine key.
+    pub key: String,
+    /// Display name.
+    pub name: String,
+    /// One of `single_select`, `multi_select`, or `boolean`.
+    #[serde(rename = "type")]
+    pub attribute_type: AttributeType,
+}
+
+/// Definition display-name update body.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenameAttributeDefinitionRequest {
+    /// New display name; machine key and type remain unchanged.
+    pub name: String,
+    /// Optional audit reason.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// Definition lifecycle update body.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransitionAttributeDefinitionRequest {
+    /// Target lifecycle state.
+    pub target_state: AttributeState,
+    /// Optional audit reason.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// Option create body.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateAttributeOptionRequest {
+    /// Stable option machine key.
+    pub key: String,
+    /// Display label.
+    pub label: String,
+}
+
+/// Option display-label update body.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenameAttributeOptionRequest {
+    /// New display label; the option key remains unchanged.
+    pub label: String,
+    /// Optional audit reason.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// Complete ordered option-key list for one reorder operation.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReorderAttributeOptionsRequest {
+    /// Complete option key sequence, including retired options.
+    pub option_keys: Vec<String>,
+    /// Optional audit reason.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// Project enablement update body.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetProjectAttributeEnablementRequest {
+    /// Enable or opt out of this definition for the Project.
+    pub enabled: bool,
+    /// Optional audit reason.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// One retained Attribute option in a Work Item projection.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkItemAttributeOption {
+    /// Database identity.
+    pub id: String,
+    /// Stable option key.
+    pub key: String,
+    /// Current display label.
+    pub label: String,
+    /// Whether the option is active or retained as retired history.
+    pub state: String,
+    /// Current configured order.
+    pub position: i64,
+}
+
+/// A set Work Item Attribute value. Unset definitions have no entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkItemAttributeValue {
+    /// Definition database identity.
+    pub definition_id: String,
+    /// Stable Organization-scoped definition key.
+    pub key: String,
+    /// Current display name.
+    pub name: String,
+    /// Attribute type.
+    #[serde(rename = "type")]
+    pub attribute_type: AttributeType,
+    /// Definition lifecycle state.
+    pub state: AttributeState,
+    /// Whether the definition is enabled for new assignment in this Project.
+    pub project_enabled: bool,
+    /// Stored boolean value; `Some(false)` differs from null.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub boolean_value: Option<bool>,
+    /// When this value was last set.
+    pub set_at: String,
+    /// Selected options in definition order, including retained retired keys.
+    pub options: Vec<WorkItemAttributeOption>,
+}
+
 /// A work item in list responses (summary shape).
 ///
 /// Only `id`, `key`, and `revision` are guaranteed when the caller supplies a
@@ -593,6 +894,11 @@ pub struct WorkItemSummary {
     /// The sprint, when scheduled.
     #[serde(default)]
     pub sprint: Option<SprintSummary>,
+    /// Organization-governed Attribute assignments, when included in the
+    /// selected summary projection. `Some(false)` remains distinct from an
+    /// unset value; an unset Attribute has no entry in this list.
+    #[serde(default)]
+    pub attributes: Option<Vec<WorkItemAttributeValue>>,
     /// The parent work item id, when nested.
     #[serde(default)]
     pub parent_id: Option<String>,
@@ -734,6 +1040,10 @@ pub struct WorkItem {
     pub parent: Option<WorkItemParent>,
     /// Labels attached to the item.
     pub labels: Vec<Label>,
+    /// Organization-governed Attribute assignments. Older servers may omit
+    /// this additive field; new servers return an empty list when none are set.
+    #[serde(default)]
+    pub attributes: Vec<WorkItemAttributeValue>,
     /// Story points, when estimated.
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub story_points: Option<i64>,
@@ -1081,6 +1391,31 @@ pub struct CreateWorkItemRequest {
     /// Due date (RFC 3339).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub due_date: Option<String>,
+    /// Sparse Attribute assignments. `None` omits the field; individual
+    /// omitted definitions remain unset on a new Work Item.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attributes: Option<Vec<WorkItemAttributeChange>>,
+}
+
+/// A typed Attribute change accepted by single and bulk Work Item writes.
+///
+/// Exactly one of `boolean_value`, `option_keys`, or `clear: Some(true)` is
+/// supplied. A boolean value of `Some(false)` is serialized as JSON false.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WorkItemAttributeChange {
+    /// Stable Organization-scoped Attribute key.
+    pub key: String,
+    /// Explicitly clear this existing assignment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub clear: Option<bool>,
+    /// Boolean value; `Some(false)` is a stored value, not omission.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub boolean_value: Option<bool>,
+    /// Stable option keys, ordered by the caller. The server enforces type and
+    /// active/enabled governance and its selection bound.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub option_keys: Option<Vec<String>>,
 }
 
 /// Body for `PATCH .../work-items/{key}`.
@@ -1121,6 +1456,9 @@ pub struct UpdateWorkItemRequest {
     /// New due date; `Some(None)` clears it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub due_date: Option<Option<String>>,
+    /// Attribute changes; `None` preserves every current assignment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attributes: Option<Vec<WorkItemAttributeChange>>,
 }
 
 impl UpdateWorkItemRequest {
@@ -1137,6 +1475,7 @@ impl UpdateWorkItemRequest {
             && self.parent_id.is_none()
             && self.story_points.is_none()
             && self.due_date.is_none()
+            && self.attributes.is_none()
     }
 }
 
@@ -1408,6 +1747,10 @@ pub struct BulkCreateWorkItemOperation {
     pub project_key: String,
     /// Work Item title.
     pub title: String,
+    /// Sparse Attribute assignments, validated by the same server service as
+    /// single Work Item creation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attributes: Option<Vec<WorkItemAttributeChange>>,
 }
 
 /// One bulk Work Item update operation.
@@ -2416,5 +2759,62 @@ mod tests {
         let value = serde_json::to_value(&req).unwrap();
         assert_eq!(value["color"], "#00ff00");
         assert!(value.get("name").is_none());
+    }
+
+    #[test]
+    fn attribute_changes_preserve_false_clear_and_omission() {
+        let request = UpdateWorkItemRequest {
+            attributes: Some(vec![
+                WorkItemAttributeChange {
+                    key: "verified".into(),
+                    clear: None,
+                    boolean_value: Some(false),
+                    option_keys: None,
+                },
+                WorkItemAttributeChange {
+                    key: "customer".into(),
+                    clear: Some(true),
+                    boolean_value: None,
+                    option_keys: None,
+                },
+            ]),
+            ..Default::default()
+        };
+        let value = serde_json::to_value(&request).unwrap();
+        assert_eq!(value["attributes"][0]["booleanValue"], false);
+        assert_eq!(value["attributes"][1]["clear"], true);
+
+        let unchanged = serde_json::to_value(UpdateWorkItemRequest::default()).unwrap();
+        assert!(unchanged.get("attributes").is_none());
+    }
+
+    #[test]
+    fn work_item_attribute_projection_preserves_false_retired_and_old_servers() {
+        let old: WorkItem = serde_json::from_value(serde_json::json!({
+            "id":"1","key":"HAM-1","projectId":"p1","title":"T","description":null,
+            "type":"task","status":"todo","priority":"low","assignee":null,"reporter":null,
+            "sprint":null,"parent":null,"labels":[],"storyPoints":null,"dueDate":null,
+            "archivedAt":null,"createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-02T00:00:00Z","revision":4
+        })).unwrap();
+        assert!(old.attributes.is_empty());
+
+        let item: WorkItem = serde_json::from_value(serde_json::json!({
+            "id":"1","key":"HAM-1","projectId":"p1","title":"T","description":null,
+            "type":"task","status":"todo","priority":"low","assignee":null,"reporter":null,
+            "sprint":null,"parent":null,"labels":[],"storyPoints":null,"dueDate":null,
+            "archivedAt":null,"createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-02T00:00:00Z","revision":4,
+            "attributes":[{
+                "definitionId":"d1","key":"verified","name":"Verified","type":"boolean","state":"active",
+                "projectEnabled":true,"booleanValue":false,"setAt":"2026-01-01T00:00:00Z","options":[]
+            },{
+                "definitionId":"d2","key":"customer","name":"Customer","type":"multi_select","state":"active",
+                "projectEnabled":false,"booleanValue":null,"setAt":"2026-01-01T00:00:00Z",
+                "options":[{"id":"o1","key":"legacy","label":"Legacy Customer","state":"retired","position":0}]
+            }]
+        })).unwrap();
+        assert_eq!(item.attributes[0].boolean_value, Some(false));
+        assert!(!item.attributes[1].project_enabled);
+        assert_eq!(item.attributes[1].options[0].key, "legacy");
+        assert_eq!(item.attributes[1].options[0].state, "retired");
     }
 }

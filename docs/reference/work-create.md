@@ -66,6 +66,14 @@ Story point estimate
 
 Due date. Accepts RFC 3339, `YYYY\-MM\-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone
 
+### `--attribute-option`
+
+Assign a select option as ATTRIBUTE_KEY=OPTION_KEY (repeat the key for multi\-select values)
+
+### `--attribute-boolean`
+
+Assign a boolean Attribute as ATTRIBUTE_KEY=true|false
+
 ### `--idempotency-key`
 
 Explicit idempotency key

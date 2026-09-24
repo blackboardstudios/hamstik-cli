@@ -97,6 +97,22 @@ fn preflight_rejects_malformed_input_before_any_request() {
                 "backlog, todo, in_progress, in_review, done",
             ],
         },
+        Case {
+            name: "malformed Attribute change",
+            content: r#"[{"projectKey":"HAM","title":"One","attributes":[{"key":"verified"}]}]"#,
+            expect_in_message: &[
+                "operations[0].attributes[0]",
+                "exactly one of clear, booleanValue, or optionKeys",
+            ],
+        },
+        Case {
+            name: "unknown Attribute assignment field",
+            content: r#"[{"projectKey":"HAM","title":"One","attributes":[{"key":"verified","booleanValue":false,"schema":"secret"}]}]"#,
+            expect_in_message: &[
+                "operations[0].attributes[0].schema",
+                "not part of the Attribute assignment schema",
+            ],
+        },
     ];
     let update_cases = [
         Case {
@@ -108,6 +124,11 @@ fn preflight_rejects_malformed_input_before_any_request() {
             name: "empty changes",
             content: r#"[{"projectKey":"HAM","workItemKey":"HAM-1","revision":1,"changes":{}}]"#,
             expect_in_message: &["operations[0].changes", "must not be empty"],
+        },
+        Case {
+            name: "false cannot mean clear",
+            content: r#"[{"projectKey":"HAM","workItemKey":"HAM-1","revision":1,"changes":{"attributes":[{"key":"customer","clear":false}]}}]"#,
+            expect_in_message: &["operations[0].changes.attributes[0].clear", "must be true"],
         },
     ];
     for (kind, batch) in [("create", &cases[..]), ("update", &update_cases[..])] {

@@ -141,6 +141,8 @@ pub enum Command {
     Sprint(SprintArgs),
     /// Work with labels.
     Label(LabelArgs),
+    /// Discover and administer Organization Attributes.
+    Attribute(AttributeArgs),
     /// Work with work items.
     Work(Box<WorkArgs>),
     /// View user profiles, work, activity, and avatars.
@@ -1248,6 +1250,205 @@ pub enum LabelCommand {
     },
 }
 
+/// Arguments for the `attribute` command group.
+#[derive(Args, Debug)]
+pub struct AttributeArgs {
+    /// The Attribute subcommand to run.
+    #[command(subcommand)]
+    pub command: AttributeCommand,
+}
+
+/// Organization Attribute, option, and Project enablement commands.
+#[derive(Subcommand, Debug)]
+pub enum AttributeCommand {
+    /// List Organization definitions and product limits.
+    List {
+        /// Include retired definitions.
+        #[arg(long)]
+        include_retired: bool,
+    },
+    /// View one definition and its ordered options.
+    View {
+        /// Stable Attribute key.
+        key: String,
+    },
+    /// Create a governed Attribute definition.
+    Create {
+        /// Stable machine key (immutable after creation).
+        #[arg(long)]
+        key: String,
+        /// Display name.
+        #[arg(long)]
+        name: String,
+        /// Supported Attribute type.
+        #[arg(long = "type", value_enum)]
+        attribute_type: AttributeTypeArg,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Rename a definition without changing its stable key or type.
+    Rename {
+        /// Stable Attribute key.
+        key: String,
+        /// New display name.
+        #[arg(long)]
+        name: String,
+        /// Optional audit reason.
+        #[arg(long)]
+        reason: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Change a definition's lifecycle state.
+    Transition {
+        /// Stable Attribute key.
+        key: String,
+        /// Target lifecycle state.
+        #[arg(long = "state", value_enum)]
+        target: AttributeStateArg,
+        /// Optional audit reason.
+        #[arg(long)]
+        reason: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Manage select options.
+    Option(AttributeOptionArgs),
+    /// View or change enablement for one Project only.
+    Project(AttributeProjectArgs),
+}
+
+/// Arguments for `attribute option`.
+#[derive(Args, Debug)]
+pub struct AttributeOptionArgs {
+    /// The option subcommand to run.
+    #[command(subcommand)]
+    pub command: AttributeOptionCommand,
+}
+
+/// Select-option operations, addressed by stable keys.
+#[derive(Subcommand, Debug)]
+pub enum AttributeOptionCommand {
+    /// Add an option to a select definition.
+    Add {
+        /// Stable Attribute key.
+        attribute_key: String,
+        /// Stable option key (immutable after creation).
+        #[arg(long)]
+        key: String,
+        /// Display label.
+        #[arg(long)]
+        label: String,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Rename an option's display label without changing its key.
+    Rename {
+        /// Stable Attribute key.
+        attribute_key: String,
+        /// Stable option key.
+        option_key: String,
+        /// New display label.
+        #[arg(long)]
+        label: String,
+        /// Optional audit reason.
+        #[arg(long)]
+        reason: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Set the complete option order, including retired options.
+    Reorder {
+        /// Stable Attribute key.
+        attribute_key: String,
+        /// Complete comma-separated sequence of stable option keys.
+        #[arg(long = "option-keys", value_delimiter = ',', num_args = 1..)]
+        option_keys: Vec<String>,
+        /// Optional audit reason.
+        #[arg(long)]
+        reason: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Retire an option while preserving already assigned values.
+    Retire {
+        /// Stable Attribute key.
+        attribute_key: String,
+        /// Stable option key.
+        option_key: String,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+}
+
+/// Arguments for `attribute project`.
+#[derive(Args, Debug)]
+pub struct AttributeProjectArgs {
+    /// The Project enablement subcommand to run.
+    #[command(subcommand)]
+    pub command: AttributeProjectCommand,
+}
+
+/// Project-scoped Attribute discovery and enablement.
+#[derive(Subcommand, Debug)]
+pub enum AttributeProjectCommand {
+    /// List definitions available to, and enabled on, the selected Project.
+    List,
+    /// Enable one Attribute for the selected Project.
+    Enable {
+        /// Stable Attribute key.
+        key: String,
+        /// Optional audit reason.
+        #[arg(long)]
+        reason: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Opt out of one Attribute for the selected Project; existing assignments remain.
+    Disable {
+        /// Stable Attribute key.
+        key: String,
+        /// Optional audit reason.
+        #[arg(long)]
+        reason: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+}
+
+/// Public API v1 Attribute types.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AttributeTypeArg {
+    /// Single-select Attribute.
+    #[value(name = "single_select")]
+    SingleSelect,
+    /// Multi-select Attribute.
+    #[value(name = "multi_select")]
+    MultiSelect,
+    /// Boolean Attribute.
+    Boolean,
+}
+
+/// Public API v1 Attribute lifecycle states.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AttributeStateArg {
+    /// Accept assignments when enabled on a Project.
+    Active,
+    /// Temporarily prevent new assignments.
+    Disabled,
+    /// Permanently retire this definition.
+    Retired,
+}
+
 /// Shared list pagination and pipeline options.
 ///
 /// `--limit` bounds the *result* (total items emitted), `--cursor` / its
@@ -1976,6 +2177,13 @@ pub struct WorkCreateArgs {
     /// is read in the host's local time zone.
     #[arg(long = "due-date", value_name = "DATE")]
     pub due_date: Option<TimeArg>,
+    /// Assign a select option as ATTRIBUTE_KEY=OPTION_KEY (repeat the key for
+    /// multi-select values).
+    #[arg(long = "attribute-option", value_name = "ATTRIBUTE_KEY=OPTION_KEY")]
+    pub attribute_options: Vec<String>,
+    /// Assign a boolean Attribute as ATTRIBUTE_KEY=true|false.
+    #[arg(long = "attribute-boolean", value_name = "ATTRIBUTE_KEY=true|false")]
+    pub attribute_booleans: Vec<String>,
     /// Explicit idempotency key.
     #[arg(long = "idempotency-key", value_name = "KEY")]
     pub idempotency_key: Option<String>,
@@ -2039,6 +2247,16 @@ pub struct WorkEditArgs {
     /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
     /// is read in the host's local time zone.
     pub due_date: Option<TimeArg>,
+    /// Set a select option as ATTRIBUTE_KEY=OPTION_KEY (repeat the key for
+    /// multi-select values).
+    #[arg(long = "attribute-option", value_name = "ATTRIBUTE_KEY=OPTION_KEY")]
+    pub attribute_options: Vec<String>,
+    /// Set a boolean Attribute as ATTRIBUTE_KEY=true|false.
+    #[arg(long = "attribute-boolean", value_name = "ATTRIBUTE_KEY=true|false")]
+    pub attribute_booleans: Vec<String>,
+    /// Explicitly clear an existing Attribute assignment.
+    #[arg(long = "clear-attribute", value_name = "ATTRIBUTE_KEY")]
+    pub clear_attributes: Vec<String>,
     /// Clear the description.
     #[arg(long = "clear-description")]
     pub clear_description: bool,
@@ -2060,6 +2278,9 @@ pub struct WorkEditArgs {
     /// Bypass revision conflict protection (If-Match: *).
     #[arg(long)]
     pub force: bool,
+    /// Explicit idempotency key (used for Attribute-bearing updates).
+    #[arg(long = "idempotency-key", value_name = "KEY")]
+    pub idempotency_key: Option<String>,
 }
 
 /// Arguments for the `work comment` command group.

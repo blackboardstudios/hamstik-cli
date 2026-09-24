@@ -321,6 +321,25 @@ fn contract_still_documents_protected_wire_behaviors() {
         );
     }
 
+    let update_work_item = operations
+        .get("updateWorkItem")
+        .copied()
+        .expect("updateWorkItem operation");
+    let conditional_idempotency = update_work_item["parameters"]
+        .as_array()
+        .expect("updateWorkItem parameters")
+        .iter()
+        .find(|parameter| parameter["name"] == "Idempotency-Key")
+        .expect("updateWorkItem must document conditional idempotency");
+    assert_eq!(conditional_idempotency["in"], "header");
+    assert_eq!(conditional_idempotency["required"], false);
+    assert!(
+        conditional_idempotency["description"]
+            .as_str()
+            .is_some_and(|description| description
+                .contains("Required when the request body includes attributes"))
+    );
+
     // Idempotency headers on retriable mutations.
     for operation_id in [
         "createWorkItem",

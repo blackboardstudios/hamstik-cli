@@ -3,14 +3,14 @@
 
 //! `work edit`.
 
-use hamstik_api_client::UpdateWorkItemRequest;
+use hamstik_api_client::{UpdateWorkItemRequest, validate_key};
 
 use crate::app::Session;
 use crate::args::WorkEditArgs;
 use crate::error::CliError;
 use crate::time_arg;
 
-use super::common::read_long_text;
+use super::common::{attribute_changes, idem_key, read_long_text};
 use super::dryrun;
 use super::emit_view;
 
@@ -54,6 +54,30 @@ pub(super) async fn edit(session: &mut Session<'_>, args: &WorkEditArgs) -> Resu
         }
     };
 
+    let attributes = attribute_changes(
+        &args.attribute_options,
+        &args.attribute_booleans,
+        &args.clear_attributes,
+    )?;
+    if args.force && attributes.is_some() {
+        return Err(CliError::usage(
+            "--force cannot be used with Attribute changes; Attribute updates require an exact Work Item revision",
+        ));
+    }
+    let idempotency = match (&args.idempotency_key, &attributes) {
+        (Some(key), Some(_)) => {
+            validate_key(key).map_err(|err| CliError::usage(err.to_string()))?;
+            Some(key.clone())
+        }
+        (Some(_), None) => {
+            return Err(CliError::usage(
+                "--idempotency-key is only used for Attribute-bearing Work Item updates",
+            ));
+        }
+        (None, Some(_)) => Some(idem_key(None)?),
+        (None, None) => None,
+    };
+
     let body = UpdateWorkItemRequest {
         title: args.title.clone(),
         description,
@@ -65,6 +89,7 @@ pub(super) async fn edit(session: &mut Session<'_>, args: &WorkEditArgs) -> Resu
         parent_id: tri(args.clear_parent, args.parent.clone()),
         story_points: tri(args.clear_story_points, args.story_points),
         due_date: tri(args.clear_due_date, args.due_date.map(|d| d.to_string())),
+        attributes,
     };
     if body.is_empty() {
         return Err(CliError::usage("no changes specified"));
@@ -100,17 +125,29 @@ pub(super) async fn edit(session: &mut Session<'_>, args: &WorkEditArgs) -> Resu
                     "workItem": args.key,
                 }),
                 if_match: Some(&if_match),
-                idempotency_key: None,
+                idempotency_key: idempotency.as_deref(),
                 body: Some(serde_json::to_value(&body).map_err(CliError::general)?),
                 notes: Vec::new(),
             },
         );
     }
 
-    let response = api
-        .update_work_item(&org, &project, &args.key, &body, &if_match)
+    let response = if let Some(idempotency) = idempotency.as_deref() {
+        api.update_work_item_with_idempotency(
+            &org,
+            &project,
+            &args.key,
+            &body,
+            &if_match,
+            idempotency,
+        )
         .await
-        .map_err(CliError::from_client)?;
+        .map_err(CliError::from_client)?
+    } else {
+        api.update_work_item(&org, &project, &args.key, &body, &if_match)
+            .await
+            .map_err(CliError::from_client)?
+    };
     crate::audit::record_with_revisions(
         &session.config,
         &mut session.out,

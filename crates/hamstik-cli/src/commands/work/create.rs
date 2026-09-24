@@ -11,7 +11,7 @@ use crate::error::CliError;
 use crate::time_arg;
 use serde_json::json;
 
-use super::common::{assignee_fields, idem_key, read_long_text};
+use super::common::{assignee_fields, attribute_changes, idem_key, read_long_text};
 use super::dryrun;
 use super::emit_view;
 use super::template::{self, LabelRef, StartPoint};
@@ -77,6 +77,7 @@ pub(super) async fn create(
         None => None,
     };
     let (assignee_id, assignee_public_id) = assignee_fields(&assignee);
+    let attributes = attribute_changes(&args.attribute_options, &args.attribute_booleans, &[])?;
     let body = CreateWorkItemRequest {
         title,
         description,
@@ -89,6 +90,7 @@ pub(super) async fn create(
         parent_id: args.parent.clone(),
         story_points: args.story_points,
         due_date: args.due_date.map(|date| date.to_string()),
+        attributes,
     };
     let idempotency = idem_key(args.idempotency_key.clone())?;
 

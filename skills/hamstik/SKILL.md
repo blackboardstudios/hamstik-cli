@@ -1,10 +1,10 @@
 ---
 name: hamstik
-description: Use the official Hamstik CLI to inspect and manage Hamstik Organizations, Projects, Sprints, Work Items, Advanced Reports and Dashboards, comments, labels, links, attachments, users, and Public API v1 resources. Use for Hamstik work-tracking tasks; do not use it to call private Hamstik routes or reimplement API behavior.
+description: Use the official Hamstik CLI to inspect and manage Hamstik Organizations, Projects, Organization Attributes, Sprints, Work Items, Advanced Reports and Dashboards, comments, labels, links, attachments, users, and Public API v1 resources. Use for Hamstik work-tracking tasks; do not use it to call private Hamstik routes or reimplement API behavior.
 metadata:
   short-description: Manage Hamstik through its official CLI
-  skill-version: "0.3.0"
-  minimum-cli-version: "0.2.0"
+  skill-version: "0.4.0"
+  minimum-cli-version: "0.3.0"
 ---
 
 # Hamstik CLI
@@ -237,6 +237,63 @@ hamstik --quiet --no-input --org <ORG> --project <KEY> work create \
 hamstik --json --no-input --org <ORG> --project <KEY> work edit <ITEM-KEY> \
   --priority high
 ```
+
+## Organization Attributes
+
+Attributes are Organization-governed metadata with immutable machine keys and
+only three supported types: `single_select`, `multi_select`, and `boolean`.
+Use the named commands rather than raw routes. Organization definition reads
+require the applicable Organization read grant. Governance writes require the
+separate `attribute:write` PAT scope and current Organization administrator
+authority; the new scope does not change existing token grants. Select options
+use stable keys, never display labels:
+
+```bash
+hamstik --json --no-input --org <ORG> attribute list --include-retired
+hamstik --json --no-input --org <ORG> attribute view <ATTRIBUTE-KEY>
+hamstik --json --no-input --org <ORG> attribute create \
+  --key product_area --name "Product Area" --type multi_select
+hamstik --json --no-input --org <ORG> attribute option add product_area \
+  --key mobile --label "Mobile"
+hamstik --json --no-input --org <ORG> --project <KEY> attribute project list
+hamstik --json --no-input --org <ORG> --project <KEY> \
+  attribute project enable product_area --reason "Used by this Project"
+```
+
+Project enablement changes require `attribute:write` plus current Project
+management authority. An Organization read token can see the Organization
+catalog. A Project-restricted token sees only its authorized Project catalog;
+it cannot administer definitions or discover unenabled definitions. It can
+disable an already-enabled Attribute from that Project's catalog, preserving
+existing values. Enabling an unenabled definition requires a credential that
+can read the governed definition. The server still rechecks authorization and
+the exact Attribute revision during every mutation.
+
+Work Item flags use stable keys. Omission preserves existing assignments,
+`false` is a recorded value, and `--clear-attribute` is the explicit clear:
+
+```bash
+hamstik --json --no-input --org <ORG> --project <KEY> work create \
+  --title "Classify request" --attribute-boolean verified=false \
+  --attribute-option product_area=search --attribute-option product_area=mobile
+hamstik --json --no-input --org <ORG> --project <KEY> work edit <ITEM-KEY> \
+  --attribute-boolean verified=false --clear-attribute customer
+hamstik --json --no-input --org <ORG> --project <KEY> \
+  work list --fields key,title,attributes --json
+hamstik --json --no-input --org <ORG> work search \
+  "attribute_customer = 'acme' OR attribute_verified = FALSE OR attribute_verified IS NULL"
+hamstik --json --no-input --org <ORG> work search \
+  "attribute_has_any('product_area', 'search', 'mobile')"
+```
+
+`work view` renders the `attributes` projection, including `false` and retained
+retired options. The API remains authoritative for definition type, Project
+enablement, allowed option keys, and retained-value rules. An Attribute-bearing
+`work edit` uses exact revision protection plus idempotency; `--force` is not
+allowed. Bulk JSON create/update operations accept the same `attributes`
+shapes and receive the same server validation. There is no Attribute restore
+flag or workflow behavior in the CLI. See the public API and SqueakQL guides for
+the full bounds, NULL rules, and authorized execution behavior.
 
 To pre-fill a new Work Item, start from an existing item or a local Markdown
 template instead of repeating fields. Both copy only the documented

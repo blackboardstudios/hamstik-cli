@@ -23,6 +23,21 @@ before upgrading.
 
 ### Added
 
+- Organization Attribute support through named CLI commands and the typed API
+  client: list/view/create/rename/transition definitions; add/rename/reorder/
+  retire select options; and list/enable/disable definitions for one selected
+  Project. Work Item create/edit accept repeated stable option-key assignments,
+  boolean `true|false`, and explicit clears. Omitted Attribute values remain
+  untouched on updates. `work bulk create|update` accepts the same typed
+  `attributes` payloads as Public API v1; preflight checks the closed request
+  shape while Hamstik validates governed definitions and options. Work Item
+  list/search JSON projections expose the documented `attributes` field, and
+  `work view` renders false values and retained retired options. Attribute
+  updates use exact Work Item revisions plus idempotency keys and cannot use
+  `--force`. Organization and Project governance writes use the exact current
+  Attribute ETag and an idempotency key. This is source support for the next
+  CLI release; deploy the matching Hamstik Public API before using it.
+
 - `work tree <KEY>` renders a Work Item's parent/child hierarchy from existing
   Public API v1 reads with a bounded `--depth` (default 3, maximum 10) and
   `--max-nodes` (default 200, maximum 2000), plus optional `--links`

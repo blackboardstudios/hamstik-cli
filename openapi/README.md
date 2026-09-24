@@ -62,6 +62,25 @@ scripts/update-openapi.sh --update
 cargo test -p hamstik-api-client --test openapi_parity
 ```
 
+For a server-side contract that is implemented but not yet deployed, generate
+the runtime document from the Hamstik repository's OpenAPI builder and pass
+that JSON to the scoped Attribute merger:
+
+```bash
+pnpm exec tsx -e 'import { buildPublicApiOpenApi } from "./src/lib/api/openapi.ts"; process.stdout.write(JSON.stringify(buildPublicApiOpenApi(), null, 2));' > /tmp/hamstik-v1-runtime.json
+python3 scripts/merge-attribute-openapi.py /tmp/hamstik-v1-runtime.json --update
+```
+
+The merger imports only the 11 HAM-62 Attribute operations, their generated
+schemas, the `attributes` property on existing Work Item schemas, and the
+conditional optional `Idempotency-Key` parameter for `updateWorkItem` (required
+by the server when that body assigns Attributes). It keeps unrelated
+operations from other unpublished work out of this CLI's supported contract.
+The CLI source and generated contract do not mean that production already
+serves these operations: release the matching Hamstik API first. Once
+deployed, refresh from `https://hamstik.com/api/v1/openapi.json` and reconcile
+any remaining unrelated drift deliberately.
+
 `--check` reports drift without changing the working tree. `--update` first
 downloads and validates the live JSON, then replaces the snapshot byte-for-byte;
 the snapshot is never edited by hand. After an update:
@@ -79,7 +98,9 @@ the snapshot is never edited by hand. After an update:
 
 ## Rules
 
-- Refresh `hamstik-v1.json` deliberately, never casually.
+- Refresh `hamstik-v1.json` deliberately, never casually; use the live updater
+  for deployed contracts and the documented scoped merger for generated
+  pre-release Attribute contracts.
 - Download the snapshot; do not manually edit it.
 - CLI builds must not fetch OpenAPI from the network.
 - No OpenAPI code generation runs against this snapshot; the design calls for a
