@@ -10,6 +10,8 @@ before upgrading.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-24
+
 ### Breaking
 
 - Destructive commands now require explicit per-process consent before any
@@ -804,7 +806,8 @@ API v1 (29 → 51 operations; all changes additive):
   users who need both states in one result must issue separate queries
   (`work`, `project`).
 
-[Unreleased]: https://github.com/blackboardstudios/hamstik-cli/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/blackboardstudios/hamstik-cli/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.4.0
 [0.2.0]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.2.0
 [0.1.3]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.3
 [0.1.2]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.2

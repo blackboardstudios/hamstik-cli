@@ -4,7 +4,7 @@ description: Use the official Hamstik CLI to inspect and manage Hamstik Organiza
 metadata:
   short-description: Manage Hamstik through its official CLI
   skill-version: "0.4.0"
-  minimum-cli-version: "0.3.0"
+  minimum-cli-version: "0.4.0"
 ---
 
 # Hamstik CLI
