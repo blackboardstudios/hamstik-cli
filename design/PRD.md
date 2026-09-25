@@ -1250,6 +1250,9 @@ The initial CLI does not need:
 - Audit Compliance management;
 - Advanced Dashboard creation or editing (the Public API currently exposes
   dashboard reads and runs only);
+- workflow automation rules and any event/subscription execution (gated on a
+  documented Public API event surface; see
+  [`design/AUTOMATION_RULES.md`](AUTOMATION_RULES.md));
 - offline editing;
 - local data synchronization.
 
@@ -1272,10 +1275,15 @@ hamstik app
 hamstik audit
 hamstik repo
 hamstik release
+hamstik rule
 hamstik admin
 ```
 
 without redesigning root-level conventions.
+
+`hamstik rule` is a gated future namespace: it is only added once the Public
+API exposes a documented event/subscription surface. See
+[`design/AUTOMATION_RULES.md`](AUTOMATION_RULES.md).
 
 ---
 

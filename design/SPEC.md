@@ -967,6 +967,7 @@ Potential later:
 api
 agent
 config
+rule        # gated; only after a documented event/subscription API
 ```
 
 Advanced Reporting grammar:
@@ -2361,3 +2362,26 @@ HAMSTIK_TOKEN
 ```
 
 for coding agents.
+
+---
+
+# 92. Gated Future Feature — Workflow Automation Rules
+
+CLI-77 adds CLI-owned workflow automation rules (`rule list/create/delete`)
+whose execution requires a Hamstik Public API event/subscription surface or an
+explicit manual trigger. The feature is **gated**: it MUST NOT ship any command
+or network behavior until `/api/v1` exposes a documented event or subscription
+contract in the frozen OpenAPI snapshot.
+
+The full gated design stub (scope, triggers, non-goals, and the activation
+checklist) lives in [`design/AUTOMATION_RULES.md`](AUTOMATION_RULES.md).
+
+In particular:
+
+- no `hamstik rule` command and no background daemon exist before the gate
+  opens;
+- polling existing activity/comment endpoints (`work watch`, `work await`) is
+  observation only and MUST NOT be used to synthesize an event stream;
+- when the gate opens, authorization, validation, transitions, ETags,
+  idempotency, and Organization isolation remain server-authoritative, exactly
+  as for every other command.

@@ -1531,6 +1531,9 @@ The detailed product and technical direction lives in:
 - [design/INSTALL.md](design/INSTALL.md) — installation channels,
   upgrade/uninstall/rollback procedures, broken-release handling, and
   credential-safe troubleshooting
+- [design/AUTOMATION_RULES.md](design/AUTOMATION_RULES.md) — gated design stub
+  for CLI-owned workflow automation rules (no command or network behavior ships
+  until the Public API exposes a documented event/subscription surface)
 
 Notable changes are tracked in [CHANGELOG.md](CHANGELOG.md) following the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.

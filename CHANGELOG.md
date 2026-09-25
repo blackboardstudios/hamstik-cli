@@ -12,6 +12,14 @@ before upgrading.
 
 ### Added
 
+- Gated design stub for workflow automation rules (CLI-77):
+  [`design/AUTOMATION_RULES.md`](design/AUTOMATION_RULES.md) documents the
+  intended local `rule list/create/delete` surface, its event-subscription and
+  explicit-manual triggers, and the non-goals (no daemon, no polling loop, no
+  arbitrary code execution). No command or network behavior ships, because the
+  Public API v1 exposes no documented event/subscription surface yet; the
+  design names the exact gate and activation checklist for when it does.
+
 - SqueakQL query-plan passthrough and offline cache management (CLI-76):
   `work search --explain` forwards server-provided query-plan data under the
   response's `explain` field when the Public API returns it and otherwise
