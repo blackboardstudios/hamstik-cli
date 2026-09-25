@@ -177,6 +177,9 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   expiration, default Organization, and memberships;
 - sprints — `hamstik sprint list|view|create|transitions|transition|report|stats`
   with completion actions for sprints that still have unfinished work items;
+- read-only boards — `hamstik board view [--sprint <ID>] [--project <KEY>]`
+  composes the existing Work Item list read into status columns (`--json`
+  emits a stable `boardVersion: 1` document);
 - release versions — `hamstik release
   list|view|create|edit|transitions|transition|archive|restore|scope`, Work
   Item membership (`release item list|add|remove|replace`, `release
@@ -220,6 +223,12 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   and cycle truncation markers, plus optional server-reported
   `blocks`/`blocked_by`/`relates` annotations — no client-side
   readiness or blocking is computed;
+- a read-only kanban board via `hamstik board view [--sprint <ID>]
+  [--project <KEY>]` composing the existing Work Item list read into
+  width-aware status columns (`--json` for a stable `boardVersion: 1`
+  document). Columns come from the statuses the server reports, items with
+  no status render in an explicit `(no status)` bucket, and there is no
+  `board move` — state changes continue through `work transition`;
 - attachments — `work attachment list|upload|download|delete`;
 - the unauthenticated live contract via `hamstik api openapi`;
 - a `gh api`-style Public API v1 passthrough (`hamstik api /api/v1/...` /
@@ -342,6 +351,10 @@ hamstik org work --project HAM --priority urgent --overdue true
 hamstik work mine --scope open --project HAM --project WEB --all
 hamstik work triage --org acme --project HAM
 hamstik work triage --org acme --project HAM --since 7d --activity 20 --json
+
+# Read-only kanban board (Sprint or Project scope)
+hamstik board view --org acme --project HAM
+hamstik board view --org acme --project HAM --sprint 11111111-1111-4111-8111-111111111111 --all --json
 
 # Parent/child hierarchy with bounded depth and server-reported link annotations
 hamstik work tree --org acme --project HAM HAM-42 --depth 4 --links --json

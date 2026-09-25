@@ -202,6 +202,8 @@ pub enum Command {
     Dashboard(AdvancedDashboardArgs),
     /// Work with sprints.
     Sprint(SprintArgs),
+    /// Read-only board (kanban) view composed from existing reads.
+    Board(BoardArgs),
     /// Work with Project release versions, announcements, and audit packages.
     Release(ReleaseArgs),
     /// Work with Organization Milestones.
@@ -1030,6 +1032,42 @@ pub struct ProjectEditArgs {
     /// Explicit idempotency key.
     #[arg(long = "idempotency-key", value_name = "KEY")]
     pub idempotency_key: Option<String>,
+}
+
+/// Arguments for the `board` command group.
+#[derive(Args, Debug)]
+pub struct BoardArgs {
+    /// The board subcommand to run.
+    #[command(subcommand)]
+    pub command: BoardCommand,
+}
+
+/// Board subcommands.
+#[derive(Subcommand, Debug)]
+pub enum BoardCommand {
+    /// Render a read-only kanban board for a Sprint or Project.
+    View(BoardViewArgs),
+}
+
+/// Arguments for `board view`.
+///
+/// A board is scoped to a Sprint (`--sprint <id>`), a Project
+/// (`--project <KEY>`), or a Sprint within a Project. The Project resolves
+/// from `--project`, the resolved context, or the selected profile, exactly
+/// like every other Work Item read. The board is a read-only composition of
+/// the existing Work Item list read; the CLI offers no board mutation because
+/// the Public API exposes no board write.
+#[derive(Args, Debug)]
+pub struct BoardViewArgs {
+    /// Sprint id (UUID) to scope the board to.
+    #[arg(long, value_name = "SPRINT_ID")]
+    pub sprint: Option<String>,
+    /// Project key (overrides context).
+    #[arg(long, value_name = "KEY")]
+    pub project: Option<String>,
+    /// Pagination options.
+    #[command(flatten)]
+    pub pagination: PaginationArgs,
 }
 
 /// Arguments for the `sprint` command group.

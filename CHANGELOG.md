@@ -12,6 +12,17 @@ before upgrading.
 
 ### Added
 
+- `board view` (CLI-64): a read-only, kanban-style board composed entirely
+  from the existing Work Item list read (`GET
+  .../projects/{key}/work-items`, optionally filtered by `--sprint`). It
+  renders width-aware status columns — honouring `$COLUMNS`, sizing columns
+  to their content, and wrapping cards when the board would overflow — with
+  `--quiet` emitting only keys. `--json` emits a stable `boardVersion: 1`
+  document (`scope`, `columns`, `itemsFetched`, `truncated`). Columns derive
+  from the statuses the server reports on the returned items; items whose
+  status is absent or blank render in an explicit missing-status bucket.
+  There is no `board move`: the Public API exposes no board write, and
+  workflow changes continue through `work transition`.
 - `work bulk run` (CLI-62): resumable bulk execution for operation sets larger
   than the single-request 50-operation limit. The runner reads a JSON array or
   streamed JSON-lines operations source (`--operations-file -`), preflights

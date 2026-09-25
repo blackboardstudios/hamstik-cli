@@ -186,6 +186,8 @@ hamstik --json --no-input --org <ORG> --project <KEY> work list \
   --status todo --status in_progress
 hamstik --json --no-input --org <ORG> work mine --scope open
 hamstik --json --no-input --org <ORG> --project <KEY> work triage
+hamstik --json --no-input --org <ORG> --project <KEY> board view
+hamstik --json --no-input --org <ORG> --project <KEY> board view --sprint <SPRINT_ID> --all
 hamstik --json --no-input --org <ORG> --project <KEY> work tree <ITEM-KEY>
 hamstik --json --no-input --org <ORG> org work --project <KEY> --overdue true
 hamstik --json --no-input --org <ORG> squeakql validate "status = 'backlog'"
@@ -212,6 +214,20 @@ contains every section plus a `failedSections` array, and a failed section is
 `{"status": "error", "error": …}`. Public API v1 exposes no unread/mention/
 watched-items read, so there is no client-side "seen" state and the activity
 section is simply the Project feed.
+
+`board view` (CLI-64) is a read-only kanban-style board composed entirely from
+the existing Work Item list read: `hamstik [--json] board view [--project
+<KEY>] [--sprint <ID>] [--all]`. Columns are the statuses the server reports on
+the returned items (canonical order, then unrecognized statuses); items whose
+`status` is absent or blank render in an explicit `(no status)` bucket, so a
+sparse `--fields` projection is never silently dropped. `--sprint` scopes the
+same read with `sprint=<id>`, so a Sprint board makes no Sprint-resource
+request. The human layout is width-aware (`$COLUMNS`, content-sized/wrapped
+columns) and `--quiet` prints only item keys. `--json` is a stable
+`boardVersion: 1` document with `scope`, `columns` (each `{status, count,
+storyPoints, items}`), `itemsFetched`, and `truncated`; `--all`/`--limit` fill
+columns across pages. There is no `board move` — the Public API exposes no
+board write, so transitions stay on `work transition`.
 
 `work tree <KEY>` renders an item's parent/child hierarchy from existing reads
 in one invocation. `--depth N` (default `3`, cap `10`) bounds descendant levels

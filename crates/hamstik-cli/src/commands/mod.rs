@@ -20,6 +20,7 @@ pub mod agent_skill;
 pub mod api;
 pub mod attributes;
 pub mod auth;
+pub mod board;
 pub mod bulk_preflight;
 pub mod commands_manifest;
 pub mod complete;
@@ -151,6 +152,7 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
         Command::Report(args) => advanced_report::run(session, args).await,
         Command::Dashboard(args) => advanced_dashboard::run(session, args).await,
         Command::Sprint(args) => sprint::run(session, args).await,
+        Command::Board(args) => board::run(session, args).await,
         Command::Release(args) => release::run(session, args).await,
         Command::Milestone(args) => milestone::run(session, args).await,
         Command::Label(args) => label::run(session, args).await,

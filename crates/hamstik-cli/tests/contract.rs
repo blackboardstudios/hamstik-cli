@@ -133,6 +133,7 @@ fn root_command_hierarchy_matches_documented_surface() {
             "report",
             "dashboard",
             "sprint",
+            "board",
             "release",
             "milestone",
             "label",
