@@ -18,8 +18,9 @@ use std::fmt::Write as _;
 use serde_json::{Value, json};
 
 use crate::app::Session;
-use crate::args::{ContextFormatArg, WorkContextArgs};
+use crate::args::WorkContextArgs;
 use crate::error::CliError;
+use crate::output::Mode;
 
 use hamstik_api_client::WorkItem;
 
@@ -148,13 +149,13 @@ async fn fetch_bundle(
 pub async fn run(session: &mut Session<'_>, args: &WorkContextArgs) -> Result<(), CliError> {
     let bundle = fetch_bundle(session, args).await?;
 
-    if session.json() || args.format == ContextFormatArg::Json {
+    if session.json() {
         let envelope = json_envelope(&bundle, args)?;
         return emit_json(session, &envelope);
     }
 
-    match args.format {
-        ContextFormatArg::Markdown => {
+    match session.out.mode() {
+        Mode::Markdown => {
             let doc = markdown(&bundle)?;
             session.out.line(&doc).map_err(CliError::general)
         }

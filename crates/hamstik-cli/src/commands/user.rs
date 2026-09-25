@@ -17,7 +17,9 @@ use crate::time_arg::{self, TimeArg};
 
 use super::org::render_lines;
 use super::work::sort::apply_sort;
-use super::{check_columns, emit_json, emit_view, follow_policy, render_list};
+use super::{
+    check_columns, emit_json, emit_view, follow_policy, render_list, validate_work_item_fields,
+};
 
 /// Runs the `user` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &UserArgs) -> Result<(), CliError> {
@@ -104,6 +106,7 @@ async fn view(session: &mut Session<'_>, public_id: &str) -> Result<(), CliError
 }
 
 async fn work(session: &mut Session<'_>, args: &UserWorkArgs) -> Result<(), CliError> {
+    validate_work_item_fields(&args.fields)?;
     let selection = session.selection()?;
     time_arg::report_resolved(
         &mut session.out,

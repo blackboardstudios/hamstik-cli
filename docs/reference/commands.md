@@ -2,7 +2,7 @@
 
 Print the machine-readable command manifest derived from the real command tree
 
-### `--format`
+### `--manifest-format`
 
 Output format for the manifest
 

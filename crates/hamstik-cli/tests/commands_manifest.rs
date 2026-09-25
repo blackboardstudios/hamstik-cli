@@ -131,7 +131,7 @@ fn manifest_arguments_match_clap_definitions() {
         .find(|c| c["command"] == json!("hamstik work context"))
         .expect("work context in manifest");
     let arguments = work_context["arguments"].as_array().unwrap();
-    for name in ["--comments", "--activity", "--compact", "--format"] {
+    for name in ["--comments", "--activity", "--compact"] {
         assert!(
             arguments
                 .iter()
@@ -144,6 +144,23 @@ fn manifest_arguments_match_clap_definitions() {
         .find(|a| a.get("long") == Some(&json!("--comments")))
         .unwrap();
     assert_eq!(comments["default"], "10");
+
+    // `--format` is a global umbrella flag, declared once on the root rather
+    // than repeated on every subcommand.
+    let root = body["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["command"] == json!("hamstik"))
+        .expect("root command in manifest");
+    assert!(
+        root["arguments"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|a| a.get("long") == Some(&json!("--format"))),
+        "root manifest misses --format"
+    );
 }
 
 /// Completion scripts render for all four shells, non-empty on stdout.

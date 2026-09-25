@@ -423,7 +423,7 @@ hamstik work attachment download HAM-42 ATTACHMENT_UUID --output ./design.png
 hamstik user view usr_cPbfeqnghA-RLpDVOMQhHg
 hamstik user work usr_cPbfeqnghA-RLpDVOMQhHg --involvement created
 hamstik user activity usr_cPbfeqnghA-RLpDVOMQhHg --since 2026-09-01T00:00:00Z
-hamstik user avatar usr_cPbfeqnghA-RLpDVOMQhHg --format webp --output avatar.webp
+hamstik user avatar usr_cPbfeqnghA-RLpDVOMQhHg --image-format webp --output avatar.webp
 ```
 
 Downloads always write binary data to a file. In `--json` mode stdout contains
@@ -700,11 +700,21 @@ For automation:
   traversal in API order before writing stdout, so a run that fails halfway
   emits no records and is resumed from a `page.nextCursor` read in `--json`
   mode;
-- `--columns NAME...` (space-separated) selects and orders the human/TSV table
-  columns by their printed header names; it applies to human and `--tsv` output
-  only, and an unknown name fails with the list of valid names. Every table
-  column carries a header name, so none is unreachable. Because it takes
-  multiple values, write it after the subcommand
+- `--format FORMAT` selects the output mode by name: `ndjson`/`jsonl`
+  (JSON Lines), `tsv`, `csv`, `table`/`human`, `json`, or `markdown`. It is
+  the umbrella spelling of the dedicated `--json`, `--jsonl`, `--tsv`, and
+  `--quiet` flags, which it conflicts with. `markdown` emits a
+  GitHub-flavored table for list-shaped output, so a `work list` result can be
+  pasted straight into a pull request or issue. `csv` follows RFC 4180
+  quoting. `--json` output is unaffected by `--format`;
+- `--columns NAME...` (space-separated) or `--fields a,b,c` (comma-separated)
+  selects and orders the human/TSV/CSV/Markdown table columns by their printed
+  header names; an unknown name fails with the list of valid names. Every table
+  column carries a header name, so none is unreachable. On the Work Item list
+  commands (`work list`, `work mine`, `org work`, `user work`) `--fields` is
+  also the server-side sparse fieldset and is forwarded verbatim; a name that
+  is not a documented Work Item field fails as a usage error. Because
+  `--columns` takes multiple values, write it after the subcommand
   (`hamstik work list --columns KEY TITLE`); before the subcommand it would
   consume the command name as a column name;
 - `--jq EXPR` filters the structured document of any command — the full
@@ -743,7 +753,10 @@ For automation:
   no direction, so the CLI applies it to the result it fetched: order a whole
   collection with `--all`, because without `--all` only the single page that was
   returned is reordered;
-- `--json`, `--jsonl`, `--tsv`, and `--quiet` are mutually exclusive.
+- `--json`, `--jsonl`, `--tsv`, and `--quiet` are mutually exclusive. The
+  `--format` umbrella selects the same modes by name (`--format ndjson`,
+  `--format tsv`, …) plus `csv`, `markdown`, and the explicit `table`/`json`
+  spellings, and conflicts with the dedicated mode flags.
 
 Line-oriented pipelines choose the mode that matches the consumer:
 
@@ -770,6 +783,11 @@ hamstik work list --jsonl --jq ".items[].title" --no-input
 # never prints pagination of its own.
 hamstik work list --all --json --no-input | jq -r ".items[].key"
 hamstik work list --all --json --no-input | jq -r ".page.nextCursor"
+
+# GitHub-flavored Markdown for a pull request or issue comment. Pipe a
+# spreadsheet out as RFC 4180 CSV instead.
+hamstik work list --format markdown --columns KEY TITLE STATUS ASSIGNEE --no-input
+hamstik work list --format csv --columns KEY TITLE STATUS ASSIGNEE --no-input > work.csv
 ```
 
 Stable process exit codes are:

@@ -13,7 +13,7 @@ use crate::error::CliError;
 use crate::time_arg;
 
 use super::sort::apply_sort;
-use crate::commands::{check_columns, follow_policy, render_list};
+use crate::commands::{check_columns, follow_policy, render_list, validate_work_item_fields};
 fn my_work_query(args: &MyWorkArgs) -> ListWorkItemsQuery {
     ListWorkItemsQuery {
         limit: args.pagination.page_size(),
@@ -48,6 +48,7 @@ fn my_work_query(args: &MyWorkArgs) -> ListWorkItemsQuery {
 }
 
 pub(super) async fn mine(session: &mut Session<'_>, args: &MyWorkArgs) -> Result<(), CliError> {
+    validate_work_item_fields(&args.fields)?;
     let selection = session.selection()?;
     time_arg::report_resolved(
         &mut session.out,
@@ -202,6 +203,7 @@ fn build_query(args: &WorkListArgs) -> ListWorkItemsQuery {
 }
 
 pub(super) async fn list(session: &mut Session<'_>, args: &WorkListArgs) -> Result<(), CliError> {
+    validate_work_item_fields(&args.filters.fields)?;
     let selection = session.selection()?;
     super::report_filter_dates(&mut session.out, &args.filters);
     let org = session.require_org(&selection)?;

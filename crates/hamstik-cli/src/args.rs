@@ -62,6 +62,20 @@ pub struct GlobalOptions {
     #[arg(long, global = true, conflicts_with_all = ["json", "jsonl"])]
     pub tsv: bool,
 
+    /// Select the output format by name. `ndjson`/`jsonl` stream one JSON
+    /// resource per line, `tsv` and `csv` render the command's table, `table`
+    /// (or `human`) is the aligned human table, `json` is one pretty-printed
+    /// document, and `markdown` renders a GitHub-flavored table for list-shaped
+    /// output. Conflicts with the dedicated output-mode flags.
+    #[arg(
+        long = "format",
+        global = true,
+        value_name = "FORMAT",
+        value_enum,
+        conflicts_with_all = ["json", "jsonl", "tsv", "quiet"]
+    )]
+    pub format: Option<OutputFormatArg>,
+
     /// Emit only essential identifiers.
     #[arg(long, global = true)]
     pub quiet: bool,
@@ -73,6 +87,19 @@ pub struct GlobalOptions {
     /// Restrict list output to these columns (header names), in order.
     #[arg(long, global = true, value_name = "NAME", value_parser = clap::builder::NonEmptyStringValueParser::new(), num_args = 1..)]
     pub columns: Option<Vec<String>>,
+
+    /// Restrict output to these comma-separated fields, in order. An alias for
+    /// `--columns` on commands that do not take a server-side sparse fieldset;
+    /// on the Work Item list commands the value is the server sparse fieldset.
+    /// Unknown names fail as a usage error listing the valid names.
+    #[arg(
+        long = "fields",
+        global = true,
+        value_name = "FIELDS",
+        value_parser = clap::builder::NonEmptyStringValueParser::new(),
+        conflicts_with_all = ["columns", "jq"]
+    )]
+    pub fields: Option<String>,
 
     /// Suppress the header row in list output (TSV and human table modes).
     #[arg(long, global = true)]
@@ -116,6 +143,42 @@ pub struct GlobalOptions {
     /// Additional PEM root certificate bundle.
     #[arg(long, global = true, value_name = "PATH")]
     pub ca_bundle: Option<PathBuf>,
+}
+
+/// `--format` umbrella values mapped onto the output modes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum OutputFormatArg {
+    /// Aligned human table (the default).
+    Table,
+    /// Aligned human table (alias for `table`).
+    Human,
+    /// One pretty-printed JSON document.
+    Json,
+    /// One compact JSON resource per line (JSON Lines / NDJSON).
+    Ndjson,
+    /// One compact JSON resource per line (alias for `ndjson`).
+    Jsonl,
+    /// Tab-separated table rows.
+    Tsv,
+    /// Comma-separated table rows.
+    Csv,
+    /// GitHub-flavored Markdown table for list-shaped output.
+    Markdown,
+}
+
+impl OutputFormatArg {
+    /// The output mode this format selects.
+    #[must_use]
+    pub fn mode(self) -> crate::output::Mode {
+        match self {
+            Self::Table | Self::Human => crate::output::Mode::Human,
+            Self::Json => crate::output::Mode::Json,
+            Self::Ndjson | Self::Jsonl => crate::output::Mode::JsonLines,
+            Self::Tsv => crate::output::Mode::Tsv,
+            Self::Csv => crate::output::Mode::Csv,
+            Self::Markdown => crate::output::Mode::Markdown,
+        }
+    }
 }
 
 /// Every CLI subcommand.
@@ -492,10 +555,6 @@ pub struct WorkContextArgs {
     #[arg(value_name = "KEY")]
     pub key: String,
 
-    /// Output format: human (default), machine-readable JSON, or Markdown.
-    #[arg(long, value_enum, default_value = "human")]
-    pub format: ContextFormatArg,
-
     /// Maximum comments included (oldest first, server-capped). 0 omits the
     /// comments section with an explicit marker.
     #[arg(long, value_name = "N", default_value_t = 10)]
@@ -510,17 +569,6 @@ pub struct WorkContextArgs {
     /// by an explicit truncated marker.
     #[arg(long)]
     pub compact: bool,
-}
-
-/// Output format for `work context`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
-pub enum ContextFormatArg {
-    /// Aligned text like other commands' human output.
-    Human,
-    /// Stable, deterministic JSON bundle.
-    Json,
-    /// Readable Markdown rendering.
-    Markdown,
 }
 
 /// Arguments for the `auth` command group.
@@ -1571,7 +1619,7 @@ pub enum UserCommand {
         #[arg(long = "avatar-version", value_name = "VALUE")]
         avatar_version: Option<String>,
         /// Opaque avatar format selector.
-        #[arg(long, value_name = "VALUE")]
+        #[arg(id = "image_format", long = "image-format", value_name = "VALUE")]
         format: Option<String>,
         /// Opaque avatar revision cache selector.
         #[arg(long = "revision", value_name = "VALUE")]
@@ -2924,7 +2972,12 @@ pub struct CompleteArgs {
 #[derive(Args, Debug)]
 pub struct CommandsArgs {
     /// Output format for the manifest.
-    #[arg(long, value_enum, default_value = "json")]
+    #[arg(
+        id = "manifest_format",
+        long = "manifest-format",
+        value_enum,
+        default_value = "json"
+    )]
     pub format: ManifestFormatArg,
 }
 
@@ -3668,7 +3721,12 @@ pub enum ReleaseAuditCommand {
         /// Audit report id (UUID).
         report_id: String,
         /// Package format to download.
-        #[arg(long, value_enum, default_value = "json")]
+        #[arg(
+            id = "audit_format",
+            long = "audit-format",
+            value_enum,
+            default_value = "json"
+        )]
         format: ReleaseAuditFormatArg,
         /// Write the package bytes to this file instead of stdout (CSV ZIP).
         #[arg(long, value_name = "PATH")]

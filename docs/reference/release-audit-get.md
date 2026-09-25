@@ -8,7 +8,7 @@ Audit report id (UUID)
 
 Value: `REPORT_ID`
 
-### `--format`
+### `--audit-format`
 
 Package format to download
 

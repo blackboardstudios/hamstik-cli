@@ -17,7 +17,9 @@ use crate::error::CliError;
 use super::ensure_profile_for_default;
 use super::work::apply_filters as apply_work_filters;
 use super::work::sort::apply_sort;
-use super::{check_columns, emit_json, emit_view, follow_policy, render_list};
+use super::{
+    check_columns, emit_json, emit_view, follow_policy, render_list, validate_work_item_fields,
+};
 
 /// Runs the `org` subcommands.
 pub async fn run(session: &mut Session<'_>, args: &OrgArgs) -> Result<(), CliError> {
@@ -237,6 +239,7 @@ async fn members(
 }
 
 async fn work(session: &mut Session<'_>, args: &OrgWorkListArgs) -> Result<(), CliError> {
+    validate_work_item_fields(&args.filters.fields)?;
     let selection = session.selection()?;
     super::work::report_filter_dates(&mut session.out, &args.filters);
     let org = session.require_org(&selection)?;

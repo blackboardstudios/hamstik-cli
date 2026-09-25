@@ -835,7 +835,7 @@ async fn audit_flows_generate_list_and_download() {
             "audit",
             "get",
             REPORT_ID,
-            "--format",
+            "--audit-format",
             "csv",
         ])
         .assert()

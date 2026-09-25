@@ -1967,7 +1967,9 @@ async fn audit_get(
     match format {
         ReleaseAuditFormatArg::Json => {
             if output.is_some() {
-                return Err(CliError::usage("--output applies to --format csv only"));
+                return Err(CliError::usage(
+                    "--output applies to --audit-format csv only",
+                ));
             }
             let response = api
                 .get_release_audit_report(&org, &project, report_id)
@@ -1984,7 +1986,7 @@ async fn audit_get(
         ReleaseAuditFormatArg::Csv => {
             let Some(output) = output else {
                 return Err(CliError::usage(
-                    "--format csv requires --output <PATH> (the package is binary)",
+                    "--audit-format csv requires --output <PATH> (the package is binary)",
                 ));
             };
             let download = api

@@ -33,13 +33,28 @@ pub enum Mode {
     JsonLines,
     /// Tab-separated values, one record per line.
     Tsv,
+    /// Comma-separated values, one record per line.
+    Csv,
+    /// GitHub-flavored Markdown table for list-shaped output.
+    Markdown,
 }
 
 impl Mode {
     /// True when the mode emits machine-readable structured data.
+    ///
+    /// CSV and Markdown are presentation modes like the human table: commands
+    /// keep rendering their documented table rather than falling back to a
+    /// JSON document.
     #[must_use]
     pub fn is_structured(self) -> bool {
         matches!(self, Self::Json | Self::JsonLines | Self::Tsv)
+    }
+
+    /// True when the mode renders the command's documented table and honours
+    /// `--columns`/`--fields` projection.
+    #[must_use]
+    pub fn is_table(self) -> bool {
+        matches!(self, Self::Human | Self::Tsv | Self::Csv | Self::Markdown)
     }
 }
 
@@ -262,6 +277,81 @@ impl Output {
         Ok(())
     }
 
+    /// Emits CSV: an optional header row, then one record per line.
+    ///
+    /// Column order follows the command's documented table order or the order
+    /// given by `--columns`/`--fields`. Cells are escaped per RFC 4180: a cell
+    /// containing a comma, double quote, CR, or LF is wrapped in double quotes
+    /// and embedded quotes are doubled. Terminal escape sequences are stripped
+    /// because machine output must never contain them.
+    pub fn emit_csv(
+        &mut self,
+        rows: &[Vec<String>],
+        headers: &[&str],
+        options: &OutputOptions,
+    ) -> io::Result<()> {
+        let indices = resolve_columns(&options.columns, headers)?;
+        if !options.no_header {
+            let cells: Vec<String> = indices
+                .iter()
+                .filter_map(|&i| headers.get(i))
+                .map(|header| csv_cell(header).into_owned())
+                .collect();
+            if !cells.is_empty() {
+                writeln!(self.out, "{}", cells.join(","))?;
+            }
+        }
+        for row in rows {
+            let cells: Vec<String> = indices
+                .iter()
+                .map(|&i| csv_cell(&column_at(row, i)).into_owned())
+                .collect();
+            writeln!(self.out, "{}", cells.join(","))?;
+        }
+        Ok(())
+    }
+
+    /// Emits a GitHub-flavored Markdown table.
+    ///
+    /// Column order follows the command's documented table order or the order
+    /// given by `--columns`/`--fields`. Pipes are escaped and embedded newlines
+    /// become `<br>`, so each resource stays on one table row and the table is
+    /// paste-ready for a pull request or issue. `--no-header` omits the header
+    /// and separator rows.
+    pub fn emit_markdown(
+        &mut self,
+        headers: &[&str],
+        rows: &[Vec<String>],
+        options: &OutputOptions,
+    ) -> io::Result<()> {
+        if headers.is_empty() {
+            return Ok(());
+        }
+        let indices = resolve_columns(&options.columns, headers)?;
+        let selected: Vec<&str> = indices
+            .iter()
+            .filter_map(|&i| headers.get(i))
+            .copied()
+            .collect();
+        if !options.no_header && !selected.is_empty() {
+            let header_cells: Vec<String> = selected
+                .iter()
+                .map(|header| markdown_cell(header))
+                .collect();
+            writeln!(self.out, "| {} |", header_cells.join(" | "))?;
+            let separators: Vec<&str> = selected.iter().map(|_| "---").collect();
+            writeln!(self.out, "| {} |", separators.join(" | "))?;
+        }
+        for row in rows {
+            let cells: Vec<String> = indices
+                .iter()
+                .map(|&i| markdown_cell(&column_at(row, i)))
+                .collect();
+            writeln!(self.out, "| {} |", cells.join(" | "))?;
+        }
+        Ok(())
+    }
+
     /// Emits jq results as TSV, one filter result per row.
     ///
     /// Array results become multiple cells; every other JSON value becomes a
@@ -329,6 +419,8 @@ impl Output {
             }
             Mode::JsonLines => self.emit_jsonl(json_value),
             Mode::Tsv => self.emit_tsv(rows, headers, options),
+            Mode::Csv => self.emit_csv(rows, headers, options),
+            Mode::Markdown => self.emit_markdown(headers, rows, options),
         }
     }
 }
@@ -378,6 +470,45 @@ fn tsv_cell(text: &str) -> Cow<'_, str> {
         }
     }
     Cow::Owned(out)
+}
+
+/// Escapes one CSV cell per RFC 4180.
+///
+/// Terminal escapes are stripped first. Control characters other than CR/LF
+/// become U+FFFD (a quoted field may still contain CR/LF, which is valid CSV).
+fn csv_cell(text: &str) -> Cow<'_, str> {
+    let stripped = strip_ansi(text);
+    let cleaned: String = stripped
+        .chars()
+        .map(|c| {
+            if c.is_control() && c != '\n' && c != '\r' {
+                '\u{fffd}'
+            } else {
+                c
+            }
+        })
+        .collect();
+    if cleaned.contains([',', '"', '\n', '\r']) {
+        Cow::Owned(format!("\"{}\"", cleaned.replace('"', "\"\"")))
+    } else {
+        Cow::Owned(cleaned)
+    }
+}
+
+/// Escapes one GitHub-flavored Markdown table cell.
+fn markdown_cell(text: &str) -> String {
+    let stripped = strip_ansi(text);
+    let mut out = String::with_capacity(stripped.len());
+    for c in stripped.chars() {
+        match c {
+            '|' => out.push_str("\\|"),
+            '\n' | '\r' => out.push_str("<br>"),
+            '\t' => out.push(' '),
+            c if c.is_control() => out.push('\u{fffd}'),
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 /// Converts a JSON value into one escaped TSV cell.
@@ -1060,9 +1191,60 @@ mod tests {
     fn structured_modes_are_identified() {
         assert!(!Mode::Human.is_structured());
         assert!(!Mode::Quiet.is_structured());
+        assert!(!Mode::Csv.is_structured());
+        assert!(!Mode::Markdown.is_structured());
         assert!(Mode::Json.is_structured());
         assert!(Mode::JsonLines.is_structured());
         assert!(Mode::Tsv.is_structured());
+    }
+
+    #[test]
+    fn csv_quotes_only_when_required() {
+        assert_eq!(csv_cell("plain"), "plain");
+        assert_eq!(csv_cell("a,b"), "\"a,b\"");
+        assert_eq!(csv_cell("say \"hi\""), "\"say \"\"hi\"\"\"");
+        assert_eq!(csv_cell("line\nbreak"), "\"line\nbreak\"");
+        assert_eq!(csv_cell("a\u{1b}[31mb"), "ab");
+    }
+
+    #[test]
+    fn csv_and_markdown_project_and_escape() {
+        let sink = Sink::default();
+        let mut out = Output::new(
+            Mode::Csv,
+            false,
+            Box::new(sink.clone()),
+            Box::new(Sink::default()),
+        );
+        let options = OutputOptions {
+            columns: Some(vec!["title".into(), "key".into()]),
+            no_header: false,
+        };
+        out.emit_csv(
+            &[vec!["comma, value".into(), "HAM-1".into()]],
+            &["KEY", "TITLE"],
+            &options,
+        )
+        .unwrap();
+        assert_eq!(text(&sink), "TITLE,KEY\nHAM-1,\"comma, value\"\n");
+
+        let sink = Sink::default();
+        let mut out = Output::new(
+            Mode::Markdown,
+            false,
+            Box::new(sink.clone()),
+            Box::new(Sink::default()),
+        );
+        out.emit_markdown(
+            &["KEY", "TITLE"],
+            &[vec!["HAM-1".into(), "pipe | break\nnext".into()]],
+            &OutputOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            text(&sink),
+            "| KEY | TITLE |\n| --- | --- |\n| HAM-1 | pipe \\| break<br>next |\n"
+        );
     }
 
     #[test]

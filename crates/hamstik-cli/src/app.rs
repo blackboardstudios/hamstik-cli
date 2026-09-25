@@ -451,7 +451,16 @@ impl Session<'_> {
     #[must_use]
     pub fn output_options(&self) -> OutputOptions {
         OutputOptions {
-            columns: self.global.columns.clone(),
+            columns: self.global.columns.clone().or_else(|| {
+                // `--fields` is the server-side sparse fieldset on the Work
+                // Item list commands and a projection alias elsewhere; it only
+                // projects in table modes, so `--json` stays server-shaped.
+                if self.out.mode().is_table() {
+                    self.global.fields.as_deref().map(parse_field_list)
+                } else {
+                    None
+                }
+            }),
             no_header: self.global.no_header,
         }
     }
@@ -459,6 +468,16 @@ impl Session<'_> {
 
 fn map_credential_error(err: CredentialError) -> CliError {
     CliError::credential(format!("credential store unavailable: {err}"))
+}
+
+/// Splits a comma-separated `--fields` value into ordered field names.
+fn parse_field_list(fields: &str) -> Vec<String> {
+    fields
+        .split(',')
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 /// The default `User-Agent` for API requests.
@@ -492,6 +511,8 @@ pub async fn run(cli: Cli, services: Services<'_>) -> i32 {
         Mode::Tsv
     } else if global.quiet {
         Mode::Quiet
+    } else if let Some(format) = global.format {
+        format.mode()
     } else {
         Mode::Human
     };
@@ -518,6 +539,11 @@ pub async fn run(cli: Cli, services: Services<'_>) -> i32 {
         let _ = out.error(&err);
         return err.exit_code();
     }
+    if global.format.is_some() && (global.json || global.jsonl || global.tsv || global.quiet) {
+        let err = CliError::usage("--format cannot be combined with another output-mode flag");
+        let _ = out.error(&err);
+        return err.exit_code();
+    }
     if global.quiet && global.verbose {
         let err = CliError::usage("cannot combine --quiet and --verbose");
         let _ = out.error(&err);
@@ -536,10 +562,14 @@ pub async fn run(cli: Cli, services: Services<'_>) -> i32 {
     // Table projection is a table feature: in --json/--jsonl the server field
     // set is the contract, and --quiet prints identifiers only. Reject the
     // combination instead of silently ignoring what the caller asked for.
+    // (`--fields` is deliberately not rejected: on the Work Item list commands
+    // it is the server-side sparse fieldset, which `--json` honours.)
     if (global.columns.is_some() || global.no_header)
         && matches!(mode, Mode::Json | Mode::JsonLines | Mode::Quiet)
     {
-        let err = CliError::usage("--columns/--no-header apply to human and --tsv table output");
+        let err = CliError::usage(
+            "--columns/--no-header apply to human, TSV, CSV, and Markdown table output",
+        );
         let _ = out.error(&err);
         return err.exit_code();
     }
@@ -682,9 +712,11 @@ mod tests {
             json: false,
             jsonl: false,
             tsv: false,
+            format: None,
             quiet: false,
             jq: None,
             columns: None,
+            fields: None,
             no_header: false,
             verbose: false,
             no_color: false,

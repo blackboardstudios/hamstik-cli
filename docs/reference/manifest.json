@@ -54,6 +54,21 @@
     },
     {
      "choices": [
+      "table",
+      "human",
+      "json",
+      "ndjson",
+      "jsonl",
+      "tsv",
+      "csv",
+      "markdown"
+     ],
+     "help": "Select the output format by name. `ndjson`/`jsonl` stream one JSON resource per line, `tsv` and `csv` render the command's table, `table` (or `human`) is the aligned human table, `json` is one pretty-printed document, and `markdown` renders a GitHub-flavored table for list-shaped output. Conflicts with the dedicated output-mode flags",
+     "kind": "option",
+     "long": "--format"
+    },
+    {
+     "choices": [
       "true",
       "false"
      ],
@@ -70,6 +85,11 @@
      "help": "Restrict list output to these columns (header names), in order",
      "kind": "option",
      "long": "--columns"
+    },
+    {
+     "help": "Restrict output to these comma-separated fields, in order. An alias for `--columns` on commands that do not take a server-side sparse fieldset; on the Work Item list commands the value is the server sparse fieldset. Unknown names fail as a usage error listing the valid names",
+     "kind": "option",
+     "long": "--fields"
     },
     {
      "choices": [
@@ -163,9 +183,11 @@
     "--json",
     "--jsonl",
     "--tsv",
+    "--format",
     "--quiet",
     "--jq",
     "--columns",
+    "--fields",
     "--no-header",
     "--verbose",
     "--no-color",
@@ -3758,7 +3780,7 @@
      "default": "json",
      "help": "Package format to download",
      "kind": "option",
-     "long": "--format"
+     "long": "--audit-format"
     },
     {
      "help": "Write the package bytes to this file instead of stdout (CSV ZIP)",
@@ -3778,7 +3800,7 @@
    "command": "hamstik release audit get",
    "hasSubcommands": false,
    "options": [
-    "--format",
+    "--audit-format",
     "--output",
     "--project"
    ],
@@ -5508,17 +5530,6 @@
      "valueName": "KEY"
     },
     {
-     "choices": [
-      "human",
-      "json",
-      "markdown"
-     ],
-     "default": "human",
-     "help": "Output format: human (default), machine-readable JSON, or Markdown",
-     "kind": "option",
-     "long": "--format"
-    },
-    {
      "default": "10",
      "help": "Maximum comments included (oldest first, server-capped). 0 omits the comments section with an explicit marker",
      "kind": "option",
@@ -5547,7 +5558,6 @@
    "command": "hamstik work context",
    "hasSubcommands": false,
    "options": [
-    "--format",
     "--comments",
     "--activity",
     "--compact"
@@ -7541,7 +7551,7 @@
     {
      "help": "Opaque avatar format selector",
      "kind": "option",
-     "long": "--format"
+     "long": "--image-format"
     },
     {
      "help": "Opaque avatar revision cache selector",
@@ -7558,7 +7568,7 @@
    "options": [
     "--output",
     "--avatar-version",
-    "--format",
+    "--image-format",
     "--revision"
    ],
    "positionals": [
@@ -7976,7 +7986,7 @@
      "default": "json",
      "help": "Output format for the manifest",
      "kind": "option",
-     "long": "--format"
+     "long": "--manifest-format"
     }
    ],
    "capabilities": {
@@ -7986,7 +7996,7 @@
    "command": "hamstik commands",
    "hasSubcommands": false,
    "options": [
-    "--format"
+    "--manifest-format"
    ],
    "positionals": []
   },

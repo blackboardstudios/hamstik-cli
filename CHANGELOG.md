@@ -12,6 +12,23 @@ before upgrading.
 
 ### Added
 
+- Output-format ergonomics (CLI-59): the global `--format
+  ndjson|jsonl|tsv|csv|table|human|json|markdown` umbrella selects the output
+  mode by name, and `markdown` renders a GitHub-flavored table for list-shaped
+  output while `csv` follows RFC 4180 quoting. `--fields a,b,c` selects and
+  orders table columns on every read command (the comma-separated spelling of
+  `--columns`); on the Work Item list commands it remains the server-side
+  sparse fieldset and an unknown name now fails locally as a usage error
+  listing the valid fields. `--json` output is unaffected.
+
+### Breaking
+
+- The local `--format` flags that selected a non-output-mode value were
+  renamed to free the global `--format` umbrella: `work context --format` is
+  now the global `--format` (`--format json`, `--format markdown`),
+  `user avatar --format` is `--image-format`, `commands --format` is
+  `--manifest-format`, and `release audit get --format` is `--audit-format`.
+
 - Release Version support through the typed API client and new CLI commands:
   `hamstik release list|view|create|edit|transitions|transition|archive|
   restore|scope` for Project release lifecycle (with `If-Match` revision

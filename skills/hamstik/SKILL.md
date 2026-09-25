@@ -119,9 +119,16 @@ act — so confirm before writing them and verify afterwards with
 - For line-oriented collection pipelines, use `--jsonl --no-input` to receive
   one server-shaped JSON resource per line, or `--tsv --no-input` for escaped
   tab-separated table rows. `--jsonl` carries no page envelope, so read
-  `page.nextCursor` from `--json`. Use `--columns NAME...` (space-separated) to
-  select/reorder human or TSV columns — a table feature that `--json`/`--jsonl`
-  rejects — and `--no-header` when a TSV consumer does not want the header.
+  `page.nextCursor` from `--json`. Use `--columns NAME...` (space-separated) or
+  `--fields a,b,c` (comma-separated) to select/reorder human, TSV, CSV, or
+  Markdown columns — a table feature that `--json`/`--jsonl` rejects — and
+  `--no-header` when a TSV consumer does not want the header. On the Work Item
+  list commands `--fields` is the server-side sparse fieldset and is forwarded
+  verbatim.
+- The global `--format ndjson|jsonl|tsv|csv|table|human|json|markdown` flag is
+  the umbrella spelling of the output modes; `--format markdown` renders a
+  GitHub-flavored table for list-shaped output and `--format csv` follows RFC
+  4180 quoting. It conflicts with `--json`, `--jsonl`, `--tsv`, and `--quiet`.
 - Use `--jq EXPR` with `--json`, `--jsonl`, or `--tsv` to filter the command's
   full server-shaped document. In `--json`, results are coalesced into one JSON
   document; in `--jsonl` each result is one line; in TSV mode return an array
@@ -623,7 +630,8 @@ register, or update plugins — `PATH` discovery only.
 - The CLI passes resolved context as environment variables, with the same
   precedence as any built-in command: `HAMSTIK_HOST`, `HAMSTIK_PROFILE`,
   `HAMSTIK_ORG`, `HAMSTIK_PROJECT`, `HAMSTIK_CONTEXT_PATH`. Output mode comes
-  via `HAMSTIK_FORMAT` (`human`, `json`, `jsonl`, `tsv`, `quiet`) and global
+  via `HAMSTIK_FORMAT` (`human`, `json`, `jsonl`, `tsv`, `csv`, `markdown`,
+  `quiet`) and global
   flags via `HAMSTIK_QUIET`, `HAMSTIK_VERBOSE`, `HAMSTIK_DRY_RUN`,
   `HAMSTIK_NO_COLOR`, `HAMSTIK_NO_INPUT`, `HAMSTIK_NO_RETRY`; the plugin name
   is in `HAMSTIK_PLUGIN`.

@@ -16,7 +16,7 @@ Output path (defaults to the public ID with a content\-type derived extension)
 
 Opaque avatar version cache selector
 
-### `--format`
+### `--image-format`
 
 Opaque avatar format selector
 

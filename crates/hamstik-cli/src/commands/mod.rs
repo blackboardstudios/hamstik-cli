@@ -456,6 +456,73 @@ pub(crate) fn check_columns(headers: &[&str], options: &OutputOptions) -> Result
         .map_err(CliError::usage)
 }
 
+/// The documented top-level Work Item fields accepted by the server-side sparse
+/// `fields` query parameter (the union of the `WorkItem` and `WorkItemSummary`
+/// schemas), so a typo fails locally instead of silently rendering an empty
+/// table column.
+pub(crate) const WORK_ITEM_FIELDS: &[&str] = &[
+    "id",
+    "key",
+    "projectId",
+    "title",
+    "description",
+    "type",
+    "status",
+    "priority",
+    "assignee",
+    "reporter",
+    "sprint",
+    "parent",
+    "parentId",
+    "labels",
+    "releaseVersions",
+    "attributes",
+    "storyPoints",
+    "dueDate",
+    "archivedAt",
+    "createdAt",
+    "updatedAt",
+    "revision",
+];
+
+/// Validates a comma-separated server-side sparse `--fields` value.
+pub(crate) fn validate_work_item_fields(fields: &Option<String>) -> Result<(), CliError> {
+    let Some(fields) = fields.as_deref() else {
+        return Ok(());
+    };
+    for name in fields
+        .split(',')
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+    {
+        if !WORK_ITEM_FIELDS.contains(&name) {
+            return Err(CliError::usage(format!(
+                "unknown field {name:?}; available: {}",
+                WORK_ITEM_FIELDS.join(", ")
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// Validates a client-side `--fields`/`--columns` projection against the
+/// top-level keys of a single-resource response.
+fn validate_resource_fields(value: &Value, requested: &[String]) -> Result<(), CliError> {
+    let Some(object) = value.as_object() else {
+        return Ok(());
+    };
+    let available: Vec<&str> = object.keys().map(String::as_str).collect();
+    for name in requested {
+        if !available.contains(&name.as_str()) {
+            return Err(CliError::usage(format!(
+                "unknown field {name:?}; available: {}",
+                available.join(", ")
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Renders a single resource: JSON body verbatim, quiet identifier, or detail.
 pub(crate) fn emit_view<F>(
     session: &mut Session<'_>,
@@ -466,6 +533,10 @@ pub(crate) fn emit_view<F>(
 where
     F: FnOnce(&mut Session<'_>) -> Result<(), CliError>,
 {
+    let options = session.output_options();
+    if let Some(columns) = options.columns.as_deref() {
+        validate_resource_fields(json_value, columns)?;
+    }
     if session.json() {
         emit_json(session, json_value)?;
     } else if session.out.is_quiet() {

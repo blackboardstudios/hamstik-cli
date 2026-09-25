@@ -366,9 +366,11 @@ fn global_options_match_documented_surface() {
         "--json",
         "--jsonl",
         "--tsv",
+        "--format",
         "--quiet",
         "--jq",
         "--columns",
+        "--fields",
         "--no-header",
         "--verbose",
         "--no-color",
@@ -579,7 +581,12 @@ fn representative_command_flags_match_documented_surface() {
         (
             "user avatar",
             &["user", "avatar"],
-            &["--avatar-version", "--format", "--output", "--revision"],
+            &[
+                "--avatar-version",
+                "--image-format",
+                "--output",
+                "--revision",
+            ],
         ),
         (
             "work bulk update",

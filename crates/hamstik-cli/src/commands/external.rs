@@ -153,6 +153,8 @@ fn build_env(
         crate::output::Mode::Json => "json",
         crate::output::Mode::JsonLines => "jsonl",
         crate::output::Mode::Tsv => "tsv",
+        crate::output::Mode::Csv => "csv",
+        crate::output::Mode::Markdown => "markdown",
         crate::output::Mode::Quiet => "quiet",
         crate::output::Mode::Human => "human",
     };

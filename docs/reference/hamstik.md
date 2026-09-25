@@ -38,6 +38,12 @@ Emit tab\-separated values
 
 Choices: `true`, `false`
 
+### `--format`
+
+Select the output format by name. `ndjson`/`jsonl` stream one JSON resource per line, `tsv` and `csv` render the command's table, `table` (or `human`) is the aligned human table, `json` is one pretty\-printed document, and `markdown` renders a GitHub\-flavored table for list\-shaped output. Conflicts with the dedicated output\-mode flags
+
+Choices: `table`, `human`, `json`, `ndjson`, `jsonl`, `tsv`, `csv`, `markdown`
+
 ### `--quiet`
 
 Emit only essential identifiers
@@ -51,6 +57,10 @@ Apply a jq filter expression to structured output (requires \-\-json, \-\-jsonl,
 ### `--columns`
 
 Restrict list output to these columns (header names), in order
+
+### `--fields`
+
+Restrict output to these comma\-separated fields, in order. An alias for `\-\-columns` on commands that do not take a server\-side sparse fieldset; on the Work Item list commands the value is the server sparse fieldset. Unknown names fail as a usage error listing the valid names
 
 ### `--no-header`
 

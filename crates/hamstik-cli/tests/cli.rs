@@ -3424,7 +3424,7 @@ async fn user_avatar_downloads_bytes() {
             output_path.to_str().unwrap(),
             "--avatar-version",
             "v2",
-            "--format",
+            "--image-format",
             "png",
             "--revision",
             "opaque-rev",

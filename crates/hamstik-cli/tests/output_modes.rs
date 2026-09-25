@@ -510,3 +510,233 @@ async fn structured_modes_keep_stdout_machine_only() {
     let value: Value = serde_json::from_str(lines[0]).unwrap();
     assert_eq!(value["key"], json!("HAM-1"));
 }
+
+// ---------------------------------------------------------------------------
+// --format umbrella (CLI-59)
+// ---------------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn format_markdown_renders_a_github_flavored_table() {
+    let server = MockServer::start().await;
+    mount_items(
+        &server,
+        vec![item("HAM-1", "First"), item("HAM-2", "Second")],
+        None,
+    )
+    .await;
+
+    let stdout = call_ok(&server, &["work", "list", "--format", "markdown"]).await;
+    assert_eq!(
+        stdout,
+        concat!(
+            "| KEY | TITLE | STATUS | TYPE | PRIORITY | ASSIGNEE |\n",
+            "| --- | --- | --- | --- | --- | --- |\n",
+            "| HAM-1 | First | todo | task | low | - |\n",
+            "| HAM-2 | Second | todo | task | low | - |\n"
+        )
+    );
+
+    // The projection applies to Markdown like any other table mode.
+    let stdout = call_ok(
+        &server,
+        &[
+            "work",
+            "list",
+            "--format",
+            "markdown",
+            "--columns",
+            "key",
+            "title",
+        ],
+    )
+    .await;
+    assert_eq!(
+        stdout,
+        concat!(
+            "| KEY | TITLE |\n",
+            "| --- | --- |\n",
+            "| HAM-1 | First |\n",
+            "| HAM-2 | Second |\n"
+        )
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn format_markdown_escapes_pipes_and_newlines() {
+    let server = MockServer::start().await;
+    mount_items(&server, vec![item("HAM-1", "pipe | break\nnext")], None).await;
+
+    let stdout = call_ok(
+        &server,
+        &["work", "list", "--format", "markdown", "--columns", "title"],
+    )
+    .await;
+    assert!(stdout.contains("| pipe \\| break<br>next |"), "{stdout:?}");
+    assert_eq!(stdout.lines().count(), 3, "one table row: {stdout:?}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn format_csv_quotes_cells_per_rfc4180() {
+    let server = MockServer::start().await;
+    mount_items(&server, vec![item("HAM-1", "comma, and \"quote\"")], None).await;
+
+    let stdout = call_ok(
+        &server,
+        &[
+            "work",
+            "list",
+            "--format",
+            "csv",
+            "--columns",
+            "key",
+            "title",
+        ],
+    )
+    .await;
+    assert_eq!(
+        stdout,
+        concat!("KEY,TITLE\n", "HAM-1,\"comma, and \"\"quote\"\"\"\n")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn format_aliases_map_onto_the_dedicated_modes() {
+    let server = MockServer::start().await;
+    mount_items(&server, vec![item("HAM-1", "First")], None).await;
+
+    // ndjson is jsonl.
+    let jsonl = call_ok(&server, &["work", "list", "--jsonl"]).await;
+    let ndjson = call_ok(&server, &["work", "list", "--format", "ndjson"]).await;
+    assert_eq!(ndjson, jsonl);
+    let jsonl = call_ok(&server, &["work", "list", "--format", "jsonl"]).await;
+    assert_eq!(ndjson, jsonl);
+
+    // tsv is the tab-separated table.
+    let tsv = call_ok(&server, &["work", "list", "--tsv"]).await;
+    let formatted = call_ok(&server, &["work", "list", "--format", "tsv"]).await;
+    assert_eq!(formatted, tsv);
+
+    // table is the aligned human table.
+    let human = call_ok(&server, &["work", "list"]).await;
+    let table = call_ok(&server, &["work", "list", "--format", "table"]).await;
+    assert_eq!(table, human);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn format_does_not_change_json_output() {
+    let server = MockServer::start().await;
+    mount_items(&server, vec![item("HAM-1", "First")], None).await;
+
+    let stdout = call_ok(&server, &["work", "list", "--json"]).await;
+    let body: Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(body["items"][0]["key"], json!("HAM-1"));
+    assert!(body["page"].is_object(), "pagination stays in --json");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn format_conflicts_and_invalid_values_fail_before_any_request() {
+    let server = MockServer::start().await;
+    mount_items(&server, vec![item("HAM-1", "First")], None).await;
+
+    for args in [
+        vec!["work", "list", "--format", "markdown", "--json"],
+        vec!["work", "list", "--format", "csv", "--tsv"],
+        vec!["work", "list", "--format", "table", "--quiet"],
+        vec!["work", "list", "--format", "bogus"],
+    ] {
+        let (code, _) = call_fails(&server, &args).await;
+        assert_eq!(code, 2, "{args:?} must be a usage error");
+    }
+    assert_eq!(
+        request_count(&server).await,
+        0,
+        "format conflicts must not hit the API"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// --fields projection (CLI-59)
+// ---------------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unknown_work_item_sparse_field_is_rejected_with_valid_names() {
+    let server = MockServer::start().await;
+    mount_items(&server, vec![item("HAM-1", "First")], None).await;
+
+    let (code, stderr) = call_fails(&server, &["work", "list", "--fields", "nope"]).await;
+    assert_eq!(code, 2, "unknown field must be a usage error: {stderr}");
+    assert!(stderr.contains("unknown field"), "{stderr}");
+    assert!(stderr.contains("title"), "must list valid fields: {stderr}");
+    assert_eq!(
+        request_count(&server).await,
+        0,
+        "an unknown field must not hit the API"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unknown_single_resource_field_is_rejected_with_valid_names() {
+    let server = MockServer::start().await;
+    mount_item(&server, item("HAM-1", "First")).await;
+
+    let (code, stderr) = call_fails(&server, &["work", "view", "HAM-1", "--fields", "nope"]).await;
+    assert_eq!(code, 2, "unknown field must be a usage error: {stderr}");
+    assert!(stderr.contains("unknown field"), "{stderr}");
+    assert!(stderr.contains("title"), "must list valid fields: {stderr}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn format_csv_projects_and_orders_columns() {
+    let server = MockServer::start().await;
+    mount_items(&server, vec![item("HAM-1", "First")], None).await;
+
+    let stdout = call_ok(
+        &server,
+        &[
+            "work",
+            "list",
+            "--format",
+            "csv",
+            "--columns",
+            "status",
+            "key",
+        ],
+    )
+    .await;
+    assert_eq!(stdout, "STATUS,KEY\ntodo,HAM-1\n");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn format_markdown_combines_with_fields_projection() {
+    let server = MockServer::start().await;
+    mount_items(&server, vec![item("HAM-1", "First")], None).await;
+
+    // On the Work Item list commands `--fields` is both the server-side sparse
+    // fieldset and the table projection, so a markdown paste stays sparse.
+    let stdout = call_ok(
+        &server,
+        &[
+            "work",
+            "list",
+            "--format",
+            "markdown",
+            "--fields",
+            "key,title",
+        ],
+    )
+    .await;
+    assert_eq!(
+        stdout,
+        concat!(
+            "| KEY | TITLE |\n",
+            "| --- | --- |\n",
+            "| HAM-1 | First |\n"
+        )
+    );
+    let request = &server.received_requests().await.unwrap()[0];
+    let query = request.url.query().unwrap_or_default().to_string();
+    assert!(
+        query.contains("fields=key") && query.contains("title"),
+        "the sparse fieldset must still reach the server: {query}"
+    );
+}

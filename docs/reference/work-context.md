@@ -8,14 +8,6 @@ Work item key (e.g. HAM\-42)
 
 Value: `KEY`
 
-### `--format`
-
-Output format: human (default), machine\-readable JSON, or Markdown
-
-Choices: `human`, `json`, `markdown`
-
-Default: `human`
-
 ### `--comments`
 
 Maximum comments included (oldest first, server\-capped). 0 omits the comments section with an explicit marker
