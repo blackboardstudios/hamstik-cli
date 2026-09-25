@@ -1534,6 +1534,10 @@ The detailed product and technical direction lives in:
 - [design/AUTOMATION_RULES.md](design/AUTOMATION_RULES.md) — gated design stub
   for CLI-owned workflow automation rules (no command or network behavior ships
   until the Public API exposes a documented event/subscription surface)
+- [design/WEBHOOKS.md](design/WEBHOOKS.md) — gated design stub for the
+  `hamstik webhook` management family (no command or network behavior ships
+  until the Public API exposes documented webhook/subscription operations;
+  `hamstik api request` remains the manual escape hatch)
 
 Notable changes are tracked in [CHANGELOG.md](CHANGELOG.md) following the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.

@@ -968,6 +968,7 @@ api
 agent
 config
 rule        # gated; only after a documented event/subscription API
+webhook     # gated; only after documented webhook/subscription operations
 ```
 
 Advanced Reporting grammar:
@@ -2384,4 +2385,29 @@ In particular:
   observation only and MUST NOT be used to synthesize an event stream;
 - when the gate opens, authorization, validation, transitions, ETags,
   idempotency, and Organization isolation remain server-authoritative, exactly
+  as for every other command.
+
+---
+
+# 93. Gated Future Feature — Webhook Management
+
+CLI-78 adds a typed `hamstik webhook` command family for outbound webhook
+subscriptions. The feature is **gated**: it MUST NOT ship any command or network
+behavior until `/api/v1` exposes documented webhook or subscription-management
+operations in the frozen OpenAPI snapshot.
+
+The full gated design stub (scope, proposed surface, non-goals, and the
+activation checklist) lives in [`design/WEBHOOKS.md`](WEBHOOKS.md).
+
+In particular:
+
+- no `hamstik webhook` command exists before the gate opens, and no
+  passthrough-only command over `api request` is shipped as a typed command;
+- there is no client-side webhook receiver, delivery/retry logic, or
+  signature-verification implementation; delivery semantics are server-owned;
+- `work watch` / `work await` remain polling observation only and MUST NOT be
+  used to fake a webhook subscription;
+- `hamstik api request` remains the manual escape hatch until the gate opens;
+- when the gate opens, authorization, validation, Organization isolation,
+  capability checks, ETags, and idempotency remain server-authoritative, exactly
   as for every other command.

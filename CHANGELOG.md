@@ -12,6 +12,15 @@ before upgrading.
 
 ### Added
 
+- Gated design stub for webhook management (CLI-78):
+  [`design/WEBHOOKS.md`](design/WEBHOOKS.md) documents the intended typed
+  `hamstik webhook list/view/create/edit/enable/disable/delete` family for
+  outbound webhook subscriptions, and the non-goals (no receiver, no client-side
+  delivery logic, no passthrough-only command). No command or network behavior
+  ships, because the Public API v1 exposes no documented webhook/subscription
+  surface yet; the design names the exact gate and activation checklist for
+  when it does, and `hamstik api request` remains the manual escape hatch.
+
 - Gated design stub for workflow automation rules (CLI-77):
   [`design/AUTOMATION_RULES.md`](design/AUTOMATION_RULES.md) documents the
   intended local `rule list/create/delete` surface, its event-subscription and

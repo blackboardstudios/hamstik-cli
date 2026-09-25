@@ -1253,6 +1253,8 @@ The initial CLI does not need:
 - workflow automation rules and any event/subscription execution (gated on a
   documented Public API event surface; see
   [`design/AUTOMATION_RULES.md`](AUTOMATION_RULES.md));
+- webhook/subscription management (gated on a documented Public API webhook
+  surface; see [`design/WEBHOOKS.md`](WEBHOOKS.md));
 - offline editing;
 - local data synchronization.
 
@@ -1276,6 +1278,7 @@ hamstik audit
 hamstik repo
 hamstik release
 hamstik rule
+hamstik webhook
 hamstik admin
 ```
 
@@ -1284,6 +1287,10 @@ without redesigning root-level conventions.
 `hamstik rule` is a gated future namespace: it is only added once the Public
 API exposes a documented event/subscription surface. See
 [`design/AUTOMATION_RULES.md`](AUTOMATION_RULES.md).
+
+`hamstik webhook` is likewise gated: it is only added once the Public API
+exposes documented webhook/subscription operations. See
+[`design/WEBHOOKS.md`](WEBHOOKS.md).
 
 ---
 
