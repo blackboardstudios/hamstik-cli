@@ -338,6 +338,28 @@ impl SavedQueryStore {
         Ok(())
     }
 
+    /// Returns the on-disk byte length of the saved-queries file, or `0` when
+    /// the file does not exist. Fully offline; reads no query content.
+    pub fn byte_len(&self) -> Result<u64, CliError> {
+        match fs::metadata(self.path()) {
+            Ok(metadata) => Ok(metadata.len()),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(0),
+            Err(err) => Err(self.fail(&format!("cannot read file ({err})"))),
+        }
+    }
+
+    /// Removes the saved-queries file, discarding every local query.
+    ///
+    /// Returns `true` when a file was removed and `false` when the cache was
+    /// already empty, so `cache clear` is safely idempotent. Fully offline.
+    pub fn clear(&self) -> Result<bool, CliError> {
+        match fs::remove_file(self.path()) {
+            Ok(()) => Ok(true),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(false),
+            Err(err) => Err(self.fail(&format!("cannot remove file ({err})"))),
+        }
+    }
+
     /// Builds a saved-queries failure naming the file.
     fn fail(&self, reason: &str) -> CliError {
         CliError::config(format!(

@@ -459,6 +459,21 @@ pub enum SqueakQlCommand {
         /// Saved query name.
         name: String,
     },
+    /// Inspect or clear the local saved-query cache (fully offline).
+    Cache {
+        /// The cache operation to run.
+        #[command(subcommand)]
+        command: SqueakQlCacheCommand,
+    },
+}
+
+/// Local saved-query cache operations.
+#[derive(Subcommand, Debug)]
+pub enum SqueakQlCacheCommand {
+    /// Report the number of saved queries, the on-disk size, and the path.
+    Size,
+    /// Remove every locally saved query (the cache file itself).
+    Clear,
 }
 
 /// Arguments for the `api` command group.
@@ -2008,6 +2023,13 @@ pub enum WorkCommand {
         /// Run a saved query by name instead of an inline expression.
         #[arg(long, value_name = "NAME", conflicts_with_all = ["query", "file"])]
         saved: Option<String>,
+        /// Forward server-provided SqueakQL query-plan information.
+        ///
+        /// This is a passthrough only: the CLI never computes a cost model.
+        /// When the server exposes no plan data, the flag reports that
+        /// clearly and the search itself is unaffected.
+        #[arg(long)]
+        explain: bool,
         /// Pagination options carried in the JSON request body.
         #[command(flatten)]
         pagination: PaginationArgs,

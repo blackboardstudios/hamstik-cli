@@ -17,6 +17,10 @@ Read the expression from a file (`-` for stdin) instead of inline
 .B --saved
 Run a saved query by name instead of an inline expression
 .TP
+.B --explain
+Forward server-provided SqueakQL query-plan information
+Choices: true, false
+.TP
 .B --limit
 Maximum total items to emit, counted across pages (distinct from the server page size). Without `--all` at most one page is returned, holding at most this many items; a page is never requested larger than the endpoint allows (200 items, or 100 on organization, project, sprint, label, and link endpoints). With `--all` successive pages are followed until this cap or the end of the collection. A cap that cuts through a server page ends the run with `page.nextCursor: null`, because the Public API has no cursor for a position partway through a page
 .TP

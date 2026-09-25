@@ -575,6 +575,16 @@ hamstik --no-input --org <ORG> squeakql save my-query --file QUERY.sqql
 hamstik --json --no-input --org <ORG> work search --saved my-query   # saved queries
 ```
 
+`work search --explain` forwards server-provided SqueakQL query-plan data when
+the Public API returns it and otherwise reports that no plan is available; the
+CLI never estimates cost itself. The saved-query cache is local and works
+offline without an Organization or credential:
+
+```bash
+hamstik --json squeakql cache size     # path, entry count, on-disk bytes
+hamstik squeakql cache clear           # remove every saved query (idempotent)
+```
+
 To see exactly why the CLI picked its host, Organization, Project, profile, and
 credential source (fully offline, redacted), use `context explain`; prefer its
 `--json` shape for support bundles:

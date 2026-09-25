@@ -5560,6 +5560,15 @@
      "long": "--saved"
     },
     {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Forward server-provided SqueakQL query-plan information",
+     "kind": "option",
+     "long": "--explain"
+    },
+    {
      "help": "Maximum total items to emit, counted across pages (distinct from the server page size). Without `--all` at most one page is returned, holding at most this many items; a page is never requested larger than the endpoint allows (200 items, or 100 on organization, project, sprint, label, and link endpoints). With `--all` successive pages are followed until this cap or the end of the collection. A cap that cuts through a server page ends the run with `page.nextCursor: null`, because the Public API has no cursor for a position partway through a page",
      "kind": "option",
      "long": "--limit"
@@ -5588,6 +5597,7 @@
    "options": [
     "--file",
     "--saved",
+    "--explain",
     "--limit",
     "--cursor",
     "--all"
@@ -8123,6 +8133,45 @@
    "positionals": [
     "name"
    ]
+  },
+  {
+   "about": "Inspect or clear the local saved-query cache (fully offline)",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik squeakql cache",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Report the number of saved queries, the on-disk size, and the path",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik squeakql cache size",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Remove every locally saved query (the cache file itself)",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik squeakql cache clear",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
   },
   {
    "about": "Save, list, delete, and run periodic export/report snapshots",

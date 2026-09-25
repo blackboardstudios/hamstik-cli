@@ -396,6 +396,8 @@ hamstik work tree --org acme --project HAM HAM-42 --depth 4 --links --json
 # SqueakQL validation and read-only JSON-body search
 hamstik squeakql validate 'status = todo and priority >= high'
 hamstik work search 'status = todo and priority >= high' --limit 100 --json
+# Forward server-provided query-plan hints when the API exposes them
+hamstik work search 'status = todo' --explain --json
 
 # Work Item lifecycle and optimistic concurrency
 hamstik work create --title "Document API" --type task --assignee me
@@ -460,6 +462,9 @@ hamstik squeakql validate --file query.sqql
 printf 'status = todo' | hamstik squeakql validate --file - --json
 hamstik squeakql save urgent 'priority >= urgent'
 hamstik work search --saved urgent --json
+# Inspect or clear the local saved-query cache (fully offline)
+hamstik squeakql cache size --json
+hamstik squeakql cache clear
 
 # Long-form authoring in $VISUAL/$EDITOR
 hamstik work create --title "New design" --description-editor

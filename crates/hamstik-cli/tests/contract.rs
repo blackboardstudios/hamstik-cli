@@ -332,7 +332,7 @@ fn subcommand_groups_match_documented_surface() {
         (
             "squeakql",
             &["squeakql"],
-            &["delete", "list", "save", "show", "validate"],
+            &["cache", "delete", "list", "save", "show", "validate"],
         ),
         (
             "schedule",

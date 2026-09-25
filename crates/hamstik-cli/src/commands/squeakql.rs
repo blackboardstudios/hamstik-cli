@@ -15,7 +15,7 @@
 use hamstik_api_client::SqueakQlValidateRequest;
 
 use crate::app::Session;
-use crate::args::{SqueakQlArgs, SqueakQlCommand};
+use crate::args::{SqueakQlArgs, SqueakQlCacheCommand, SqueakQlCommand};
 use crate::config::{MAX_SAVED_QUERIES, MAX_SAVED_QUERY_LENGTH, SavedQueriesFile, SavedQuery};
 use crate::error::CliError;
 
@@ -41,6 +41,10 @@ pub async fn run(session: &mut Session<'_>, args: &SqueakQlArgs) -> Result<(), C
             save(session, name, &expression, *force)
         }
         SqueakQlCommand::Delete { name } => delete(session, name),
+        SqueakQlCommand::Cache { command } => match command {
+            SqueakQlCacheCommand::Size => cache_size(session),
+            SqueakQlCacheCommand::Clear => cache_clear(session),
+        },
     }
 }
 
@@ -296,4 +300,60 @@ fn saved_store(session: &Session<'_>) -> Result<crate::config::SavedQueryStore, 
     Ok(crate::config::SavedQueryStore::adjacent_to(
         session.config.path(),
     ))
+}
+
+/// Reports the local saved-query cache size without any network access.
+fn cache_size(session: &mut Session<'_>) -> Result<(), CliError> {
+    let store = saved_store(session)?;
+    let file = store.load()?;
+    let count = file.queries.len();
+    let bytes = store.byte_len()?;
+    if session.json() {
+        return emit_json(
+            session,
+            &json!({
+                "path": store.path().display().to_string(),
+                "exists": store.path().exists(),
+                "queries": count,
+                "bytes": bytes,
+            }),
+        );
+    }
+    session
+        .out
+        .line(&format!("Saved queries: {count}"))
+        .map_err(CliError::general)?;
+    session
+        .out
+        .line(&format!("On-disk size:  {bytes} bytes"))
+        .map_err(CliError::general)?;
+    session
+        .out
+        .line(&format!("Path:          {}", store.path().display()))
+        .map_err(CliError::general)
+}
+
+/// Clears the local saved-query cache without any network access.
+///
+/// Idempotent: clearing an already-empty cache succeeds and reports no
+/// removal. Corrupt or oversized files are removed without parsing, so this is
+/// also the recovery path.
+fn cache_clear(session: &mut Session<'_>) -> Result<(), CliError> {
+    let store = saved_store(session)?;
+    let path = store.path().display().to_string();
+    let cleared = store.clear()?;
+    if session.json() {
+        return emit_json(session, &json!({ "cleared": cleared, "path": path }));
+    }
+    if cleared {
+        session
+            .out
+            .line(&format!("cleared the saved-query cache ({path})"))
+            .map_err(CliError::general)
+    } else {
+        session
+            .out
+            .human(&format!("saved-query cache is already empty ({path})"))
+            .map_err(CliError::general)
+    }
 }

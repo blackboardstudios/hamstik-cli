@@ -94,6 +94,7 @@ pub(super) async fn search(
     query: &Option<String>,
     file: &Option<String>,
     saved: &Option<String>,
+    explain: bool,
     pagination: &crate::args::PaginationArgs,
 ) -> Result<(), CliError> {
     let expression = crate::commands::squeakql::resolve_expression(
@@ -114,7 +115,7 @@ pub(super) async fn search(
         limit: pagination.page_size(),
         cursor: pagination.cursor.clone(),
     };
-    let json_value = if pagination.all {
+    let mut json_value = if pagination.all {
         let fetch_api = api.clone();
         let org = org.clone();
         let page = follow_with(follow_policy(pagination), move |cursor| {
@@ -142,7 +143,74 @@ pub(super) async fn search(
             .map_err(CliError::from_client)?
             .raw
     };
-    render_context_work_items(session, &json_value)
+    if explain {
+        attach_query_plan(&mut json_value);
+    }
+    render_context_work_items(session, &json_value)?;
+    if explain {
+        render_query_plan(session, &json_value)?;
+    }
+    Ok(())
+}
+
+/// Adds the server-provided query plan, or an explicit unavailability notice,
+/// under `explain` without touching any other response field.
+///
+/// Only data the server already returned is forwarded; the CLI never computes
+/// a cost model or sends an unsupported request field. `queryPlan` (and the
+/// shorter `plan` alias) are the forward-compatible top-level slots a server
+/// may add plan information to in the documented SqueakQL search response.
+fn attach_query_plan(value: &mut Value) {
+    let plan = value
+        .get("queryPlan")
+        .or_else(|| value.get("plan"))
+        .cloned();
+    let entry = match plan {
+        Some(plan) => json!({
+            "available": true,
+            "plan": plan,
+        }),
+        None => json!({
+            "available": false,
+            "message": "the server did not return SqueakQL query-plan data for this search; query-plan hints are unavailable and no client-side estimate is made",
+        }),
+    };
+    if let Some(object) = value.as_object_mut() {
+        object.insert("explain".to_string(), entry);
+    }
+}
+
+/// Renders the explain result for a human reader: the forwarded plan when the
+/// server provided one, otherwise a clear diagnostic on stderr. `--json`
+/// already carries the same information under `explain`, so it does not also
+/// warn; other structured modes (which drop the envelope) still do.
+fn render_query_plan(session: &mut Session<'_>, value: &Value) -> Result<(), CliError> {
+    let Some(explain) = value.get("explain") else {
+        return Ok(());
+    };
+    let available = explain.get("available").and_then(Value::as_bool) == Some(true);
+    if available {
+        if session.out.mode() == crate::output::Mode::Human
+            && let Some(plan) = explain.get("plan")
+        {
+            let rendered = serde_json::to_string_pretty(plan).unwrap_or_else(|_| plan.to_string());
+            session
+                .out
+                .line("Query plan (server-provided):")
+                .map_err(CliError::general)?;
+            for line in rendered.lines() {
+                session
+                    .out
+                    .line(&format!("  {line}"))
+                    .map_err(CliError::general)?;
+            }
+        }
+    } else if session.out.mode() != crate::output::Mode::Json
+        && let Some(message) = explain.get("message").and_then(Value::as_str)
+    {
+        session.out.warn(message);
+    }
+    Ok(())
 }
 
 fn render_context_work_items(session: &mut Session<'_>, value: &Value) -> Result<(), CliError> {

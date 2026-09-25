@@ -12,6 +12,16 @@ before upgrading.
 
 ### Added
 
+- SqueakQL query-plan passthrough and offline cache management (CLI-76):
+  `work search --explain` forwards server-provided query-plan data under the
+  response's `explain` field when the Public API returns it and otherwise
+  degrades with a clear message on stderr (or `explain.available: false` in
+  `--json`); the CLI never computes a cost model and never adds an unsupported
+  field to the search request. `squeakql cache size` reports the local
+  saved-query file's path, entry count, and on-disk byte size, and
+  `squeakql cache clear` removes every locally saved query idempotently — both
+  work fully offline and require no Organization or credential.
+
 - API cookbook in command help (CLI-75): `hamstik commands --cookbook` prints
   a copy-pasteable read → search → edit → transition → comment loop with
   placeholder identifiers and safe automation defaults (`--json --no-input`,
