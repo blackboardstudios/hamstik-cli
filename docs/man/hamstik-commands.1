@@ -1,13 +1,17 @@
 .TH HAMSTIK 1 "HAMSTIK COMMANDS"
 .SH NAME
-hamstik commands \- Print the machine\-readable command manifest derived from the real command tree
+hamstik commands \- Print the machine\-readable command manifest derived from the real command tree, or the copy\-pasteable API cookbook with `\-\-cookbook`
 .SH SYNOPSIS
 .B hamstik commands [OPTIONS]
 .SH DESCRIPTION
-Print the machine\-readable command manifest derived from the real command tree
+Print the machine\-readable command manifest derived from the real command tree, or the copy\-pasteable API cookbook with `\-\-cookbook`
 .SH OPTIONS
 .TP
 .B --manifest-format
 Output format for the manifest
 Choices: json
 Default: json
+.TP
+.B --cookbook
+Print the copy-pasteable API cookbook derived from the bundled Agent Skill instead of the command manifest
+Choices: true, false

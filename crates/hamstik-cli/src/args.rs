@@ -287,7 +287,7 @@ pub enum Command {
     /// Bootstrap the working directory for Hamstik.
     Init,
     /// Print the machine-readable command manifest derived from the real
-    /// command tree.
+    /// command tree, or the copy-pasteable API cookbook with `--cookbook`.
     Commands(CommandsArgs),
     /// Print the CLI version.
     Version,
@@ -3338,7 +3338,8 @@ pub struct CompleteArgs {
     pub prefix: String,
 }
 
-/// Arguments for `commands`: the machine-readable command manifest.
+/// Arguments for `commands`: the machine-readable command manifest, or the
+/// copy-pasteable API cookbook with `--cookbook`.
 #[derive(Args, Debug)]
 pub struct CommandsArgs {
     /// Output format for the manifest.
@@ -3349,6 +3350,10 @@ pub struct CommandsArgs {
         default_value = "json"
     )]
     pub format: ManifestFormatArg,
+    /// Print the copy-pasteable API cookbook derived from the bundled Agent
+    /// Skill instead of the command manifest.
+    #[arg(long)]
+    pub cookbook: bool,
 }
 
 /// Arguments for the `schedule` command group.

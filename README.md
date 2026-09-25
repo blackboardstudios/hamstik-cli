@@ -267,10 +267,11 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   config directory (reported by location and kind, never printed), and
   bundled OpenAPI snapshot freshness when online (skipped with `--offline` or
   when the live contract is unreachable);
-- a machine-readable command manifest (`hamstik commands --json`) and
-  generated command reference + man pages under [`docs/`](docs/reference) —
-  regenerated deterministically with `scripts/generate_docs.py` and
-  drift-checked in CI;
+- a machine-readable command manifest (`hamstik commands --json`), a
+  copy-pasteable API cookbook (`hamstik commands --cookbook`) derived from
+  the bundled Agent Skill, and generated command reference + man pages under
+  [`docs/`](docs/reference) — regenerated deterministically with
+  `scripts/generate_docs.py` and drift-checked in CI;
 - cross-platform CI on Linux, Windows, and macOS.
 
 OAuth and the MCP server remain future work. The canonical portable Agent
@@ -313,6 +314,18 @@ hamstik completion powershell | Out-String | Invoke-Expression
 The generated command reference lives in
 [`docs/reference/`](docs/reference/) (one page per command) with
 [man pages](docs/man/hamstik.1) shipped in every release archive.
+
+For the common read → search → edit → transition → comment loop, print the
+copy-pasteable cookbook derived from the bundled Agent Skill:
+
+```bash
+hamstik commands --cookbook          # human-readable examples
+hamstik commands --cookbook --json   # structured steps for automation
+```
+
+Replace the `<ORG>`, `<KEY>`, `<ITEM-KEY>`, and `<COMMENT.md>` placeholders.
+Every example uses `--json --no-input` and passes `--org`/`--project`
+explicitly instead of relying on stored defaults.
 
 ```bash
 # Authentication, identity, and context

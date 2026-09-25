@@ -8,13 +8,15 @@
 //! positional arguments, statically knowable enum choices, defaults, and
 //! per-command capability metadata (`--json`/`--no-input` support), and is
 //! stable input for the Agent Skill's command-surface validation and the
-//! generated reference documentation.
+//! generated reference documentation. With `--cookbook` the same command
+//! prints the copy-pasteable workflow examples instead (see
+//! [`super::cookbook`]).
 
 use clap::CommandFactory;
 use serde_json::{Value, json};
 
 use crate::app::Session;
-use crate::args::Cli;
+use crate::args::{Cli, CommandsArgs};
 use crate::error::CliError;
 
 use super::emit_json;
@@ -24,7 +26,10 @@ use super::manifest;
 pub(crate) const MANIFEST_VERSION: u64 = 1;
 
 /// Runs `hamstik commands`.
-pub fn run(session: &mut Session<'_>) -> Result<(), CliError> {
+pub fn run(session: &mut Session<'_>, args: &CommandsArgs) -> Result<(), CliError> {
+    if args.cookbook {
+        return super::cookbook::run(session);
+    }
     let manifest = build()?;
     emit_json(session, &manifest)
 }

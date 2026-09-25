@@ -28,6 +28,7 @@ pub mod complete;
 pub mod completion;
 pub mod config;
 pub mod context_cmd;
+pub mod cookbook;
 pub mod credential;
 pub mod doctor;
 pub mod dryrun;
@@ -286,7 +287,7 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
         Command::Replay(args) => replay::run(session, args.last),
         Command::Completion(args) => completion::run(session, args),
         Command::Complete(args) => complete::run(session, args).await,
-        Command::Commands(_) => commands_manifest::run(session),
+        Command::Commands(args) => commands_manifest::run(session, args),
         Command::Version => version(session),
         Command::External(args) => external::run_plugin(session, &args[0], &args[1..]),
     }

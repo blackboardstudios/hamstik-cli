@@ -8568,7 +8568,7 @@
    "positionals": []
   },
   {
-   "about": "Print the machine-readable command manifest derived from the real command tree",
+   "about": "Print the machine-readable command manifest derived from the real command tree, or the copy-pasteable API cookbook with `--cookbook`",
    "aliases": [],
    "arguments": [
     {
@@ -8579,6 +8579,15 @@
      "help": "Output format for the manifest",
      "kind": "option",
      "long": "--manifest-format"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Print the copy-pasteable API cookbook derived from the bundled Agent Skill instead of the command manifest",
+     "kind": "option",
+     "long": "--cookbook"
     }
    ],
    "capabilities": {
@@ -8588,7 +8597,8 @@
    "command": "hamstik commands",
    "hasSubcommands": false,
    "options": [
-    "--manifest-format"
+    "--manifest-format",
+    "--cookbook"
    ],
    "positionals": []
   },

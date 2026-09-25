@@ -12,6 +12,14 @@ before upgrading.
 
 ### Added
 
+- API cookbook in command help (CLI-75): `hamstik commands --cookbook` prints
+  a copy-pasteable read → search → edit → transition → comment loop with
+  placeholder identifiers and safe automation defaults (`--json --no-input`,
+  explicit `--org`/`--project`). `--json` emits the same steps as a versioned
+  `cookbookVersion: 1` document. The examples are the marker-delimited section
+  of the canonical bundled Agent Skill, so the CLI cannot print guidance that
+  `hamstik agent skill check` does not also validate.
+
 - Failed-request journal and `replay` (CLI-72): when a Public API request
   fails, the CLI appends one redacted JSON line to a local
   `request-journal.log` capturing the method, path, intended header names, HTTP

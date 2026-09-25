@@ -35,7 +35,7 @@ use super::commands_manifest;
 use super::emit_json;
 
 /// The canonical Agent Skill compiled into this binary.
-const CANONICAL_SKILL: &str = include_str!("../../../../skills/hamstik/SKILL.md");
+pub(crate) const CANONICAL_SKILL: &str = include_str!("../../../../skills/hamstik/SKILL.md");
 
 /// The user-level Agent Skills root override (the directory that should
 /// contain the portable `skills/hamstik/` location).

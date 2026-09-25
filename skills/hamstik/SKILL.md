@@ -304,6 +304,42 @@ hamstik --json --no-input --org <ORG> --project <KEY> work edit <ITEM-KEY> \
   --priority high
 ```
 
+## Copy-paste cookbook
+
+`hamstik commands --cookbook` prints this section straight from the installed
+binary. It is the shortest safe read → search → edit → transition → comment
+loop: replace the `<PLACEHOLDER>` values, keep `--json --no-input`, and pass
+`--org`/`--project` explicitly instead of relying on stored defaults. Read each
+command's `--help` before adding flags.
+
+<!-- cookbook:start -->
+```bash
+# 1. Verify identity and pin the Organization and Project.
+hamstik --json --no-input me
+hamstik --json --no-input org list --all
+hamstik --json --no-input --org <ORG> project list --all
+
+# 2. Read the Work Item before changing it.
+hamstik --json --no-input --org <ORG> --project <KEY> work view <ITEM-KEY>
+
+# 3. Search across the Organization when the key is unknown.
+hamstik --json --no-input --org <ORG> work search "status = 'backlog'"
+
+# 4. Edit with the current revision; plain edits fetch the ETag first.
+hamstik --json --no-input --org <ORG> --project <KEY> work edit <ITEM-KEY> \
+  --priority high
+
+# 5. Read the server-provided transitions, then apply one.
+hamstik --json --no-input --org <ORG> --project <KEY> work transitions <ITEM-KEY>
+hamstik --json --no-input --org <ORG> --project <KEY> work transition \
+  <ITEM-KEY> in_progress
+
+# 6. Comment from a file or stdin, never from a prompt.
+hamstik --json --no-input --org <ORG> --project <KEY> work comment add \
+  <ITEM-KEY> --body-file <COMMENT.md>
+```
+<!-- cookbook:end -->
+
 ## Organization Attributes
 
 Attributes are Organization-governed metadata with immutable machine keys and
