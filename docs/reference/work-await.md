@@ -2,6 +2,10 @@
 
 Wait for a work item to reach a server-reported condition
 
+Wait for a work item to reach a server-reported condition.
+
+`await` blocks until a single condition holds and then exits. To follow an item's activity and comments over time instead, use `work watch`.
+
 ### `key`
 
 Work item key (e.g. HAM\-42)

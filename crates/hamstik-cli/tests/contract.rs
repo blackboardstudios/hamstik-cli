@@ -310,6 +310,7 @@ fn subcommand_groups_match_documented_surface() {
                 "triage",
                 "unarchive",
                 "view",
+                "watch",
                 "watcher",
             ],
         ),

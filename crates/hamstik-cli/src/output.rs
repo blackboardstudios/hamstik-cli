@@ -142,6 +142,24 @@ impl Output {
         self.write_json_document(value)
     }
 
+    /// Writes one streamed event as a single compact JSON line and flushes.
+    ///
+    /// This is the building block for long-running commands (such as
+    /// `work watch`) that emit an event stream rather than one document. An
+    /// installed `--jq` filter is applied per event, matching jq's streaming
+    /// semantics; without one the event envelope is written verbatim as
+    /// NDJSON. The explicit flush keeps a piped consumer in step even though
+    /// `stdout` is block-buffered when it is not a terminal.
+    pub fn emit_event(&mut self, value: &Value) -> io::Result<()> {
+        if let Some(expr) = self.jq.clone() {
+            let outputs = jq_outputs(value, &expr).map_err(jq_io_error)?;
+            self.jsonl_records(&outputs)?;
+        } else {
+            self.jsonl_record(value)?;
+        }
+        self.out.flush()
+    }
+
     /// Writes one JSON document without applying `--jq`.
     fn write_json_document(&mut self, value: &Value) -> io::Result<()> {
         let rendered = if matches!(self.mode, Mode::JsonLines | Mode::Tsv) {
@@ -160,6 +178,15 @@ impl Output {
             Mode::Tsv => self.emit_jq_tsv(outputs),
             _ => self.write_json_document(&jq_single_value(outputs)),
         }
+    }
+
+    /// Flushes buffered stdout.
+    ///
+    /// Long-running commands (such as `work watch`) call this after each
+    /// rendered line so a piped consumer sees it without waiting for the
+    /// process to exit.
+    pub fn flush(&mut self) -> io::Result<()> {
+        self.out.flush()
     }
 
     /// Writes a human content line to stdout.

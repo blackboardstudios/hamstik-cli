@@ -195,8 +195,10 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   (`work link list|add|delete`), activity (`work activity`), archive/
   unarchive/delete lifecycle, watcher state (`work watcher
   show|watch|unwatch|mute|unmute`), bulk operations
-  (`work bulk create|update|transition`), and condition waiting
-  (`work await`). `work create` also accepts `--from <KEY>` (copy the
+  (`work bulk create|update|transition`), condition waiting
+  (`work await`), and live following (`work watch <KEY>` with
+  `--since`/`--interval`/`--notify`; `--json` streams one event per line).
+  `work create` also accepts `--from <KEY>` (copy the
   documented title/type/priority/description/labels allow-list from an
   existing Work Item; identity, ownership, and workflow state are never
   copied) and `--template <FILE>` (a local Markdown file with YAML
@@ -409,6 +411,12 @@ hamstik work watcher show HAM-42 --json
 hamstik work watcher watch HAM-42
 hamstik work watcher mute HAM-42
 hamstik work watcher unmute HAM-42
+
+# Follow activity and comments live; Ctrl-C stops cleanly. Unlike `work await`
+# (which exits once one condition holds), `work watch` streams every new entry.
+hamstik work watch HAM-42 --since 1h
+hamstik work watch HAM-42 --notify 'notify-send Hamstik "$HAMSTIK_WATCH_JSON"'
+hamstik --json work watch HAM-42
 
 # Labels, links, threaded comments, and attachments
 hamstik label create --name api --color '#6366f1'

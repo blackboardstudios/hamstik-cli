@@ -26,6 +26,7 @@ mod transitions;
 mod tree;
 mod triage;
 mod view;
+mod watch;
 mod watcher;
 
 use hamstik_api_client::ListWorkItemsQuery;
@@ -93,6 +94,7 @@ pub async fn run(session: &mut Session<'_>, args: &WorkArgs) -> Result<(), CliEr
             idempotency_key,
         } => archive::delete(session, key, *cascade, *force, idempotency_key.as_deref()).await,
         WorkCommand::Await(await_args) => await_cmd::await_item(session, await_args).await,
+        WorkCommand::Watch(watch_args) => watch::watch(session, watch_args).await,
         WorkCommand::Bulk(bulk_args) => bulk::bulk(session, bulk_args).await,
     }
 }

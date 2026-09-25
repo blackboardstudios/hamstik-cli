@@ -224,6 +224,24 @@ verbatim; do not treat the tree as a readiness/blocking calculation. The
 stable `--json` document is `treeVersion: 1` with `root` nodes nested under
 `children` and per-node `truncated` reasons (`depth`, `nodes`, `cycle`).
 
+Two commands wait on an item, and they are not interchangeable. `work await
+<KEY>` blocks until a server-reported condition holds (for example `--status
+done`) and then exits; it is for synchronizing on a transition. `work watch
+<KEY>` follows the item's activity and comments and streams every new entry
+until interrupted (Ctrl-C); it is for staying informed. `watch` polls the
+existing activity and comment reads — there is no push channel and it never
+invents events. `--since` bounds the start (default: now, so only new entries),
+`--interval` sets the poll cadence, network failures back off and reconnect on
+stderr, and authentication/authorization failures stop it. `--json`/`--jsonl`
+emit one compact event per line (`{"type":"activity|comment","item":…}`);
+`--notify <COMMAND>` runs a hook per entry with the event exposed through
+`HAMSTIK_WATCH_*` variables. Do not start a watch in a non-interactive agent
+run unless a bounded timeout wraps it, because it does not return on its own:
+
+```bash
+hamstik --json --no-input --org <ORG> --project <KEY> work watch <ITEM-KEY> --since 1h
+```
+
 Resolve people before assigning: `org members --all` lists active members, and
 `user view <PUBLIC_ID>` / `user work <PUBLIC_ID>` inspect a profile and its visible
 work (`user avatar <PUBLIC_ID> --output <PATH>` downloads an avatar to a file):

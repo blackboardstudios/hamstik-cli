@@ -12,6 +12,16 @@ before upgrading.
 
 ### Added
 
+- `work watch <KEY>` (CLI-61): follow a Work Item's activity and comments
+  live by polling the existing Public API v1 reads. New entries are rendered
+  incrementally within one `--interval` (default `2s`); the first poll starts
+  at `--since` (default: now). Network failures and rate limits back off and
+  reconnect with a stderr report, `Retry-After` is honoured, and
+  authentication/authorization failures stop the watch cleanly. Ctrl-C stops
+  without a traceback. `--notify <COMMAND>` runs a hook per new entry with
+  `HAMSTIK_WATCH_*` environment variables, and `--json`/`--jsonl` emit one
+  compact JSON event per line. `work await` remains the one-shot condition
+  wait; help and docs distinguish the two.
 - Output-format ergonomics (CLI-59): the global `--format
   ndjson|jsonl|tsv|csv|table|human|json|markdown` umbrella selects the output
   mode by name, and `markdown` renders a GitHub-flavored table for list-shaped

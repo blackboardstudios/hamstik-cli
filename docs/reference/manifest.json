@@ -7053,9 +7053,53 @@
    },
    "command": "hamstik work await",
    "hasSubcommands": false,
+   "longAbout": "Wait for a work item to reach a server-reported condition.\n\n`await` blocks until a single condition holds and then exits. To follow an item's activity and comments over time instead, use `work watch`.",
    "options": [
     "--status",
     "--timeout"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Follow a work item's activity and comments, rendering new entries as they appear",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key (e.g. HAM-42)",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Only stream entries strictly after this time. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone. When omitted, the watch starts at the current instant and only new entries are streamed",
+     "kind": "option",
+     "long": "--since"
+    },
+    {
+     "default": "2s",
+     "help": "Poll interval (e.g. 2s, 500ms). Defaults to 2s; bounded to 100ms\u20131h",
+     "kind": "option",
+     "long": "--interval"
+    },
+    {
+     "help": "Shell command to run once for each new entry. The entry is exposed to the command through `HAMSTIK_WATCH_ITEM`, `HAMSTIK_WATCH_TYPE`, `HAMSTIK_WATCH_ID`, `HAMSTIK_WATCH_ACTION` (activity only), and `HAMSTIK_WATCH_JSON` environment variables. A failing hook is reported and never stops the watch",
+     "kind": "option",
+     "long": "--notify"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work watch",
+   "hasSubcommands": false,
+   "longAbout": "Follow a work item's activity and comments, rendering new entries as they appear.\n\nUnlike `work await`, which waits for a single server-reported condition and exits, `watch` polls the existing activity and comment endpoints and streams every new entry until interrupted (Ctrl-C). Network failures back off and reconnect; authentication and authorization failures stop the watch.",
+   "options": [
+    "--since",
+    "--interval",
+    "--notify"
    ],
    "positionals": [
     "key"

@@ -185,6 +185,7 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
             | crate::args::WorkCommand::Tree(_)
             | crate::args::WorkCommand::Triage(_)
             | crate::args::WorkCommand::Transitions { .. }
+            | crate::args::WorkCommand::Watch(_)
             | crate::args::WorkCommand::Activity { .. } => false,
             crate::args::WorkCommand::Watcher(args) => {
                 !matches!(args.command, crate::args::WorkWatcherCommand::Show { .. })

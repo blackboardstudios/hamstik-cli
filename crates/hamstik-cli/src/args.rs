@@ -1977,7 +1977,19 @@ pub enum WorkCommand {
         idempotency_key: Option<String>,
     },
     /// Wait for a work item to reach a server-reported condition.
+    ///
+    /// `await` blocks until a single condition holds and then exits. To follow
+    /// an item's activity and comments over time instead, use `work watch`.
     Await(WorkAwaitArgs),
+    /// Follow a work item's activity and comments, rendering new entries as
+    /// they appear.
+    ///
+    /// Unlike `work await`, which waits for a single server-reported condition
+    /// and exits, `watch` polls the existing activity and comment endpoints and
+    /// streams every new entry until interrupted (Ctrl-C). Network failures
+    /// back off and reconnect; authentication and authorization failures stop
+    /// the watch.
+    Watch(WorkWatchArgs),
     /// Create, update, or transition many work items in one request.
     Bulk(WorkBulkArgs),
 }
@@ -2073,6 +2085,38 @@ pub struct WorkAwaitArgs {
     /// at 1h to prevent accidental infinite waits.
     #[arg(long = "timeout", value_name = "DURATION", default_value = "5m")]
     pub timeout: String,
+}
+
+/// Arguments for `work watch`.
+///
+/// `watch` polls existing Public API v1 activity and comment reads; it is not
+/// a server push channel and never synthesizes events. Every rendered entry is
+/// the server's own payload.
+#[derive(Args, Debug)]
+#[command(
+    long_about = "Follow a Work Item's activity and comments until interrupted.\n\nUnlike `work await`, which blocks until a single server-reported condition is\nmet and exits, `watch` polls the existing activity and comment endpoints and\nrenders every new entry incrementally. Polling uses a fixed interval with\ngraceful backoff on network failures and rate limits; authentication and\nauthorization failures stop the watch cleanly. With `--json`/`--jsonl` the\ncommand emits one JSON object per line as an event stream."
+)]
+pub struct WorkWatchArgs {
+    /// Work item key (e.g. HAM-42).
+    #[arg(value_name = "KEY")]
+    pub key: String,
+    /// Only stream entries strictly after this time. Accepts RFC 3339,
+    /// `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such
+    /// as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the
+    /// host's local time zone. When omitted, the watch starts at the current
+    /// instant and only new entries are streamed.
+    #[arg(long, value_name = "DATE")]
+    pub since: Option<TimeArg>,
+    /// Poll interval (e.g. 2s, 500ms). Defaults to 2s; bounded to 100ms–1h.
+    #[arg(long, value_name = "DURATION", default_value = "2s")]
+    pub interval: String,
+    /// Shell command to run once for each new entry. The entry is exposed to
+    /// the command through `HAMSTIK_WATCH_ITEM`, `HAMSTIK_WATCH_TYPE`,
+    /// `HAMSTIK_WATCH_ID`, `HAMSTIK_WATCH_ACTION` (activity only), and
+    /// `HAMSTIK_WATCH_JSON` environment variables. A failing hook is reported
+    /// and never stops the watch.
+    #[arg(long, value_name = "COMMAND")]
+    pub notify: Option<String>,
 }
 
 /// Work Item filter options shared by `work list` and `org work`.
