@@ -8,6 +8,7 @@
 //! switches between a human message and the stable JSON envelope.
 
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::io::{self, Write};
 
 use std::rc::Rc;
@@ -66,6 +67,21 @@ pub struct OutputOptions {
     pub columns: Option<Vec<String>>,
     /// Suppress the header row where applicable.
     pub no_header: bool,
+}
+
+/// Shared in-memory writer used by [`Output::render_list_bytes`].
+#[derive(Clone, Default)]
+struct BufferSink(Rc<RefCell<Vec<u8>>>);
+
+impl Write for BufferSink {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0.borrow_mut().extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 /// Buffered output sink with mode awareness.
@@ -178,6 +194,32 @@ impl Output {
             Mode::Tsv => self.emit_jq_tsv(outputs),
             _ => self.write_json_document(&jq_single_value(outputs)),
         }
+    }
+
+    /// Renders a list collection into a byte buffer using this sink's mode,
+    /// column projection, and `--jq` filter.
+    ///
+    /// A command that persists output to a file uses this instead of writing
+    /// to the process stdout, so the file bytes are identical to what the
+    /// equivalent manual invocation would print (CLI-67).
+    pub fn render_list_bytes(
+        &self,
+        json_value: &Value,
+        headers: &[&str],
+        rows: &[Vec<String>],
+        options: &OutputOptions,
+    ) -> io::Result<Vec<u8>> {
+        let sink = BufferSink::default();
+        let mut output = Output::new(
+            self.mode,
+            self.verbose,
+            Box::new(sink.clone()),
+            Box::new(io::sink()),
+        );
+        output.set_jq(self.jq.clone());
+        output.render_list(json_value, headers, rows, options)?;
+        let bytes = sink.0.borrow().clone();
+        Ok(bytes)
     }
 
     /// Flushes buffered stdout.

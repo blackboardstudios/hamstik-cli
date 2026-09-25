@@ -388,6 +388,33 @@ hamstik --no-input --org <ORG> --project <KEY> work export <ITEM-KEY> \
 hamstik --json --no-input --org <ORG> --project <KEY> work import --file <ITEM.md>
 ```
 
+For periodic snapshots, `work export --query <SQUEAKQL>` (or `--query-file`/
+`--query-saved`) exports the matching Organization Work Items as a collection
+through the same output contract as `work list`/`work search`, so `--format
+csv|jsonl|tsv|json|markdown|table`, `--columns`, and `--jq` apply and
+`--output <PATH>` writes exactly the bytes a stdout run would print. Store the
+invocation with `schedule save`, list or delete definitions, and let an
+external scheduler invoke `schedule run`; the CLI ships no daemon, and a
+scheduled run re-executes the stored command, so its output is byte-identical
+to the manual invocation. Definitions are plain TOML files under
+`<config-dir>/schedules/` and hold only the `hamstik` argument vector — never
+credentials, so keep auth resolution in the environment/context the scheduler
+runs with:
+
+```bash
+hamstik --org <ORG> work export --query 'status = todo' --format csv \
+  --output todos.csv
+hamstik schedule save nightly -- work export --org <ORG> --query 'status = todo' \
+  --format csv --output todos.csv
+hamstik schedule list --json
+hamstik schedule run nightly
+```
+
+The saved command is the full `hamstik` argument vector passed after `--`; it
+may carry any `work export` flags (for example `--query` and `--output`), so
+the scheduled run needs no re-typing. Run `hamstik schedule save --help` for
+the exact form.
+
 Import maps fields onto the existing create/edit requests. When the embedded
 `key` resolves in the selected Project it updates the item in place; otherwise
 it creates one with an idempotency key derived from the embedded key (or an

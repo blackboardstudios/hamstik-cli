@@ -348,6 +348,196 @@ impl SavedQueryStore {
     }
 }
 
+/// Current schedule-definition schema version.
+pub const SCHEDULE_VERSION: u32 = 1;
+
+/// Maximum accepted size of one schedule definition file (64 KiB).
+pub const MAX_SCHEDULE_BYTES: u64 = 64 * 1024;
+
+/// Maximum number of stored schedule definitions.
+pub const MAX_SCHEDULES: usize = 1000;
+
+/// Maximum number of argv entries in a schedule definition.
+pub const MAX_SCHEDULE_ARGV: usize = 256;
+
+/// One scheduled invocation stored as a plain TOML file under
+/// `<config-dir>/schedules/<name>.toml`.
+///
+/// The definition holds only the `hamstik` argument vector (the same list a
+/// shell/cron job would pass) — never credentials or tokens. It is a
+/// thin wrapper: `schedule run` re-executes the stored command, so a scheduled
+/// run is byte-identical to the equivalent manual invocation.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ScheduleDefinition {
+    /// On-disk schema version.
+    pub version: u32,
+    /// RFC 3339 timestamp of the last save (informational).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub saved_at: Option<String>,
+    /// Optional human description.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// The `hamstik` arguments to execute, excluding the program name.
+    pub command: Vec<String>,
+}
+
+/// Reads and writes per-schedule definition files under the config directory.
+///
+/// Storage model (documented contract): one plain TOML file per schedule in
+/// `<config-dir>/schedules/`, so `HAMSTIK_CONFIG` relocates them identically.
+/// Names are 1–64 characters of letters, digits, `-`, `_`. Writes are atomic
+/// and owner-restricted like the config.
+#[derive(Debug, Clone)]
+pub struct ScheduleStore {
+    dir: PathBuf,
+}
+
+impl ScheduleStore {
+    /// Builds a store from the config path (the directory sits next to it).
+    #[must_use]
+    pub fn adjacent_to(config_path: &Path) -> Self {
+        Self {
+            dir: config_path
+                .parent()
+                .unwrap_or(Path::new("."))
+                .join("schedules"),
+        }
+    }
+
+    /// The directory this store reads and writes.
+    #[must_use]
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+
+    /// The definition file for one schedule name.
+    #[must_use]
+    pub fn path_for(&self, name: &str) -> PathBuf {
+        self.dir.join(format!("{name}.toml"))
+    }
+
+    /// Validates a schedule name (1–64 chars: letters, digits, `-`, `_`).
+    pub fn validate_name(name: &str) -> Result<(), CliError> {
+        if name.is_empty() || name.len() > 64 {
+            return Err(CliError::usage(
+                "schedule name must be between 1 and 64 characters",
+            ));
+        }
+        if !name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(CliError::usage(
+                "schedule names may contain only letters, digits, '-', and '_'",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Lists stored definitions sorted by name; an absent directory is empty.
+    pub fn list(&self) -> Result<Vec<(String, ScheduleDefinition)>, CliError> {
+        let entries = match fs::read_dir(&self.dir) {
+            Ok(entries) => entries,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(err) => return Err(self.fail(&format!("cannot read directory ({err})"))),
+        };
+        let mut schedules = Vec::new();
+        for entry in entries {
+            let entry =
+                entry.map_err(|err| self.fail(&format!("cannot read directory ({err})")))?;
+            let path = entry.path();
+            if path.extension().and_then(std::ffi::OsStr::to_str) != Some("toml") {
+                continue;
+            }
+            let Some(name) = path.file_stem().and_then(std::ffi::OsStr::to_str) else {
+                continue;
+            };
+            // Ignore unrelated files rather than guessing at their contents.
+            if Self::validate_name(name).is_err() {
+                continue;
+            }
+            schedules.push((name.to_string(), self.load(name)?));
+        }
+        schedules.sort_by(|a, b| a.0.cmp(&b.0));
+        Ok(schedules)
+    }
+
+    /// Loads one definition, naming the file in every failure.
+    pub fn load(&self, name: &str) -> Result<ScheduleDefinition, CliError> {
+        Self::validate_name(name)?;
+        let path = self.path_for(name);
+        let metadata = fs::metadata(&path).map_err(|err| {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                CliError::usage(format!(
+                    "no schedule named {name:?}; list schedules with `hamstik schedule list`"
+                ))
+            } else {
+                self.fail(&format!("cannot read file ({err})"))
+            }
+        })?;
+        if metadata.len() > MAX_SCHEDULE_BYTES {
+            return Err(self.fail("file is too large (exceeds the 64 KiB limit)"));
+        }
+        let contents = fs::read_to_string(&path)
+            .map_err(|err| self.fail(&format!("cannot read file ({err})")))?;
+        let definition: ScheduleDefinition = toml::from_str(&contents).map_err(|err| {
+            self.fail(&format!(
+                "invalid schedule definition (repair or delete the file): {err}"
+            ))
+        })?;
+        if definition.version != SCHEDULE_VERSION {
+            return Err(self.fail(&format!(
+                "schema version {} is not supported (this CLI uses version {SCHEDULE_VERSION})",
+                definition.version
+            )));
+        }
+        if definition.command.is_empty() {
+            return Err(self.fail("schedule definition has an empty command"));
+        }
+        Ok(definition)
+    }
+
+    /// Atomically writes one definition and returns its path.
+    pub fn save(&self, name: &str, definition: &ScheduleDefinition) -> Result<PathBuf, CliError> {
+        Self::validate_name(name)?;
+        let path = self.path_for(name);
+        let serialized = toml::to_string_pretty(definition)
+            .map_err(|err| self.fail(&format!("cannot serialize schedule ({err})")))?;
+        let bytes = serialized.as_bytes();
+        if bytes.len() as u64 > MAX_SCHEDULE_BYTES {
+            return Err(self.fail("schedule definition would exceed the 64 KiB limit"));
+        }
+        fsutil::write_atomic(&path, bytes)
+            .and_then(|()| fsutil::restrict_permissions(&path))
+            .map_err(|err| self.fail(&format!("cannot write file ({err})")))?;
+        Ok(path)
+    }
+
+    /// Removes one definition and returns its path.
+    pub fn delete(&self, name: &str) -> Result<PathBuf, CliError> {
+        Self::validate_name(name)?;
+        let path = self.path_for(name);
+        fs::remove_file(&path).map_err(|err| {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                CliError::usage(format!("no schedule named {name:?}"))
+            } else {
+                self.fail(&format!("cannot remove file ({err})"))
+            }
+        })?;
+        Ok(path)
+    }
+
+    /// Builds a schedule failure naming the directory.
+    fn fail(&self, reason: &str) -> CliError {
+        CliError::config(format!(
+            "{}: {reason}\nhint: repair or delete the offending definition; schedules hold only a \
+             plain hamstik command line, never credentials",
+            self.dir.display()
+        ))
+    }
+}
+
 /// Removes a profile from the document and repairs `active_profile`.
 ///
 /// Forgetting the active profile must not silently move the user to a

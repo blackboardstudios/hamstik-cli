@@ -267,6 +267,8 @@ pub enum Command {
     User(UserArgs),
     /// Validate SqueakQL expressions.
     Squeakql(SqueakQlArgs),
+    /// Save, list, delete, and run periodic export/report snapshots.
+    Schedule(ScheduleArgs),
     /// Inspect the Public API contract.
     Api(ApiArgs),
     /// Agent automation: manage the bundled Agent Skill and validate the
@@ -2111,14 +2113,20 @@ pub enum WorkCommand {
     Watch(WorkWatchArgs),
     /// Create, update, or transition many work items in one request.
     Bulk(WorkBulkArgs),
-    /// Export a work item as a portable Markdown document.
+    /// Export a work item as a portable Markdown document, or a `--query`
+    /// result set as a CSV/JSONL/TSV/JSON snapshot.
     ///
-    /// The document is YAML frontmatter (`key`, `title`, `type`, `status`,
-    /// `priority`, `labels`, and optionally `links`/`comments`) plus the
-    /// description as the Markdown body. It is suitable for pasting into a
-    /// GitHub/GitLab issue or handing work to another tracker. `--format
-    /// markdown` (the default) writes the document; `--json` emits the same
-    /// fields as a structured envelope.
+    /// With a `<KEY>`, the document is YAML frontmatter (`key`, `title`,
+    /// `type`, `status`, `priority`, `labels`, and optionally
+    /// `links`/`comments`) plus the description as the Markdown body. It is
+    /// suitable for pasting into a GitHub/GitLab issue or handing work to
+    /// another tracker. `--format markdown` (the default) writes the document;
+    /// `--json` emits the same fields as a structured envelope.
+    ///
+    /// With `--query <SQUEAKQL>` (or `--query-file`/`--query-saved`), the
+    /// matching Organization Work Items are exported as a collection in the
+    /// active output mode, which is what an external scheduler snapshots.
+    /// `--output <FILE>` writes the exact bytes a stdout run would emit.
     Export(WorkExportArgs),
     /// Create or update work items from an exported Markdown document.
     ///
@@ -2132,14 +2140,53 @@ pub enum WorkCommand {
 }
 
 /// Arguments for `work export`.
+///
+/// Two modes share one command so a periodic snapshot is a thin wrapper around
+/// a manual run:
+///
+/// * `<KEY>` writes one portable Markdown handoff document.
+/// * `--query <SQUEAKQL>` (or `--query-file`/`--query-saved`) selects a
+///   collection of Organization Work Items and renders it in the active output
+///   mode (`--format csv`, `--jsonl`, `--tsv`, ...), exactly as `work search`
+///   would.
 #[derive(Args, Debug)]
 pub struct WorkExportArgs {
-    /// Work item key.
-    pub key: String,
-    /// Include the item's comments in the exported frontmatter.
-    #[arg(long)]
+    /// Work item key (single-item Markdown handoff).
+    #[arg(
+        value_name = "KEY",
+        conflicts_with_all = ["query", "query_file", "query_saved"]
+    )]
+    pub key: Option<String>,
+    /// SqueakQL expression selecting the Work Items to export as a collection.
+    #[arg(
+        long,
+        value_name = "QUERY",
+        conflicts_with_all = ["key", "query_file", "query_saved"]
+    )]
+    pub query: Option<String>,
+    /// Read the SqueakQL expression from a file (`-` for stdin).
+    #[arg(
+        long = "query-file",
+        value_name = "PATH",
+        conflicts_with_all = ["key", "query", "query_saved"]
+    )]
+    pub query_file: Option<String>,
+    /// Run a saved SqueakQL query by name instead of an inline expression.
+    #[arg(
+        long = "query-saved",
+        value_name = "NAME",
+        conflicts_with_all = ["key", "query", "query_file"]
+    )]
+    pub query_saved: Option<String>,
+    /// Include the item's comments in the single-item Markdown export.
+    #[arg(long, requires = "key")]
     pub comments: bool,
-    /// Write the document to a file instead of stdout.
+    /// Pagination options for a `--query` collection export.
+    #[command(flatten)]
+    pub pagination: PaginationArgs,
+    /// Write the output to a file instead of stdout; `-` writes stdout. For a
+    /// collection export the bytes match the same invocation without
+    /// `--output`, so a scheduled run is byte-identical to a manual one.
     #[arg(long = "output", value_name = "PATH", short = 'o')]
     pub output: Option<String>,
 }
@@ -3280,6 +3327,60 @@ pub struct CommandsArgs {
         default_value = "json"
     )]
     pub format: ManifestFormatArg,
+}
+
+/// Arguments for the `schedule` command group.
+#[derive(Args, Debug)]
+pub struct ScheduleArgs {
+    /// The schedule subcommand to run.
+    #[command(subcommand)]
+    pub command: ScheduleCommand,
+}
+
+/// Scheduled-snapshot subcommands.
+///
+/// A schedule definition is a plain TOML file next to `config.toml` holding a
+/// `hamstik` argument vector. The CLI ships no daemon: an external scheduler
+/// (cron, systemd timers, Task Scheduler) invokes `hamstik schedule run <name>`,
+/// which re-executes the stored command so the produced bytes match a manual
+/// invocation.
+#[derive(Subcommand, Debug)]
+pub enum ScheduleCommand {
+    /// List saved schedule definitions.
+    List,
+    /// Save (or replace) a schedule definition.
+    ///
+    /// The command to run is given after `--`, for example:
+    /// `hamstik schedule save weekly -- work export --query '...' --format csv
+    /// --output weekly.csv`.
+    Save {
+        /// Schedule name (letters, digits, `-`, `_`; 1–64 chars).
+        name: String,
+        /// Replace an existing definition of the same name.
+        #[arg(long)]
+        force: bool,
+        /// Optional human description of the snapshot.
+        #[arg(long, value_name = "TEXT")]
+        description: Option<String>,
+        /// The `hamstik` arguments to run, after `--`.
+        #[arg(
+            trailing_var_arg = true,
+            allow_hyphen_values = true,
+            required = true,
+            value_name = "COMMAND"
+        )]
+        command: Vec<String>,
+    },
+    /// Delete a saved schedule definition.
+    Delete {
+        /// Schedule name.
+        name: String,
+    },
+    /// Run a saved schedule definition (the external scheduler's entry point).
+    Run {
+        /// Schedule name.
+        name: String,
+    },
 }
 
 /// Manifest output format.

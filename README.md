@@ -1232,7 +1232,7 @@ per-operation array for a completed batch, and `error` carries the stable
 failed/uncertain batch. The in-progress `uncertain` marker written before each
 attempt is what makes a crash between send and response unambiguous.
 
-## Markdown handoff
+## Export, import, and scheduled snapshots
 
 `work export <KEY> --format markdown` writes one canonical document — YAML
 frontmatter (`key`, `title`, `type`, `status`, `priority`, `labels`, and
@@ -1241,6 +1241,12 @@ Work Item can be pasted into a GitHub/GitLab issue or handed to another
 tracker. `--comments` includes the item's comments, and `--output <PATH>`
 writes the document to a file. Pass the global `--json` to get the same fields
 as a `documentVersion: 1` envelope instead of the Markdown text.
+
+`work export --query <SQUEAKQL>` (or `--query-file`/`--query-saved`) instead
+exports the matching Organization Work Items as a collection through the same
+output contract as `work list`/`work search`: `--format csv|jsonl|tsv|json|
+markdown|table`, `--columns`, and `--jq` all apply, and `--output <PATH>` writes
+the exact bytes a stdout run would print.
 
 `work import --file <PATH|->` reads that format and maps its fields onto the
 existing create/edit requests. When the embedded `key` resolves in the selected
@@ -1256,9 +1262,22 @@ is informational, because the Public API's edit body has no status field
 (status changes go through the transition commands), and the `--dry-run`
 preview calls this out.
 
+`schedule list|save|delete` store periodic snapshot definitions as plain TOML
+files under `<config-dir>/schedules/`. The CLI ships no daemon: an external
+scheduler (cron, systemd timers, Task Scheduler) invokes
+`hamstik schedule run <NAME>`, which re-executes the saved command through the
+same binary and context, so a scheduled run is byte-identical to the manual
+invocation. Definitions hold only a `hamstik` argument vector — never
+credentials.
+
 ```bash
 # Export a Work Item as a portable document (links always, comments on request)
 hamstik work export HAM-42 --format markdown --comments > HAM-42.md
+
+# Snapshot a query to CSV, then schedule the same command
+hamstik --org acme work export --query 'status = todo' --format csv > todos.csv
+hamstik schedule save nightly -- work export --org acme --query 'status = todo' \
+  --format csv --output todos.csv
 
 # Import it elsewhere; re-running the same file is idempotent
 hamstik --org acme --project HAM work import --file HAM-42.md --json

@@ -12,6 +12,19 @@ before upgrading.
 
 ### Added
 
+- Scheduled export and report snapshots (CLI-67): `work export --query
+  <SQUEAKQL>` (or `--query-file`/`--query-saved`) selects a collection of
+  Organization Work Items and renders it through the same output contract as
+  `work list`/`work search`, so `--format csv|jsonl|tsv|json|markdown|table`,
+  `--columns`, and `--jq` all apply and `--output <PATH>` writes exactly the
+  bytes a stdout run would print. `schedule list|save NAME -- <COMMAND…>|delete`
+  store the periodic invocation as a plain TOML file under
+  `<config-dir>/schedules/`; the CLI ships no daemon, and an external scheduler
+  (cron, systemd timers, Task Scheduler) invokes `schedule run NAME`, which
+  re-executes the stored command through the same binary, context, and output
+  mode, so a scheduled run is byte-identical to the equivalent manual
+  invocation. Definitions contain only the `hamstik` argument vector — never
+  credentials.
 - `work dashboard` (CLI-65): a read-only, multi-project overview that
   composes the existing `work mine` read (`GET /my/work`, restricted to the
   Project set) with one `work list` read (`GET

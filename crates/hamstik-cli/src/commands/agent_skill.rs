@@ -223,8 +223,17 @@ pub(crate) fn validate(
     for (line_number, line) in extract_command_references(&text) {
         let mut current: Vec<String> = Vec::new();
         let mut flags: Vec<String> = Vec::new();
+        // A standalone `--` hands the rest of the line to the current
+        // command's positionals (clap `trailing_var_arg`, as used by
+        // `schedule save`). Flags after it belong to the embedded command,
+        // not to the current node, so they cannot be validated here.
+        let mut values_only = false;
         for token in line {
-            if let Some(flag) = flag_token(&token) {
+            if token == "--" {
+                values_only = true;
+                continue;
+            }
+            if !values_only && let Some(flag) = flag_token(&token) {
                 flags.push(flag);
                 continue;
             }

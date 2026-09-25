@@ -41,6 +41,7 @@ pub mod org;
 pub mod project;
 pub mod release;
 pub mod report;
+pub mod schedule;
 pub mod sprint;
 pub mod squeakql;
 pub mod stats;
@@ -266,6 +267,7 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
         Command::Work(args) => work::run(session, args).await,
         Command::User(args) => user::run(session, args).await,
         Command::Squeakql(args) => squeakql::run(session, args).await,
+        Command::Schedule(args) => schedule::run(session, args),
         Command::Agent(args) => match &args.command {
             AgentCommand::Skill(skill) => agent_skill::run(session, &skill.command),
             AgentCommand::Validate(validate) => agent_validate::run(session, validate).await,

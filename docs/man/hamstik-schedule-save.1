@@ -1,0 +1,22 @@
+.TH HAMSTIK 1 "HAMSTIK SCHEDULE SAVE"
+.SH NAME
+hamstik schedule save \- Save (or replace) a schedule definition
+.SH SYNOPSIS
+.B hamstik schedule save [OPTIONS]
+.SH DESCRIPTION
+Save (or replace) a schedule definition
+.SH ARGUMENTS
+.TP
+.I NAME
+Schedule name (letters, digits, `-`, `_`; 1–64 chars)
+.TP
+.I COMMAND
+The `hamstik` arguments to run, after `--`
+.SH OPTIONS
+.TP
+.B --force
+Replace an existing definition of the same name
+Choices: true, false
+.TP
+.B --description
+Optional human description of the snapshot

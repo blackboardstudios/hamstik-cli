@@ -7518,26 +7518,60 @@
    ]
   },
   {
-   "about": "Export a work item as a portable Markdown document",
+   "about": "Export a work item as a portable Markdown document, or a `--query` result set as a CSV/JSONL/TSV/JSON snapshot",
    "aliases": [],
    "arguments": [
     {
-     "help": "Work item key",
+     "help": "Work item key (single-item Markdown handoff)",
      "kind": "positional",
      "name": "key",
      "valueName": "KEY"
+    },
+    {
+     "help": "SqueakQL expression selecting the Work Items to export as a collection",
+     "kind": "option",
+     "long": "--query"
+    },
+    {
+     "help": "Read the SqueakQL expression from a file (`-` for stdin)",
+     "kind": "option",
+     "long": "--query-file"
+    },
+    {
+     "help": "Run a saved SqueakQL query by name instead of an inline expression",
+     "kind": "option",
+     "long": "--query-saved"
     },
     {
      "choices": [
       "true",
       "false"
      ],
-     "help": "Include the item's comments in the exported frontmatter",
+     "help": "Include the item's comments in the single-item Markdown export",
      "kind": "option",
      "long": "--comments"
     },
     {
-     "help": "Write the document to a file instead of stdout",
+     "help": "Maximum total items to emit, counted across pages (distinct from the server page size). Without `--all` at most one page is returned, holding at most this many items; a page is never requested larger than the endpoint allows (200 items, or 100 on organization, project, sprint, label, and link endpoints). With `--all` successive pages are followed until this cap or the end of the collection. A cap that cuts through a server page ends the run with `page.nextCursor: null`, because the Public API has no cursor for a position partway through a page",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque cursor returned by a preceding page; the result starts after it. `--since-cursor` is the pipeline-checkpoint spelling of the same option: resume an interrupted stream from the `page.nextCursor` a previous run reported. Cursors are opaque and are always forwarded verbatim",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    },
+    {
+     "help": "Write the output to a file instead of stdout; `-` writes stdout. For a collection export the bytes match the same invocation without `--output`, so a scheduled run is byte-identical to a manual one",
      "kind": "option",
      "long": "--output",
      "short": "-o"
@@ -7549,9 +7583,15 @@
    },
    "command": "hamstik work export",
    "hasSubcommands": false,
-   "longAbout": "Export a work item as a portable Markdown document.\n\nThe document is YAML frontmatter (`key`, `title`, `type`, `status`, `priority`, `labels`, and optionally `links`/`comments`) plus the description as the Markdown body. It is suitable for pasting into a GitHub/GitLab issue or handing work to another tracker. `--format markdown` (the default) writes the document; `--json` emits the same fields as a structured envelope.",
+   "longAbout": "Export a work item as a portable Markdown document, or a `--query` result set as a CSV/JSONL/TSV/JSON snapshot.\n\nWith a `<KEY>`, the document is YAML frontmatter (`key`, `title`, `type`, `status`, `priority`, `labels`, and optionally `links`/`comments`) plus the description as the Markdown body. It is suitable for pasting into a GitHub/GitLab issue or handing work to another tracker. `--format markdown` (the default) writes the document; `--json` emits the same fields as a structured envelope.\n\nWith `--query <SQUEAKQL>` (or `--query-file`/`--query-saved`), the matching Organization Work Items are exported as a collection in the active output mode, which is what an external scheduler snapshots. `--output <FILE>` writes the exact bytes a stdout run would emit.",
    "options": [
+    "--query",
+    "--query-file",
+    "--query-saved",
     "--comments",
+    "--limit",
+    "--cursor",
+    "--all",
     "--output"
    ],
    "positionals": [
@@ -8078,6 +8118,123 @@
     "noInput": true
    },
    "command": "hamstik squeakql delete",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "name"
+   ]
+  },
+  {
+   "about": "Save, list, delete, and run periodic export/report snapshots",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik schedule",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List saved schedule definitions",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik schedule list",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Save (or replace) a schedule definition",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Schedule name (letters, digits, `-`, `_`; 1\u201364 chars)",
+     "kind": "positional",
+     "name": "name",
+     "valueName": "NAME"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Replace an existing definition of the same name",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Optional human description of the snapshot",
+     "kind": "option",
+     "long": "--description"
+    },
+    {
+     "help": "The `hamstik` arguments to run, after `--`",
+     "kind": "positional",
+     "name": "command",
+     "valueName": "COMMAND"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik schedule save",
+   "hasSubcommands": false,
+   "longAbout": "Save (or replace) a schedule definition.\n\nThe command to run is given after `--`, for example: `hamstik schedule save weekly -- work export --query '...' --format csv --output weekly.csv`.",
+   "options": [
+    "--force",
+    "--description"
+   ],
+   "positionals": [
+    "name",
+    "command"
+   ]
+  },
+  {
+   "about": "Delete a saved schedule definition",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Schedule name",
+     "kind": "positional",
+     "name": "name",
+     "valueName": "NAME"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik schedule delete",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "name"
+   ]
+  },
+  {
+   "about": "Run a saved schedule definition (the external scheduler's entry point)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Schedule name",
+     "kind": "positional",
+     "name": "name",
+     "valueName": "NAME"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik schedule run",
    "hasSubcommands": false,
    "options": [],
    "positionals": [

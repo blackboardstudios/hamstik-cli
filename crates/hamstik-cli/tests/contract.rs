@@ -141,6 +141,7 @@ fn root_command_hierarchy_matches_documented_surface() {
             "work",
             "user",
             "squeakql",
+            "schedule",
             "api",
             "agent",
             "doctor",
@@ -323,6 +324,11 @@ fn subcommand_groups_match_documented_surface() {
             "squeakql",
             &["squeakql"],
             &["delete", "list", "save", "show", "validate"],
+        ),
+        (
+            "schedule",
+            &["schedule"],
+            &["delete", "list", "run", "save"],
         ),
         ("api", &["api"], &["openapi", "rate-limit", "request"]),
     ];

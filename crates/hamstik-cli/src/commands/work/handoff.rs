@@ -27,7 +27,8 @@ use serde_json::{Value, json};
 use hamstik_api_client::{
     AttachLabelRequest, Comment, CreateCommentRequest, CreateWorkItemLinkRequest,
     CreateWorkItemRequest, FollowPolicy, HamstikApi, Label, ListOptions, PageItems,
-    UpdateWorkItemRequest, WorkItem, WorkItemLink, follow_with, generate_key, validate_key,
+    SqueakQlSearchRequest, UpdateWorkItemRequest, WorkItem, WorkItemLink, follow_with,
+    generate_key, validate_key,
 };
 
 use crate::app::Session;
@@ -108,13 +109,16 @@ pub(super) async fn export(
     session: &mut Session<'_>,
     args: &WorkExportArgs,
 ) -> Result<(), CliError> {
+    let Some(key) = args.key.as_deref() else {
+        return export_query(session, args).await;
+    };
     let selection = session.selection()?;
     let org = session.require_org(&selection)?;
     let project = session.require_project(&selection)?;
     let api = session.api(&selection)?;
 
     let response = api
-        .get_work_item(&org, &project, &args.key)
+        .get_work_item(&org, &project, key)
         .await
         .map_err(CliError::from_client)?;
     let item = response.value.clone();
@@ -191,6 +195,147 @@ pub(super) async fn export(
             .out
             .raw(&document)
             .map_err(|err| CliError::general(format!("cannot write stdout: {err}"))),
+    }
+}
+
+/// Runs a `--query` collection export.
+///
+/// The collection is rendered through the shared list-output contract, so
+/// `--format csv|jsonl|tsv|markdown|table`, `--columns`, and `--jq` behave
+/// exactly as they do on `work list`/`work search`. With `--output <FILE>` the
+/// bytes written are exactly what the same invocation would print to stdout.
+async fn export_query(session: &mut Session<'_>, args: &WorkExportArgs) -> Result<(), CliError> {
+    let expression = crate::commands::squeakql::resolve_expression(
+        session,
+        args.query.as_deref(),
+        args.query_file.as_deref(),
+        args.query_saved.as_deref(),
+    )?;
+    if expression.trim().is_empty() {
+        return Err(CliError::usage("SqueakQL query must not be empty"));
+    }
+    let selection = session.selection()?;
+    let org = session.require_org(&selection)?;
+    let api = session.api(&selection)?;
+    let base = SqueakQlSearchRequest {
+        query: expression,
+        limit: args.pagination.page_size(),
+        cursor: args.pagination.cursor.clone(),
+    };
+    let json_value = if args.pagination.all {
+        let fetch_api = api.clone();
+        let org = org.clone();
+        let page = follow_with(super::follow_policy(&args.pagination), move |cursor| {
+            let fetch_api = fetch_api.clone();
+            let org = org.clone();
+            let mut body = base.clone();
+            body.cursor = cursor;
+            async move {
+                let response = fetch_api
+                    .search_organization_work_items_with_squeakql(&org, &body)
+                    .await?;
+                Ok(PageItems::new(
+                    response.value.items,
+                    &response.raw,
+                    response.value.page,
+                ))
+            }
+        })
+        .await
+        .map_err(CliError::from_client)?;
+        json!({ "items": page.raw_items, "page": page.page })
+    } else {
+        api.search_organization_work_items_with_squeakql(&org, &base)
+            .await
+            .map_err(CliError::from_client)?
+            .raw
+    };
+
+    let headers = [
+        "KEY", "PROJECT", "TITLE", "STATUS", "TYPE", "PRIORITY", "ASSIGNEE",
+    ];
+    let rows = query_rows(&json_value);
+    crate::commands::check_columns(&headers, &session.output_options())?;
+    match args.output.as_deref().filter(|path| *path != "-") {
+        Some(path) => {
+            let options = session.output_options();
+            let bytes = session
+                .out
+                .render_list_bytes(&json_value, &headers, &rows, &options)
+                .map_err(CliError::general)?;
+            fsutil::write_atomic(Path::new(path), &bytes)
+                .map_err(|err| CliError::general(format!("cannot write {path}: {err}")))?;
+            if session.json() {
+                return emit_json(
+                    session,
+                    &json!({
+                        "exportVersion": DOCUMENT_VERSION,
+                        "format": output_mode_name(session.out.mode()),
+                        "path": path,
+                        "items": rows.len(),
+                    }),
+                );
+            }
+            session
+                .out
+                .human(&format!("wrote {path}"))
+                .map_err(CliError::general)
+        }
+        None => crate::commands::render_list(session, &json_value, &headers, &rows),
+    }
+}
+
+/// Table rows for an Organization-scoped Work Item query result. The columns
+/// are the snapshot projection documented for `work export --query` (KEY,
+/// PROJECT, TITLE, STATUS, TYPE, PRIORITY, ASSIGNEE) and are stable, so
+/// CSV/TSV/Markdown export is deterministic across runs.
+fn query_rows(value: &Value) -> Vec<Vec<String>> {
+    let Some(items) = value.get("items").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .map(|item| {
+            vec![
+                string_field(item, "key"),
+                item.get("project")
+                    .and_then(|project| project.get("key"))
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                string_field(item, "title"),
+                string_field(item, "status"),
+                string_field(item, "type"),
+                string_field(item, "priority"),
+                item.get("assignee")
+                    .and_then(|assignee| assignee.get("name"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("-")
+                    .to_string(),
+            ]
+        })
+        .collect()
+}
+
+/// Reads a top-level string field, defaulting to the empty string.
+fn string_field(value: &Value, field: &str) -> String {
+    value
+        .get(field)
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string()
+}
+
+/// Stable name for an output mode in export envelopes.
+fn output_mode_name(mode: crate::output::Mode) -> &'static str {
+    match mode {
+        crate::output::Mode::Human => "table",
+        crate::output::Mode::Json => "json",
+        crate::output::Mode::Quiet => "quiet",
+        crate::output::Mode::JsonLines => "jsonl",
+        crate::output::Mode::Tsv => "tsv",
+        crate::output::Mode::Csv => "csv",
+        crate::output::Mode::Markdown => "markdown",
     }
 }
 
