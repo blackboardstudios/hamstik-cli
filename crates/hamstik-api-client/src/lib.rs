@@ -21,7 +21,10 @@ pub mod retry;
 /// The `/api/v1` prefix every request is built under.
 pub const API_PREFIX: &str = "/api/v1";
 
-pub use client::{ApiResponse, ClientConfig, HamstikApi, HamstikClient, sanitize_server_text};
+pub use client::{
+    ApiResponse, ClientConfig, HamstikApi, HamstikClient, RateLimitProbe, RateLimitSnapshot,
+    sanitize_server_text,
+};
 pub use error::{ApiError, ClientError, HostError, NetworkStage};
 pub use host::Host;
 pub use idempotency::{IdempotencyKeyError, generate_key, validate_key};

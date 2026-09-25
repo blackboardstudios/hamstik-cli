@@ -682,6 +682,7 @@ of hand-building HTTP requests:
 hamstik api /api/v1/organizations
 hamstik api request --method POST --field name=Acme /api/v1/organizations
 hamstik api request --method PATCH --body-file body.json /api/v1/organizations/acme
+hamstik --json --no-input api rate-limit
 ```
 
 - Only `/api/v1/...` paths are accepted; private/non-v1/traversal/credential paths
@@ -695,6 +696,12 @@ hamstik api request --method PATCH --body-file body.json /api/v1/organizations/a
   rate-limit snapshot. Report the request ID on failures.
 - `--dry-run` previews the exact request (versioned envelope, nothing sent) and
   is rejected for GET.
+- `api rate-limit` is a single cheap authenticated read (`GET /api/v1/me`) that
+  reports the current `RateLimit-*` snapshot as `{ "rateLimit": { "limit",
+  "remaining", "resetIn" } | null, "requestId"? }` — the same fields as the
+  passthrough `meta.rateLimit`. It skips the proactive depleted-window wait
+  that typed reads apply, and is a point-in-time observation, not a
+  guarantee against future 429s.
 
 ## External subcommand plugins (CLI-33)
 
@@ -751,6 +758,7 @@ hamstik --no-input doctor
 hamstik --no-input doctor --local-only   # offline: no DNS or HTTP traffic
 hamstik --json --no-input doctor         # structured report + summary
 hamstik --json --no-input api openapi    # live Public API contract
+hamstik --json --no-input api rate-limit # current rate-limit snapshot
 hamstik --no-input agent validate --offline   # offline agent-harness check
 hamstik --json --no-input agent validate      # + live snapshot freshness
 ```

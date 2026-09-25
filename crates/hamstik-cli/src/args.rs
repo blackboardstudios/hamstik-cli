@@ -524,6 +524,13 @@ pub enum SkillCommand {
 pub enum ApiCommand {
     /// Print the live Public API OpenAPI document.
     Openapi,
+    /// Perform one cheap authenticated Public API read and print the
+    /// current rate-limit snapshot (`Limit`, `Remaining`, `ResetIn`).
+    ///
+    /// The snapshot mirrors the `meta.rateLimit` fields of
+    /// `api request --json` and is a point-in-time observation: limits can
+    /// change between calls, so it is not a guarantee against future 429s.
+    RateLimit,
     /// Call a documented Public API v1 route through the CLI.
     Request(RequestArgs),
     /// A bare Public API v1 path (`hamstik api /api/v1/...`) — forwarded to

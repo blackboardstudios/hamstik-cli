@@ -12,6 +12,15 @@ before upgrading.
 
 ### Added
 
+- `api rate-limit` (CLI-36): one cheap authenticated Public API read that
+  reports the current `RateLimit-*` snapshot so long-running scripts and
+  agents can see headroom before hitting a 429. `--json --no-input` emits a
+  stable `{ "rateLimit": { "limit", "remaining", "resetIn" } | null,
+  "requestId"? }` document whose fields mirror `api request`'s
+  `meta.rateLimit`, sourced from the same transport-level parser. The probe
+  skips the proactive depleted-window wait that typed reads apply on a
+  successful response, and the snapshot is a point-in-time observation
+  rather than a guarantee against future rate limits.
 - `agent validate` (CLI-74, also available as `agent doctor`): offline
   verification of the local agent harness. It lints the installed Agent
   Skill's metadata against the running CLI version (and its command

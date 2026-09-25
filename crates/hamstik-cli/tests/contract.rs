@@ -323,7 +323,7 @@ fn subcommand_groups_match_documented_surface() {
             &["squeakql"],
             &["delete", "list", "save", "show", "validate"],
         ),
-        ("api", &["api"], &["openapi", "request"]),
+        ("api", &["api"], &["openapi", "rate-limit", "request"]),
     ];
     for (label, group, expected) in cases {
         let mut expected: Vec<String> = expected.iter().map(|s| s.to_string()).collect();

@@ -171,6 +171,34 @@ pub struct RateLimitSnapshot {
     pub reset_in: u64,
 }
 
+impl RateLimitSnapshot {
+    /// The documented JSON shape shared by `api request --json`'s `meta`
+    /// rate-limit field and the explicit rate-limit probe.
+    #[must_use]
+    pub fn to_json(self) -> Value {
+        serde_json::json!({
+            "limit": self.limit,
+            "remaining": self.remaining,
+            "resetIn": self.reset_in,
+        })
+    }
+}
+
+/// The result of an explicit Public API rate-limit probe.
+///
+/// A probe performs one cheap authenticated read and returns the rate-limit
+/// snapshot the server reported on that response, without the transport's
+/// proactive depleted-window wait. The snapshot is a point-in-time
+/// observation, not a guarantee: limits can change between calls.
+#[derive(Debug, Clone)]
+pub struct RateLimitProbe {
+    /// The server's snapshot, when the response carried every
+    /// `RateLimit-*` header.
+    pub snapshot: Option<RateLimitSnapshot>,
+    /// Correlation id (`requestId` from the envelope, or `X-Request-Id`).
+    pub request_id: Option<String>,
+}
+
 /// A downloaded attachment's bytes plus the file name suggested by the server.
 #[derive(Debug, Clone)]
 pub struct DownloadedAttachment {
@@ -975,6 +1003,13 @@ pub trait HamstikApi: Send + Sync {
     async fn whoami(&self) -> Result<ApiResponse<Me>, ClientError>;
     /// `GET /openapi.json`: the unauthenticated Public API contract.
     async fn get_open_api(&self) -> Result<ApiResponse<Value>, ClientError>;
+    /// `GET /me`: one cheap authenticated read whose response carries the
+    /// current `RateLimit-*` snapshot.
+    ///
+    /// Unlike typed reads, a probe never applies the proactive
+    /// depleted-window wait, so callers observe present headroom immediately
+    /// instead of sleeping toward a window reset.
+    async fn probe_rate_limit(&self) -> Result<RateLimitProbe, ClientError>;
     /// Generic Public API v1 passthrough: sends one request to
     /// `GET|POST|PATCH|PUT|DELETE /api/v1/<segments...>` with an optional
     /// JSON body, query pairs, allowlisted header overrides, and an optional
@@ -1962,6 +1997,30 @@ impl HamstikApi for HamstikClient {
             false,
         )
         .await
+    }
+
+    async fn probe_rate_limit(&self) -> Result<RateLimitProbe, ClientError> {
+        // `GET /me` is the cheapest documented authenticated read; its
+        // response carries the same `RateLimit-*` headers as any other
+        // Public API call. This deliberately bypasses `send_json`, which
+        // would absorb a depleted window: a probe reports the snapshot
+        // instead of waiting out the reset.
+        let spec = RequestSpec {
+            method: Method::GET,
+            segments: vec!["me".to_string()],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        };
+        let (response, _) = self
+            .send_with_retry(spec.retryable, || self.build(&spec, true))
+            .await?;
+        let finalized: ApiResponse<Value> = self.finalize(response).await?;
+        Ok(RateLimitProbe {
+            snapshot: finalized.rate_limit,
+            request_id: finalized.request_id,
+        })
     }
 
     async fn raw_request(
@@ -5029,6 +5088,34 @@ mod tests {
         .unwrap()
     }
 
+    /// Sleeper that records every requested delay so tests can assert the
+    /// transport never waited.
+    #[derive(Default)]
+    struct RecordingSleeper {
+        sleeps: std::sync::Mutex<Vec<Duration>>,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::retry::Sleeper for RecordingSleeper {
+        async fn sleep(&self, duration: Duration) {
+            self.sleeps.lock().unwrap().push(duration);
+        }
+    }
+
+    fn recording_client(uri: &str, sleeper: Arc<RecordingSleeper>) -> HamstikClient {
+        let host = Host::parse(uri).unwrap();
+        HamstikClient::with_sleeper(
+            host,
+            SecretString::from("tok".to_string()),
+            ClientConfig {
+                retry: RetryPolicy::none(),
+                ..ClientConfig::default()
+            },
+            sleeper,
+        )
+        .unwrap()
+    }
+
     #[tokio::test]
     async fn oversized_body_is_rejected_not_buffered() {
         let server = MockServer::start().await;
@@ -5092,6 +5179,60 @@ mod tests {
         assert_eq!(snapshot.limit, 100);
         assert_eq!(snapshot.remaining, 37);
         assert_eq!(snapshot.reset_in, 12);
+    }
+
+    /// An explicit probe reports the snapshot even when the window is
+    /// exhausted, and never applies the proactive depleted-window wait.
+    #[tokio::test]
+    async fn rate_limit_probe_reports_without_absorbing_the_window() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v1/me"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("RateLimit-Limit", "100")
+                    .insert_header("RateLimit-Remaining", "0")
+                    .insert_header("RateLimit-Reset", "30")
+                    .insert_header("X-Request-Id", "req-probe")
+                    .set_body_json(serde_json::json!({
+                        "id": "u1", "publicId": "usr_cPbfeqnghA-RLpDVOMQhHg",
+                        "name": "N", "email": "n@x",
+                        "authentication": {"type": "pat", "credentialId": "c",
+                            "credentialName": "n", "scopes": [],
+                            "expiresAt": "2027-01-01T00:00:00Z"},
+                        "defaultOrganization": null,
+                        "organizations": []
+                    })),
+            )
+            .mount(&server)
+            .await;
+
+        let sleeper = Arc::new(RecordingSleeper::default());
+        let client = recording_client(&server.uri(), Arc::clone(&sleeper));
+        let probe = client.probe_rate_limit().await.unwrap();
+        let snapshot = probe.snapshot.expect("snapshot present");
+        assert_eq!(snapshot.limit, 100);
+        assert_eq!(snapshot.remaining, 0);
+        assert_eq!(snapshot.reset_in, 30);
+        assert_eq!(probe.request_id.as_deref(), Some("req-probe"));
+        assert!(
+            sleeper.sleeps.lock().unwrap().is_empty(),
+            "a probe must not wait out a depleted window: {:?}",
+            sleeper.sleeps.lock().unwrap()
+        );
+    }
+
+    #[test]
+    fn rate_limit_snapshot_json_shape_matches_the_meta_field() {
+        let snapshot = RateLimitSnapshot {
+            limit: 100,
+            remaining: 37,
+            reset_in: 12,
+        };
+        assert_eq!(
+            snapshot.to_json(),
+            serde_json::json!({"limit": 100, "remaining": 37, "resetIn": 12})
+        );
     }
 
     #[tokio::test]

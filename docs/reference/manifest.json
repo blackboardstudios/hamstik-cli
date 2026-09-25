@@ -7997,6 +7997,20 @@
    "positionals": []
   },
   {
+   "about": "Perform one cheap authenticated Public API read and print the current rate-limit snapshot (`Limit`, `Remaining`, `ResetIn`)",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik api rate-limit",
+   "hasSubcommands": false,
+   "longAbout": "Perform one cheap authenticated Public API read and print the current rate-limit snapshot (`Limit`, `Remaining`, `ResetIn`).\n\nThe snapshot mirrors the `meta.rateLimit` fields of `api request --json` and is a point-in-time observation: limits can change between calls, so it is not a guarantee against future 429s.",
+   "options": [],
+   "positionals": []
+  },
+  {
    "about": "Call a documented Public API v1 route through the CLI",
    "aliases": [],
    "arguments": [

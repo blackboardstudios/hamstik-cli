@@ -3,6 +3,7 @@
 
 //! `hamstik api` — Public API metadata and the v1 passthrough.
 
+use hamstik_api_client::RateLimitSnapshot;
 use serde_json::{Value, json};
 use std::io::Read as _;
 use uuid::Uuid;
@@ -19,7 +20,52 @@ pub async fn run(session: &mut Session<'_>, args: &ApiArgs) -> Result<(), CliErr
     match args.command {
         ApiCommand::Openapi => openapi(session).await,
         ApiCommand::Request(ref request_args) => run_request(session, request_args).await,
+        ApiCommand::RateLimit => rate_limit(session).await,
         ApiCommand::Passthrough(ref parts) => passthrough(session, parts).await,
+    }
+}
+
+/// `hamstik api rate-limit`: one cheap authenticated read that reports the
+/// server's current `RateLimit-*` snapshot.
+///
+/// This is a point-in-time observation, not a promise: limits can change
+/// between calls. The read reuses the same transport (and therefore the same
+/// snapshot parser) as every other command. It skips the proactive
+/// depleted-window wait that typed reads apply on a successful response, so
+/// it reports the observed headroom immediately; a hard `429` is still
+/// retried under the same bounded policy as any other command.
+async fn rate_limit(session: &mut Session<'_>) -> Result<(), CliError> {
+    let selection = session.selection()?;
+    let api = session.api(&selection)?;
+    let probe = api
+        .probe_rate_limit()
+        .await
+        .map_err(CliError::from_client)?;
+
+    if session.json() {
+        let mut envelope = json!({ "rateLimit": probe.snapshot.map(RateLimitSnapshot::to_json) });
+        if let Some(request_id) = &probe.request_id {
+            envelope["requestId"] = json!(request_id);
+        }
+        return emit_json(session, &envelope);
+    }
+
+    match probe.snapshot {
+        Some(snapshot) => session
+            .out
+            .line(&format!(
+                "rate limit: {} of {} remaining; window resets in {}s \
+                 (snapshot from one read; limits may change between calls)",
+                snapshot.remaining, snapshot.limit, snapshot.reset_in
+            ))
+            .map_err(CliError::general),
+        None => {
+            session.out.warn(
+                "rate limit: the server reported no RateLimit-* headers on this read; \
+                 no snapshot is available",
+            );
+            Ok(())
+        }
     }
 }
 
@@ -394,10 +440,7 @@ fn response_meta(response: &hamstik_api_client::ApiResponse<Value>) -> Option<Va
         meta.insert("location".to_string(), json!(location));
     }
     if let Some(limit) = &response.rate_limit {
-        meta.insert(
-            "rateLimit".to_string(),
-            json!({"limit": limit.limit, "remaining": limit.remaining, "resetIn": limit.reset_in}),
-        );
+        meta.insert("rateLimit".to_string(), limit.to_json());
     }
     if meta.is_empty() {
         None

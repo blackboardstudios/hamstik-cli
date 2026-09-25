@@ -231,6 +231,10 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   `board move` — state changes continue through `work transition`;
 - attachments — `work attachment list|upload|download|delete`;
 - the unauthenticated live contract via `hamstik api openapi`;
+- a point-in-time Public API rate-limit snapshot via `hamstik api
+  rate-limit` — one cheap authenticated read that reports the server's
+  `RateLimit-*` headroom without the proactive depleted-window wait that
+  typed reads apply;
 - a `gh api`-style Public API v1 passthrough (`hamstik api /api/v1/...` /
   `hamstik api request /api/v1/... --method POST`) so any documented v1
   route is callable — including server routes newer than the installed CLI
@@ -1244,6 +1248,23 @@ verbatim and `meta` carries `requestId`, `etag`, `idempotencyReplayed`,
 `location`, and the `RateLimit-*` snapshot when present. The OpenAPI
 snapshot (`hamstik api openapi`) is never an allowlist: newer server routes
 remain callable.
+
+`hamstik api rate-limit` performs one cheap authenticated read (`GET
+/api/v1/me`) and prints the current `RateLimit-*` snapshot, so long-running
+scripts and agents can see headroom before hitting a 429:
+
+```bash
+hamstik --json --no-input api rate-limit
+# {"rateLimit":{"limit":100,"remaining":37,"resetIn":12},"requestId":"..."}
+```
+
+The `--json` shape mirrors `api request`'s `meta.rateLimit` fields exactly
+(`limit`, `remaining`, `resetIn`) and is `null` when the server sent no
+`RateLimit-*` headers. It is a snapshot, not a promise: limits can change
+between calls. Unlike typed reads, the probe skips the proactive
+wait on a successful-but-depleted response, so headroom is reported
+immediately; a hard `429` is still retried under the same bounded retry
+policy as any other command (use `--no-retry` to surface it instantly).
 
 ## Build from source
 
