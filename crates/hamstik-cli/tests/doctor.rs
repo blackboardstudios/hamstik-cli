@@ -366,6 +366,191 @@ async fn doctor_output_never_leaks_credentials() {
     );
 }
 
+/// `--diff` compares a freshly generated local-only bundle against a saved
+/// one: a changed host is a named diff, and identical bundles report an
+/// explicit "no differences" result in both JSON and human output.
+#[test]
+fn diff_reports_named_changes_and_identical_bundles_have_no_differences() {
+    let dir = TempDir::new().unwrap();
+    let baseline = dir.path().join("baseline.zip");
+
+    // Baseline bundle captured at host A.
+    let saved = local(&dir)
+        .env("HAMSTIK_HOST", "http://127.0.0.1:1")
+        .args([
+            "--no-input",
+            "--json",
+            "--org",
+            "acme",
+            "doctor",
+            "--local-only",
+            "--bundle",
+        ])
+        .arg(&baseline)
+        .output()
+        .unwrap();
+    assert_eq!(saved.status.code(), Some(0), "{:?}", saved.stderr);
+    assert!(baseline.exists(), "baseline bundle must be written");
+
+    // Re-running in the identical state reports no differences.
+    let identical = local(&dir)
+        .env("HAMSTIK_HOST", "http://127.0.0.1:1")
+        .args(["--no-input", "--json", "--org", "acme", "doctor", "--diff"])
+        .arg(&baseline)
+        .output()
+        .unwrap();
+    assert_eq!(identical.status.code(), Some(0), "{:?}", identical.stderr);
+    let body: Value = serde_json::from_slice(&identical.stdout).unwrap();
+    assert_eq!(body["noDifferences"], true, "{body}");
+    assert_eq!(body["count"], 0, "{body}");
+    assert!(body["differences"].as_array().unwrap().is_empty(), "{body}");
+
+    let human = local(&dir)
+        .env("HAMSTIK_HOST", "http://127.0.0.1:1")
+        .args(["--no-input", "--org", "acme", "doctor", "--diff"])
+        .arg(&baseline)
+        .output()
+        .unwrap();
+    assert_eq!(human.status.code(), Some(0), "{:?}", human.stderr);
+    assert!(
+        String::from_utf8_lossy(&human.stdout).contains("no differences"),
+        "human output must state no differences: {:?}",
+        String::from_utf8_lossy(&human.stdout)
+    );
+
+    // A different host is reported as a named check diff.
+    let changed = local(&dir)
+        .env("HAMSTIK_HOST", "http://127.0.0.1:2")
+        .args(["--no-input", "--json", "--org", "acme", "doctor", "--diff"])
+        .arg(&baseline)
+        .output()
+        .unwrap();
+    assert_eq!(changed.status.code(), Some(0), "{:?}", changed.stderr);
+    let body: Value = serde_json::from_slice(&changed.stdout).unwrap();
+    assert_eq!(body["noDifferences"], false, "{body}");
+    assert!(
+        body["differences"].as_array().unwrap().iter().any(|entry| {
+            entry["name"] == "local.host"
+                && entry["kind"] == "changed"
+                && entry["path"] == "checks[local.host].detail"
+        }),
+        "host change must be a named diff: {body}"
+    );
+}
+
+/// A changed Organization scope between bundles is reported by the context
+/// resolution check and the context-explain chain.
+#[test]
+fn diff_reports_context_scope_changes() {
+    let dir = TempDir::new().unwrap();
+    let baseline = dir.path().join("baseline.zip");
+
+    let saved = local(&dir)
+        .args([
+            "--no-input",
+            "--json",
+            "--org",
+            "acme",
+            "doctor",
+            "--local-only",
+            "--bundle",
+        ])
+        .arg(&baseline)
+        .output()
+        .unwrap();
+    assert_eq!(saved.status.code(), Some(0), "{:?}", saved.stderr);
+
+    let changed = local(&dir)
+        .args(["--no-input", "--json", "--org", "other", "doctor", "--diff"])
+        .arg(&baseline)
+        .output()
+        .unwrap();
+    assert_eq!(changed.status.code(), Some(0), "{:?}", changed.stderr);
+    let body: Value = serde_json::from_slice(&changed.stdout).unwrap();
+    let differences = body["differences"].as_array().unwrap();
+    assert!(
+        differences.iter().any(|entry| {
+            entry["name"] == "local.context_resolution" && entry["kind"] == "changed"
+        }),
+        "organization change must be a named diff: {body}"
+    );
+    assert!(
+        differences
+            .iter()
+            .any(|entry| entry["file"] == "context-explain.json"),
+        "organization change must also surface in context-explain: {body}"
+    );
+}
+
+/// A saved bundle that is missing, corrupt, or not a ZIP fails clearly and
+/// never silently reports "no differences".
+#[test]
+fn diff_rejects_unreadable_bundle() {
+    let dir = TempDir::new().unwrap();
+    let missing = dir.path().join("missing.zip");
+    let output = local(&dir)
+        .args(["--no-input", "--json", "doctor", "--diff"])
+        .arg(&missing)
+        .output()
+        .unwrap();
+    assert_ne!(output.status.code(), Some(0), "missing bundle must fail");
+    let text = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        text.contains("missing.zip"),
+        "error must name the bundle: {text}"
+    );
+
+    let corrupt = dir.path().join("corrupt.zip");
+    std::fs::write(&corrupt, b"not a zip").unwrap();
+    let output = local(&dir)
+        .args(["--no-input", "--json", "doctor", "--diff"])
+        .arg(&corrupt)
+        .output()
+        .unwrap();
+    assert_ne!(output.status.code(), Some(0), "corrupt bundle must fail");
+    let text = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        text.contains("corrupt.zip"),
+        "error must name the bundle: {text}"
+    );
+}
+
+/// `--diff` and `--bundle` may target the same file: the saved baseline is
+/// read before the fresh bundle overwrites it, so the comparison still runs
+/// against the saved state.
+#[test]
+fn diff_and_bundle_same_path_compares_saved_baseline() {
+    let dir = TempDir::new().unwrap();
+    let bundle = dir.path().join("bundle.zip");
+
+    let saved = local(&dir)
+        .args([
+            "--no-input",
+            "--json",
+            "--org",
+            "acme",
+            "doctor",
+            "--local-only",
+            "--bundle",
+        ])
+        .arg(&bundle)
+        .output()
+        .unwrap();
+    assert_eq!(saved.status.code(), Some(0), "{:?}", saved.stderr);
+
+    let output = local(&dir)
+        .args(["--no-input", "--json", "--org", "acme", "doctor", "--diff"])
+        .arg(&bundle)
+        .args(["--bundle"])
+        .arg(&bundle)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{:?}", output.stderr);
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(body["noDifferences"], true, "{body}");
+    assert_eq!(body["count"], 0, "{body}");
+}
+
 /// Builds an RFC 3339 timestamp `seconds` from now (UTC).
 fn humantime_timestamp(seconds: i64) -> String {
     let days = seconds.div_euclid(86_400);

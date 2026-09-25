@@ -505,6 +505,16 @@ pub struct DoctorArgs {
     /// See also: `doctor --help`.
     #[arg(long, value_name = "PATH")]
     pub bundle: Option<PathBuf>,
+    /// Compare a freshly generated local-only support bundle against a
+    /// previously saved bundle and report only what changed. The named diff
+    /// covers the redacted report contents: host, CLI version, context
+    /// scopes, checks, and config metadata. `--diff` implies `--local-only`,
+    /// so no network traffic is generated and no new sensitive data is read;
+    /// an unchanged bundle reports an explicit "no differences" result.
+    ///
+    /// Combine with `--bundle <PATH>` to also write the fresh bundle.
+    #[arg(long, value_name = "PATH")]
+    pub diff: Option<PathBuf>,
 }
 
 /// Agent automation subcommands.

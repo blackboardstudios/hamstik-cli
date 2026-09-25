@@ -278,13 +278,18 @@ pub async fn run(
     session: &mut Session<'_>,
     local_only: bool,
     bundle: Option<&std::path::Path>,
+    diff: Option<&std::path::Path>,
 ) -> Result<(), CliError> {
+    // `--diff` compares against a freshly generated local-only bundle so the
+    // comparison is deterministic and offline: no DNS or HTTP traffic is
+    // generated and no new sensitive data is read.
+    let local_only = local_only || diff.is_some();
     let mut report = Report::new();
     let local = diagnose_local_state(session, &mut report);
 
     let Some(selection) = local.selection else {
         finish_without_host(session, &mut report, local_only);
-        return finish(session, report, bundle).await;
+        return finish(session, report, bundle, diff).await;
     };
 
     if local_only {
@@ -327,7 +332,7 @@ pub async fn run(
                 );
                 report.push(color_check(session));
                 report.push(emoji_check(session));
-                return finish(session, report, bundle).await;
+                return finish(session, report, bundle, diff).await;
             }
         };
         match check_api_compatibility(&bundled) {
@@ -361,7 +366,7 @@ pub async fn run(
         ));
         report.push(color_check(session));
         report.push(emoji_check(session));
-        return finish(session, report, bundle).await;
+        return finish(session, report, bundle, diff).await;
     }
 
     // An explicit ephemeral token makes the keyring irrelevant; do not even
@@ -535,7 +540,7 @@ pub async fn run(
 
     report.push(color_check(session));
     report.push(emoji_check(session));
-    finish(session, report, bundle).await
+    finish(session, report, bundle, diff).await
 }
 
 fn diagnose_local_state(session: &Session<'_>, report: &mut Report) -> LocalState {
@@ -1573,12 +1578,24 @@ fn render(session: &mut Session<'_>, report: Report) -> Result<(), CliError> {
     Ok(())
 }
 
-/// Either render the report to the terminal/JSON or write a support bundle.
+/// Either render the report to the terminal/JSON, write a support bundle, or
+/// render a support-bundle diff.
 async fn finish(
     session: &mut Session<'_>,
     report: Report,
     bundle: Option<&std::path::Path>,
+    diff: Option<&std::path::Path>,
 ) -> Result<(), CliError> {
+    // Read the baseline before `--bundle` can overwrite the same file, so
+    // `--diff b.zip --bundle b.zip` compares against the saved bundle rather
+    // than silently reporting no differences against itself.
+    if let Some(baseline_path) = diff {
+        let baseline = read_bundle(baseline_path)?;
+        if let Some(path) = bundle {
+            write_bundle(session, &report, path).await?;
+        }
+        return render_diff(session, &report, baseline_path, baseline);
+    }
     if let Some(path) = bundle {
         write_bundle(session, &report, path).await?;
     }
@@ -1587,6 +1604,42 @@ async fn finish(
 
 /// Bundle layout version. Bump when the on-disk structure changes.
 const BUNDLE_VERSION: &str = "1.0";
+
+/// The ordered support-bundle contents.
+const BUNDLE_CONTENTS: [&str; 6] = [
+    "bundle-manifest.json",
+    "doctor-report.json",
+    "context-explain.json",
+    "cli-info.json",
+    "api-compatibility.json",
+    "config-metadata.json",
+];
+
+fn bundle_manifest_json() -> Value {
+    json!({
+        "bundleVersion": BUNDLE_VERSION,
+        "generatedAt": std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| format!("{}", d.as_secs()))
+            .unwrap_or_else(|_| "0".to_string()),
+        "contents": BUNDLE_CONTENTS,
+        "redaction": "by construction plus explicit scrub pass",
+    })
+}
+
+/// Builds the ordered, redacted bundle contents shared by `--bundle` and
+/// `--diff`. Kept in memory so a diff never needs a second on-disk bundle and
+/// never exposes a value that `--bundle` would not already write.
+fn bundle_files(session: &Session<'_>, report: &Report) -> Vec<(&'static str, Value)> {
+    vec![
+        ("bundle-manifest.json", bundle_manifest_json()),
+        ("doctor-report.json", report_to_json(report)),
+        ("context-explain.json", context_explain_json(session)),
+        ("cli-info.json", cli_info_json()),
+        ("api-compatibility.json", api_compatibility_json()),
+        ("config-metadata.json", config_metadata_json(session)),
+    ]
+}
 
 /// Writes a redacted, versioned support bundle to `path`.
 async fn write_bundle(
@@ -1601,71 +1654,437 @@ async fn write_bundle(
     let mut zip = zip::ZipWriter::new(file);
     let options = zip::write::SimpleFileOptions::default();
 
-    // --- bundle-manifest.json ---
-    let manifest = json!({
-        "bundleVersion": BUNDLE_VERSION,
-        "generatedAt": std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| format!("{}", d.as_secs()))
-            .unwrap_or_else(|_| "0".to_string()),
-        "contents": [
-            "bundle-manifest.json",
-            "doctor-report.json",
-            "context-explain.json",
-            "cli-info.json",
-            "api-compatibility.json",
-            "config-metadata.json",
-        ],
-        "redaction": "by construction plus explicit scrub pass",
-    });
-    zip.start_file("bundle-manifest.json", options)
-        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
-    zip.write_all(manifest.to_string().as_bytes())
-        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
-
-    // --- doctor-report.json ---
-    let report_json = report_to_json(report);
-    zip.start_file("doctor-report.json", options)
-        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
-    zip.write_all(report_json.to_string().as_bytes())
-        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
-
-    // --- context-explain.json ---
-    let context_json = context_explain_json(session);
-    zip.start_file("context-explain.json", options)
-        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
-    zip.write_all(context_json.to_string().as_bytes())
-        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
-
-    // --- cli-info.json ---
-    let cli_info = cli_info_json();
-    zip.start_file("cli-info.json", options)
-        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
-    zip.write_all(cli_info.to_string().as_bytes())
-        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
-
-    // --- api-compatibility.json ---
-    let api_compat = api_compatibility_json();
-    zip.start_file("api-compatibility.json", options)
-        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
-    zip.write_all(api_compat.to_string().as_bytes())
-        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
-
-    // --- config-metadata.json ---
-    let config_meta = config_metadata_json(session);
-    zip.start_file("config-metadata.json", options)
-        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
-    zip.write_all(config_meta.to_string().as_bytes())
-        .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+    for (name, value) in bundle_files(session, report) {
+        zip.start_file(name, options)
+            .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+        zip.write_all(value.to_string().as_bytes())
+            .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
+    }
 
     zip.finish()
         .map_err(|err| CliError::general(format!("bundle write error: {err}")))?;
 
-    session
-        .out
-        .line(&format!("support bundle written to {}", path.display()))
-        .map_err(CliError::general)?;
+    // The JSON envelope must stay parseable, so the human confirmation is
+    // only printed for terminal/quiet output.
+    if !session.json() {
+        session
+            .out
+            .line(&format!("support bundle written to {}", path.display()))
+            .map_err(CliError::general)?;
+    }
     Ok(())
+}
+
+/// Classification of one bundle difference.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DiffKind {
+    Added,
+    Removed,
+    Changed,
+}
+
+impl DiffKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Added => "added",
+            Self::Removed => "removed",
+            Self::Changed => "changed",
+        }
+    }
+}
+
+/// One named difference between a saved and a freshly generated bundle.
+#[derive(Debug)]
+struct DiffEntry {
+    file: String,
+    name: String,
+    path: String,
+    kind: DiffKind,
+    before: Option<Value>,
+    after: Option<Value>,
+}
+
+impl DiffEntry {
+    fn added(file: &str, name: &str, path: &str, after: &Value) -> Self {
+        Self {
+            file: file.to_string(),
+            name: name.to_string(),
+            path: path.to_string(),
+            kind: DiffKind::Added,
+            before: None,
+            after: Some(after.clone()),
+        }
+    }
+
+    fn removed(file: &str, name: &str, path: &str, before: &Value) -> Self {
+        Self {
+            file: file.to_string(),
+            name: name.to_string(),
+            path: path.to_string(),
+            kind: DiffKind::Removed,
+            before: Some(before.clone()),
+            after: None,
+        }
+    }
+
+    fn changed(file: &str, name: &str, path: &str, before: &Value, after: &Value) -> Self {
+        Self {
+            file: file.to_string(),
+            name: name.to_string(),
+            path: path.to_string(),
+            kind: DiffKind::Changed,
+            before: Some(before.clone()),
+            after: Some(after.clone()),
+        }
+    }
+
+    fn to_json(&self) -> Value {
+        let mut value = json!({
+            "file": self.file,
+            "name": self.name,
+            "path": self.path,
+            "kind": self.kind.as_str(),
+        });
+        if let Some(before) = &self.before {
+            value["before"] = before.clone();
+        }
+        if let Some(after) = &self.after {
+            value["after"] = after.clone();
+        }
+        value
+    }
+}
+
+/// Reads the JSON entries of a saved support bundle.
+fn read_bundle(path: &std::path::Path) -> Result<Vec<(String, Value)>, CliError> {
+    use std::io::Read;
+
+    let file = std::fs::File::open(path).map_err(|err| {
+        CliError::general(format!("cannot open bundle {}: {err}", path.display()))
+    })?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|err| {
+        CliError::general(format!(
+            "{} is not a readable ZIP support bundle: {err}",
+            path.display()
+        ))
+    })?;
+
+    let mut entries = Vec::new();
+    for index in 0..archive.len() {
+        let mut entry = archive
+            .by_index(index)
+            .map_err(|err| CliError::general(format!("bundle read error: {err}")))?;
+        if !entry.name().ends_with(".json") {
+            continue;
+        }
+        let name = entry.name().to_string();
+        let mut text = String::new();
+        entry.read_to_string(&mut text).map_err(|err| {
+            CliError::general(format!("bundle file {name} could not be read: {err}"))
+        })?;
+        let value: Value = serde_json::from_str(&text).map_err(|err| {
+            CliError::general(format!("bundle file {name} is not valid JSON: {err}"))
+        })?;
+        entries.push((name, value));
+    }
+    Ok(entries)
+}
+
+/// Keys whose values describe the capture itself (when it happened, how long
+/// it took, which request served it) rather than the support state.
+const NOISE_KEYS: [&str; 3] = ["generatedAt", "durationMs", "requestId"];
+
+fn is_noise_key(key: &str) -> bool {
+    NOISE_KEYS.contains(&key)
+}
+
+/// Copies `value` with volatile noise keys removed at every level so
+/// comparisons reflect the support state rather than the capture moment.
+fn scrub_noise(value: &Value) -> Value {
+    match value {
+        Value::Object(map) => Value::Object(
+            map.iter()
+                .filter(|(key, _)| !is_noise_key(key))
+                .map(|(key, value)| (key.clone(), scrub_noise(value)))
+                .collect(),
+        ),
+        Value::Array(items) => Value::Array(items.iter().map(scrub_noise).collect()),
+        other => other.clone(),
+    }
+}
+
+/// Equality that ignores volatile capture noise nested inside values.
+fn noise_insensitive_equal(before: &Value, after: &Value) -> bool {
+    scrub_noise(before) == scrub_noise(after)
+}
+
+/// Diffs a saved bundle against a freshly generated one, reporting only named,
+/// semantic differences. Volatile timestamps and transport noise
+/// (`generatedAt`, `durationMs`, `requestId`) are ignored so a comparison is
+/// about the support state, not the moment it was captured.
+fn diff_bundle_files(
+    baseline: &[(String, Value)],
+    fresh: &[(&'static str, Value)],
+) -> Vec<DiffEntry> {
+    let mut entries = Vec::new();
+    let mut seen = BTreeSet::new();
+
+    for (name, fresh_value) in fresh {
+        seen.insert((*name).to_string());
+        match baseline
+            .iter()
+            .find(|(baseline_name, _)| baseline_name == name)
+        {
+            Some((_, baseline_value)) => diff_file(name, baseline_value, fresh_value, &mut entries),
+            None => entries.push(DiffEntry::added(name, name, name, fresh_value)),
+        }
+    }
+    for (name, baseline_value) in baseline {
+        if !seen.contains(name) {
+            entries.push(DiffEntry::removed(name, name, name, baseline_value));
+        }
+    }
+    entries
+}
+
+fn diff_file(file: &str, before: &Value, after: &Value, out: &mut Vec<DiffEntry>) {
+    if file == "doctor-report.json" {
+        diff_doctor_report(before, after, out);
+    } else {
+        diff_value(file, "", before, after, out);
+    }
+}
+
+/// Generic nested JSON diff. Keys and indices are visited deterministically so
+/// two identical bundles always produce zero entries.
+fn diff_value(file: &str, path: &str, before: &Value, after: &Value, out: &mut Vec<DiffEntry>) {
+    if before == after {
+        return;
+    }
+    match (before, after) {
+        (Value::Object(before_map), Value::Object(after_map)) => {
+            let mut keys: Vec<&String> = before_map.keys().collect();
+            for key in after_map.keys() {
+                if !before_map.contains_key(key) {
+                    keys.push(key);
+                }
+            }
+            for key in keys {
+                if is_noise_key(key) {
+                    continue;
+                }
+                let child = if path.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{path}.{key}")
+                };
+                match (before_map.get(key), after_map.get(key)) {
+                    (Some(before_value), Some(after_value)) => {
+                        diff_value(file, &child, before_value, after_value, out);
+                    }
+                    (Some(before_value), None) => {
+                        out.push(DiffEntry::removed(file, key, &child, before_value));
+                    }
+                    (None, Some(after_value)) => {
+                        out.push(DiffEntry::added(file, key, &child, after_value));
+                    }
+                    (None, None) => {}
+                }
+            }
+        }
+        (Value::Array(before_items), Value::Array(after_items)) => {
+            for index in 0..before_items.len().max(after_items.len()) {
+                let child = format!("{path}[{index}]");
+                match (before_items.get(index), after_items.get(index)) {
+                    (Some(before_value), Some(after_value)) => {
+                        diff_value(file, &child, before_value, after_value, out);
+                    }
+                    (Some(before_value), None) => {
+                        out.push(DiffEntry::removed(file, &child, &child, before_value));
+                    }
+                    (None, Some(after_value)) => {
+                        out.push(DiffEntry::added(file, &child, &child, after_value));
+                    }
+                    (None, None) => {}
+                }
+            }
+        }
+        _ => out.push(DiffEntry::changed(file, path, path, before, after)),
+    }
+}
+
+/// Diffs the `checks` array by stable check id rather than array position so
+/// added/removed/reordered checks each read as a named change.
+fn diff_doctor_report(before: &Value, after: &Value, out: &mut Vec<DiffEntry>) {
+    let before_checks = check_entries(before);
+    let after_checks = check_entries(after);
+    let mut seen = BTreeSet::new();
+
+    for (id, after_check) in &after_checks {
+        seen.insert(id.clone());
+        match before_checks.iter().find(|(before_id, _)| before_id == id) {
+            Some((_, before_check)) => {
+                // Compare every field the two captures carry so a renamed
+                // check or a newly reported field is a named diff too; only
+                // volatile noise keys are excluded.
+                let mut fields: BTreeSet<&String> = before_check
+                    .as_object()
+                    .map(|map| map.keys().collect())
+                    .unwrap_or_default();
+                if let Some(map) = after_check.as_object() {
+                    for key in map.keys() {
+                        fields.insert(key);
+                    }
+                }
+                for field in fields {
+                    if is_noise_key(field) {
+                        continue;
+                    }
+                    let path = format!("checks[{id}].{field}");
+                    match (before_check.get(field), after_check.get(field)) {
+                        (Some(before_value), Some(after_value))
+                            if !noise_insensitive_equal(before_value, after_value) =>
+                        {
+                            out.push(DiffEntry::changed(
+                                "doctor-report.json",
+                                id,
+                                &path,
+                                before_value,
+                                after_value,
+                            ));
+                        }
+                        (Some(before_value), None) => out.push(DiffEntry::removed(
+                            "doctor-report.json",
+                            id,
+                            &path,
+                            before_value,
+                        )),
+                        (None, Some(after_value)) => out.push(DiffEntry::added(
+                            "doctor-report.json",
+                            id,
+                            &path,
+                            after_value,
+                        )),
+                        _ => {}
+                    }
+                }
+            }
+            None => out.push(DiffEntry::added(
+                "doctor-report.json",
+                id,
+                &format!("checks[{id}]"),
+                after_check,
+            )),
+        }
+    }
+    for (id, before_check) in &before_checks {
+        if !seen.contains(id) {
+            out.push(DiffEntry::removed(
+                "doctor-report.json",
+                id,
+                &format!("checks[{id}]"),
+                before_check,
+            ));
+        }
+    }
+}
+
+fn check_entries(document: &Value) -> Vec<(String, &Value)> {
+    document
+        .get("checks")
+        .and_then(Value::as_array)
+        .map(|checks| {
+            checks
+                .iter()
+                .filter_map(|check| {
+                    let id = check.get("id").and_then(Value::as_str)?.to_string();
+                    Some((id, check))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Renders the diff between a saved bundle and a freshly generated local-only
+/// bundle. Differences are informational and never change the exit code.
+fn render_diff(
+    session: &mut Session<'_>,
+    report: &Report,
+    baseline_path: &std::path::Path,
+    baseline: Vec<(String, Value)>,
+) -> Result<(), CliError> {
+    let fresh = bundle_files(session, report);
+    let differences = diff_bundle_files(&baseline, &fresh);
+
+    if session.json() {
+        let items: Vec<Value> = differences.iter().map(DiffEntry::to_json).collect();
+        emit_json(
+            session,
+            &json!({
+                "schemaVersion": 1,
+                "baseline": baseline_path.display().to_string(),
+                "differences": items,
+                "count": differences.len(),
+                "noDifferences": differences.is_empty(),
+            }),
+        )?;
+    } else if !session.out.is_quiet() {
+        session
+            .out
+            .line(&format!("diff against {}", baseline_path.display()))
+            .map_err(CliError::general)?;
+        if differences.is_empty() {
+            session
+                .out
+                .line("no differences")
+                .map_err(CliError::general)?;
+        } else {
+            for entry in &differences {
+                session
+                    .out
+                    .line(&format!(
+                        "{:<7} {} {}",
+                        entry.kind.as_str(),
+                        entry.file,
+                        entry.path
+                    ))
+                    .map_err(CliError::general)?;
+                if let Some(before) = &entry.before {
+                    session
+                        .out
+                        .line(&format!("        before: {}", compact_value(before)))
+                        .map_err(CliError::general)?;
+                }
+                if let Some(after) = &entry.after {
+                    session
+                        .out
+                        .line(&format!("        after:  {}", compact_value(after)))
+                        .map_err(CliError::general)?;
+                }
+            }
+            let noun = if differences.len() == 1 {
+                "difference"
+            } else {
+                "differences"
+            };
+            session
+                .out
+                .line(&format!("{} {noun}", differences.len()))
+                .map_err(CliError::general)?;
+        }
+    }
+
+    session.exit_code = report.exit_code;
+    Ok(())
+}
+
+/// Renders a JSON value on one line for human diff output; strings are shown
+/// without quotes so host names and versions read naturally.
+fn compact_value(value: &Value) -> String {
+    match value {
+        Value::String(text) => text.clone(),
+        other => other.to_string(),
+    }
 }
 
 fn report_to_json(report: &Report) -> Value {
@@ -2202,6 +2621,126 @@ mod tests {
         assert!(
             text.contains("<set; value not displayed>") || !text.contains("HAMSTIK_TOKEN"),
             "context explain must not reference token env var: {text}"
+        );
+    }
+
+    #[test]
+    fn diff_doctor_report_names_changes_and_ignores_transport_noise() {
+        let before = json!({
+            "checks": [
+                {
+                    "id": "local.host",
+                    "status": "pass",
+                    "detail": "https://a.example",
+                    "durationMs": 1,
+                    "requestId": "req-a",
+                },
+                {"id": "api.authentication", "status": "pass", "detail": "read, write"},
+            ]
+        });
+        let after = json!({
+            "checks": [
+                {
+                    "id": "local.host",
+                    "status": "pass",
+                    "detail": "https://b.example",
+                    "durationMs": 99,
+                    "requestId": "req-b",
+                },
+                {"id": "api.authentication", "status": "warn", "detail": "read"},
+            ]
+        });
+        let mut entries = Vec::new();
+        diff_doctor_report(&before, &after, &mut entries);
+        assert!(
+            entries.iter().any(|entry| entry.name == "local.host"
+                && entry.kind == DiffKind::Changed
+                && entry.path == "checks[local.host].detail"),
+            "host change must be named"
+        );
+        assert!(
+            entries
+                .iter()
+                .any(|entry| entry.name == "api.authentication"
+                    && entry.path == "checks[api.authentication].status"),
+            "scope/status change must be named"
+        );
+        assert!(
+            entries.iter().all(
+                |entry| !entry.path.contains("durationMs") && !entry.path.contains("requestId")
+            ),
+            "transport noise must be ignored: {entries:?}",
+        );
+    }
+
+    #[test]
+    fn diff_doctor_report_ignores_request_id_inside_error() {
+        let before = json!({
+            "checks": [{
+                "id": "api.authentication",
+                "status": "fail",
+                "error": {"kind": "api", "code": "E", "requestId": "req-a"},
+            }]
+        });
+        let after = json!({
+            "checks": [{
+                "id": "api.authentication",
+                "status": "fail",
+                "error": {"kind": "api", "code": "E", "requestId": "req-b"},
+            }]
+        });
+        let mut entries = Vec::new();
+        diff_doctor_report(&before, &after, &mut entries);
+        assert!(
+            entries.is_empty(),
+            "a requestId-only error change is capture noise: {entries:?}"
+        );
+    }
+
+    #[test]
+    fn diff_doctor_report_detects_added_and_removed_checks() {
+        let before = json!({"checks": [{"id": "a", "status": "pass"}]});
+        let after = json!({"checks": [{"id": "b", "status": "pass"}]});
+        let mut entries = Vec::new();
+        diff_doctor_report(&before, &after, &mut entries);
+        assert!(
+            entries
+                .iter()
+                .any(|entry| entry.name == "b" && entry.kind == DiffKind::Added)
+        );
+        assert!(
+            entries
+                .iter()
+                .any(|entry| entry.name == "a" && entry.kind == DiffKind::Removed)
+        );
+    }
+
+    #[test]
+    fn diff_bundle_files_ignores_generated_timestamp() {
+        let baseline = vec![
+            (
+                "bundle-manifest.json".to_string(),
+                json!({"bundleVersion": "1.0", "generatedAt": "1"}),
+            ),
+            ("cli-info.json".to_string(), json!({"cliVersion": "0.4.0"})),
+        ];
+        let fresh = vec![
+            (
+                "bundle-manifest.json",
+                json!({"bundleVersion": "1.0", "generatedAt": "2"}),
+            ),
+            ("cli-info.json", json!({"cliVersion": "0.5.0"})),
+        ];
+        let entries = diff_bundle_files(&baseline, &fresh);
+        assert!(
+            entries.iter().all(|entry| entry.path != "generatedAt"),
+            "generatedAt must be ignored: {entries:?}"
+        );
+        assert!(
+            entries
+                .iter()
+                .any(|entry| entry.path == "cliVersion" && entry.kind == DiffKind::Changed),
+            "cliVersion change must be reported: {entries:?}"
         );
     }
 }

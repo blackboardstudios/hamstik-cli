@@ -811,6 +811,8 @@ those rules locally.
 hamstik --no-input doctor
 hamstik --no-input doctor --local-only   # offline: no DNS or HTTP traffic
 hamstik --json --no-input doctor         # structured report + summary
+hamstik --no-input doctor --bundle bundle.zip          # write a redacted support bundle
+hamstik --json --no-input doctor --diff bundle.zip     # compare against a saved bundle (offline)
 hamstik --json --no-input api openapi    # live Public API contract
 hamstik --json --no-input api rate-limit # current rate-limit snapshot
 hamstik --no-input agent validate --offline   # offline agent-harness check
@@ -821,6 +823,14 @@ hamstik --json --no-input agent validate      # + live snapshot freshness
   terminal behavior, and bundled compatibility metadata without contacting the
   host; remote checks are reported as `skipped`. Prefer it for support bundles —
   the JSON report never contains tokens, Authorization headers, or proxy values.
+- `doctor --diff <bundle-file>` compares a freshly generated local-only bundle
+  against a saved `doctor --bundle` ZIP and reports only what changed. The
+  `--json` envelope lists named differences (`file`, `name`, `path`, `kind`,
+  `before`, `after`) with `count` and `noDifferences`; identical bundles return
+  `noDifferences: true`, and human output prints `no differences`. `--diff`
+  implies `--local-only` (no network traffic and no new sensitive data); add
+  `--bundle <PATH>` to also write the fresh bundle. A missing or corrupt
+  baseline fails instead of reporting no differences.
 - Doctor classifies network failures by stage (dns, connection, proxy, timeout,
   tls) with per-check latency and stage-specific remediation hints.
 - PAT expiration is flagged as expired (exit 3), expiring within 14 days (warn),

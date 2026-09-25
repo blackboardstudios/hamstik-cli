@@ -274,7 +274,13 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
         },
         Command::Api(args) => api::run(session, args).await,
         Command::Doctor(args) => {
-            doctor::run(session, args.local_only, args.bundle.as_deref()).await
+            doctor::run(
+                session,
+                args.local_only,
+                args.bundle.as_deref(),
+                args.diff.as_deref(),
+            )
+            .await
         }
         Command::Completion(args) => completion::run(session, args),
         Command::Complete(args) => complete::run(session, args).await,

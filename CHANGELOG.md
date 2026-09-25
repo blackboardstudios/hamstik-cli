@@ -12,6 +12,24 @@ before upgrading.
 
 ### Added
 
+- Support-bundle comparison (CLI-71): `doctor --diff <bundle-file>` diffs a
+  freshly generated local-only support bundle against a previously saved
+  `doctor --bundle` ZIP and reports only what changed. Differences are named
+  by check id or JSON path (host, CLI version, context scopes, config
+  metadata, and every redacted check), volatile capture noise
+  (`generatedAt`, `durationMs`, `requestId`) is ignored, and an identical
+  bundle yields an explicit "no differences" result in both human and
+  `--json` output (`noDifferences: true`). `--diff` implies `--local-only`, so
+  the comparison makes no network requests and reads no new sensitive data;
+  `--bundle` can be combined to also write the fresh bundle; a missing or
+  corrupt baseline fails clearly instead of reporting no differences.
+
+### Fixed
+
+- `doctor --bundle` no longer prints its "support bundle written to ..."
+  confirmation in `--json` mode, so `doctor --json --bundle <PATH>` output is
+  a single parseable JSON document again.
+
 - Git worktree context discovery (CLI-69): when the `.hamstik.toml` directory
   walk-up finds nothing and the working directory is inside a git checkout,
   the primary checkout behind a linked worktree is searched
