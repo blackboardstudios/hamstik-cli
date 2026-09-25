@@ -5,11 +5,13 @@
 
 use serde_json::json;
 
+use hamstik_api_client::client::DownloadedAttachment;
 use hamstik_api_client::{ListOptions, PageItems, follow_with};
 
 use crate::app::Session;
 use crate::args::{WorkAttachmentArgs, WorkAttachmentCommand};
 use crate::error::CliError;
+use crate::terminal_image;
 
 use super::common::idem_key;
 use super::dryrun;
@@ -166,55 +168,58 @@ pub(super) async fn attachment(
             attachment_id,
             output,
         } => {
-            let selection = session.selection()?;
-            let org = session.require_org(&selection)?;
-            let project = session.require_project(&selection)?;
-            let api = session.api(&selection)?;
-            let download = api
-                .download_attachment(&org, &project, key, attachment_id)
-                .await
-                .map_err(CliError::from_client)?;
-            let target = match output {
-                Some(path) => std::path::PathBuf::from(path),
-                None => {
-                    let name = download
-                        .file_name
-                        .clone()
-                        .unwrap_or_else(|| format!("{attachment_id}.bin"));
-                    // Refuse to write outside the current directory implicitly:
-                    // use only the final path component of the server-suggested name.
-                    let safe = name.rsplit(['/', '\\']).next().unwrap_or(&name);
-                    std::path::PathBuf::from(safe)
-                }
-            };
-            std::fs::write(&target, &download.bytes).map_err(|err| {
-                CliError::general(format!("cannot write {}: {err}", target.display()))
-            })?;
-            if session.json() {
-                emit_json(
-                    session,
-                    &json!({
-                        "attachmentId": attachment_id,
-                        "path": target.display().to_string(),
-                        "size": download.bytes.len(),
-                        "fileName": download.file_name,
-                        "contentType": download.content_type,
-                        "contentLength": download.content_length,
-                        "contentDisposition": download.content_disposition,
-                        "requestId": download.request_id,
-                    }),
+            let download = fetch_attachment(session, key, attachment_id).await?;
+            let target = download_target(output.as_deref(), &download, attachment_id);
+            write_download(session, attachment_id, &download, &target)
+        }
+        WorkAttachmentCommand::View {
+            key,
+            attachment_id,
+            output,
+        } => {
+            let download = fetch_attachment(session, key, attachment_id).await?;
+            let protocol = terminal_image::detect(session.env);
+            let inline = protocol.is_some()
+                && terminal_image::is_image(
+                    download.content_type.as_deref(),
+                    download.file_name.as_deref(),
                 )
-            } else {
-                session
-                    .out
-                    .line(&format!(
-                        "Downloaded {} ({} bytes) to {}",
-                        attachment_id,
-                        download.bytes.len(),
-                        target.display()
-                    ))
-                    .map_err(CliError::general)
+                && session.env.stdout_is_terminal()
+                // Inline escape sequences only belong in the human view; every
+                // structured, table, and quiet mode falls through to download.
+                && session.out.mode() == crate::output::Mode::Human
+                && !session.global.no_input;
+            if let Some(protocol) = protocol.filter(|_| inline) {
+                match terminal_image::render(
+                    protocol,
+                    &download.bytes,
+                    download.file_name.as_deref(),
+                ) {
+                    Ok(rendered) => {
+                        // Raw protocol bytes are only ever written here: the
+                        // guards above exclude `--json`/`--jsonl`/`--tsv`,
+                        // `--quiet`, `--no-input`, and non-TTY stdout.
+                        session
+                            .out
+                            .write_bytes(&rendered)
+                            .map_err(CliError::general)?;
+                        session.out.write_bytes(b"\n").map_err(CliError::general)?;
+                        session.out.flush().map_err(CliError::general)?;
+                        session.out.verbose(&format!(
+                            "rendered attachment inline via {}",
+                            protocol.name()
+                        ));
+                        return Ok(());
+                    }
+                    // A server-declared image that will not decode is not fatal:
+                    // fall back to the documented download behavior.
+                    Err(err) => session.out.warn(&format!(
+                        "note: cannot render attachment inline ({err}); downloading instead"
+                    )),
+                }
             }
+            let target = download_target(output.as_deref(), &download, attachment_id);
+            write_download(session, attachment_id, &download, &target)
         }
         WorkAttachmentCommand::Delete { key, attachment_id } => {
             let selection = session.selection()?;
@@ -269,6 +274,84 @@ pub(super) async fn attachment(
                     .map_err(CliError::general)
             }
         }
+    }
+}
+
+/// Downloads one attachment's bytes and metadata.
+///
+/// Shared by `download` and `view` so the fallback path cannot drift from
+/// the documented download behavior.
+async fn fetch_attachment(
+    session: &mut Session<'_>,
+    key: &str,
+    attachment_id: &str,
+) -> Result<DownloadedAttachment, CliError> {
+    let selection = session.selection()?;
+    let org = session.require_org(&selection)?;
+    let project = session.require_project(&selection)?;
+    let api = session.api(&selection)?;
+    api.download_attachment(&org, &project, key, attachment_id)
+        .await
+        .map_err(CliError::from_client)
+}
+
+/// Resolves where a fallback download writes, mirroring `download` exactly.
+fn download_target(
+    output: Option<&str>,
+    download: &DownloadedAttachment,
+    attachment_id: &str,
+) -> std::path::PathBuf {
+    match output {
+        Some(path) => std::path::PathBuf::from(path),
+        None => {
+            let name = download
+                .file_name
+                .clone()
+                .unwrap_or_else(|| format!("{attachment_id}.bin"));
+            // Refuse to write outside the current directory implicitly:
+            // use only the final path component of the server-suggested name.
+            let safe = name.rsplit(['/', '\\']).next().unwrap_or(&name);
+            std::path::PathBuf::from(safe)
+        }
+    }
+}
+
+/// Writes downloaded bytes to `target` and reports the documented result.
+///
+/// This is the single implementation of the `download` output contract; both
+/// `download` and the `view` fallback call it.
+fn write_download(
+    session: &mut Session<'_>,
+    attachment_id: &str,
+    download: &DownloadedAttachment,
+    target: &std::path::Path,
+) -> Result<(), CliError> {
+    std::fs::write(target, &download.bytes)
+        .map_err(|err| CliError::general(format!("cannot write {}: {err}", target.display())))?;
+    if session.json() {
+        emit_json(
+            session,
+            &json!({
+                "attachmentId": attachment_id,
+                "path": target.display().to_string(),
+                "size": download.bytes.len(),
+                "fileName": download.file_name,
+                "contentType": download.content_type,
+                "contentLength": download.content_length,
+                "contentDisposition": download.content_disposition,
+                "requestId": download.request_id,
+            }),
+        )
+    } else {
+        session
+            .out
+            .line(&format!(
+                "Downloaded {} ({} bytes) to {}",
+                attachment_id,
+                download.bytes.len(),
+                target.display()
+            ))
+            .map_err(CliError::general)
     }
 }
 

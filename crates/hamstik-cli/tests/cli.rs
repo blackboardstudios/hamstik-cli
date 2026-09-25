@@ -2103,6 +2103,99 @@ async fn work_attachment_upload_download_delete() {
         .stdout(predicate::str::contains("\"deleted\": true"));
 }
 
+/// `work attachment view` on a non-TTY falls back to the documented download
+/// behavior: it writes the bytes to a file and never emits protocol escape
+/// sequences into the captured text stream.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn work_attachment_view_falls_back_to_download_on_non_tty() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1/attachments/a1",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header(
+                    "Content-Disposition",
+                    "attachment; filename*=UTF-8''design.png",
+                )
+                .insert_header("Content-Type", "image/png")
+                .set_body_bytes(b"PNGDATA".to_vec()),
+        )
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    let output_path = dir.path().join("viewed.png");
+    let output = base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "work",
+            "attachment",
+            "view",
+            "HAM-1",
+            "a1",
+            "--output",
+            output_path.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(std::fs::read(&output_path).unwrap(), b"PNGDATA");
+    assert!(output.stdout.windows(2).all(|w| w != b"\x1b_G"));
+}
+
+/// Under `--json`, `view` emits the download JSON document and no binary or
+/// escape-sequence bytes ever reach stdout.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn work_attachment_view_json_never_writes_binary_to_stdout() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1/attachments/a1",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header(
+                    "Content-Disposition",
+                    "attachment; filename*=UTF-8''design.png",
+                )
+                .insert_header("Content-Type", "image/png")
+                .set_body_bytes(b"\x00\x01\x1b_Gbinary".to_vec()),
+        )
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    let output_path = dir.path().join("viewed.png");
+    let output = base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "work",
+            "attachment",
+            "view",
+            "HAM-1",
+            "a1",
+            "--output",
+            output_path.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(body["attachmentId"], "a1");
+    assert_eq!(body["path"], output_path.display().to_string());
+    // The raw payload must never appear in the JSON stream.
+    assert!(!output.stdout.windows(2).any(|w| w == b"\x1b_G"));
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn work_comment_delete_maps_conflict_to_exit_six() {
     let server = MockServer::start().await;

@@ -383,7 +383,8 @@
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments/{attachmentId}",
       "client": "download_attachment",
       "cli": [
-        "work attachment download"
+        "work attachment download",
+        "work attachment view"
       ],
       "tests": [
         "client",

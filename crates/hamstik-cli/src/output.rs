@@ -203,6 +203,16 @@ impl Output {
         write!(self.out, "{text}")
     }
 
+    /// Writes raw bytes directly to stdout without sanitization.
+    ///
+    /// Reserved for terminal control payloads such as the inline image
+    /// protocols (CLI-40). Callers must never pass server-supplied text here,
+    /// and must never call it from a structured mode: `--json`/`--jsonl`/
+    /// `--tsv` output must stay valid UTF-8 documents.
+    pub fn write_bytes(&mut self, bytes: &[u8]) -> io::Result<()> {
+        self.out.write_all(bytes)
+    }
+
     /// Prints nothing when quiet, otherwise a human line to stdout.
     pub fn human(&mut self, text: &str) -> io::Result<()> {
         if self.mode == Mode::Quiet {

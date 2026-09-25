@@ -229,7 +229,7 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   document). Columns come from the statuses the server reports, items with
   no status render in an explicit `(no status)` bucket, and there is no
   `board move` — state changes continue through `work transition`;
-- attachments — `work attachment list|upload|download|delete`;
+- attachments — `work attachment list|upload|download|view|delete`;
 - the unauthenticated live contract via `hamstik api openapi`;
 - a point-in-time Public API rate-limit snapshot via `hamstik api
   rate-limit` — one cheap authenticated read that reports the server's
@@ -461,6 +461,7 @@ hamstik work comment add HAM-42 --body "Ready for review"
 hamstik work comment add HAM-42 --body "Agreed" --parent COMMENT_UUID
 hamstik work attachment upload HAM-42 ./design.png --content-type image/png
 hamstik work attachment download HAM-42 ATTACHMENT_UUID --output ./design.png
+hamstik work attachment view HAM-42 ATTACHMENT_UUID
 
 # Public user profile resources use immutable usr_ identifiers
 hamstik user view usr_cPbfeqnghA-RLpDVOMQhHg
@@ -741,7 +742,9 @@ command-line flag
 PAT without reading or writing the credential store, and
 `HAMSTIK_CA_BUNDLE` supplies an additional PEM trust bundle. Explicit
 `--host`, `--profile`, `--org`, `--project`, and `--ca-bundle` flags
-override their environment equivalents.
+override their environment equivalents. `HAMSTIK_IMAGE_PROTOCOL`
+(`kitty`, `iterm2`, `sixel`, or `none`) overrides the inline-image
+protocol used by `work attachment view`.
 
 For automation:
 

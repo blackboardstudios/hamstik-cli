@@ -463,6 +463,8 @@ hamstik --json --no-input --org <ORG> --project <KEY> work attachment upload \
   <ITEM-KEY> <FILE>
 hamstik --json --no-input --org <ORG> --project <KEY> work attachment download \
   <ITEM-KEY> <ATTACHMENT-ID> --output <PATH>
+hamstik --org <ORG> --project <KEY> work attachment view \
+  <ITEM-KEY> <ATTACHMENT-ID>          # inline image on a capable TTY
 ```
 
 Watcher state is per-authenticated-user only; the API never discloses other

@@ -12,6 +12,15 @@ before upgrading.
 
 ### Added
 
+- `work attachment view` (CLI-40): preview an image attachment inline on a
+  terminal that advertises the Kitty, iTerm2, or SIXEL image protocol,
+  without writing a file. Detection is capability-based (`KITTY_WINDOW_ID`,
+  `TERM`/`TERM_PROGRAM` markers, and an explicit `HAMSTIK_IMAGE_PROTOCOL`
+  override). The image is only rendered on a TTY in human output; under
+  `--json`/`--jsonl`/`--tsv`, `--quiet`, `--no-input`, a non-TTY stdout, a
+  non-image attachment, an unknown terminal, or an undecodable image, it
+  falls back to the unchanged `download` behavior (`--output` supported) so
+  no raw image or escape-sequence bytes ever reach a text stream.
 - Interactive fuzzy picker for ambiguous references (CLI-38): when an
   Organization slug, Project key, or Work Item key supplied to `context set`,
   `org use`, `project use`, `work context`, or a single-key `work view` fails

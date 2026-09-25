@@ -2654,6 +2654,20 @@ pub enum WorkAttachmentCommand {
         #[arg(long = "output", value_name = "PATH", short = 'o')]
         output: Option<String>,
     },
+    /// Preview an image attachment inline on a capable terminal.
+    ///
+    /// When no inline protocol is detected, or under `--json`, `--quiet`,
+    /// `--no-input`, or non-TTY output, this falls back to the `download`
+    /// behavior and writes the bytes to a file instead.
+    View {
+        /// Work item key.
+        key: String,
+        /// Attachment id (UUID).
+        attachment_id: String,
+        /// Output path used when inline preview is unavailable (defaults to the attachment's file name in the current directory).
+        #[arg(long = "output", value_name = "PATH", short = 'o')]
+        output: Option<String>,
+    },
     /// Delete an attachment (creator or Organization administrator).
     Delete {
         /// Work item key.

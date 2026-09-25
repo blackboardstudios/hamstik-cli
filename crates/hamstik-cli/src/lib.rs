@@ -24,6 +24,7 @@ pub mod input;
 pub mod output;
 pub mod palette;
 pub mod terminal;
+pub(crate) mod terminal_image;
 
 pub mod commands;
 pub mod time_arg;

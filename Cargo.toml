@@ -62,6 +62,14 @@ rpassword = "7"
 inquire = "0.9"
 humantime = "2.2"
 chrono = "0.4"
+# Inline attachment preview (CLI-40): decode common image formats and emit
+# Kitty/iTerm2/Sixel escape sequences on capable terminals. `image` is the
+# mature Rust decoder; `icy_sixel` is a pure-Rust SIXEL encoder (no C
+# toolchain); `base64` frames the Kitty/iTerm2 payloads. All are MIT OR
+# Apache-2.0.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
+icy_sixel = "0.7"
+base64 = "0.22"
 
 # Testing
 wiremock = "0.6"
