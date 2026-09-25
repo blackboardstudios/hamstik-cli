@@ -2456,6 +2456,930 @@ pub struct AdvancedSelectionPage {
     pub page: Page,
 }
 
+// ---- Release Versions -------------------------------------------------------
+
+/// Query options for `GET .../releases`.
+#[derive(Debug, Clone, Default)]
+pub struct ListReleaseVersionsOptions {
+    /// Maximum items per page (server-capped).
+    pub limit: Option<u32>,
+    /// Opaque continuation cursor from a previous page's `nextCursor`.
+    pub cursor: Option<String>,
+    /// Only Release Versions in this lifecycle state.
+    pub state: Option<String>,
+    /// Include archived releases in the results.
+    pub include_archived: Option<bool>,
+}
+
+/// Query options for `GET .../releases/{id}/scope`.
+#[derive(Debug, Clone, Default)]
+pub struct ReleaseScopeQuery {
+    /// Maximum items per page (server-capped).
+    pub limit: Option<u32>,
+    /// Opaque continuation cursor from a previous page's `nextCursor`.
+    pub cursor: Option<String>,
+    /// Free-text search over Work Item titles.
+    pub query: Option<String>,
+    /// Filter by Work Item status.
+    pub status: Option<String>,
+    /// Filter by Work Item type.
+    pub item_type: Option<String>,
+    /// Filter by Work Item priority.
+    pub priority: Option<String>,
+    /// Filter by assignee user id.
+    pub assignee_id: Option<String>,
+    /// Sort key (server-defined).
+    pub sort: Option<String>,
+    /// Sort direction (server-defined).
+    pub direction: Option<String>,
+}
+
+// ---- Organization Milestones -------------------------------------------------
+
+/// Query options for `GET .../milestones`.
+#[derive(Debug, Clone, Default)]
+pub struct ListMilestonesOptions {
+    /// Maximum items per page (server-capped).
+    pub limit: Option<u32>,
+    /// Opaque continuation cursor from a previous page's `nextCursor`.
+    pub cursor: Option<String>,
+    /// Only Milestones in this lifecycle state.
+    pub state: Option<String>,
+    /// Include archived milestones in the results.
+    pub include_archived: Option<bool>,
+}
+
+/// Query options for `GET .../milestones/{id}`.
+#[derive(Debug, Clone, Default)]
+pub struct MilestoneDetailQuery {
+    /// The release-version cursor the release page starts after.
+    pub release_after: Option<String>,
+    /// Maximum releases per page.
+    pub limit: Option<u32>,
+}
+
+/// Query options for `GET .../milestones/{id}/releases`.
+#[derive(Debug, Clone, Default)]
+pub struct MilestoneReleasesQuery {
+    /// The release-version cursor the page starts after.
+    pub cursor: Option<String>,
+    /// Maximum releases per page.
+    pub limit: Option<u32>,
+}
+
+/// Query options for `GET .../milestones/{id}/events`.
+#[derive(Debug, Clone, Default)]
+pub struct MilestoneEventsQuery {
+    /// The event id the (older) page starts before.
+    pub before_event_id: Option<String>,
+    /// Maximum events per page.
+    pub limit: Option<u32>,
+}
+
+/// Query options for `GET .../release-audit-reports`.
+#[derive(Debug, Clone, Default)]
+pub struct ListReleaseAuditReportsOptions {
+    /// Maximum items per page (server-capped at 100).
+    pub limit: Option<u32>,
+    /// Opaque continuation cursor from a previous page.
+    pub cursor: Option<String>,
+    /// Only packages generated for this Release Version.
+    pub release_version_id: Option<String>,
+}
+
+/// A full Release Version resource.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseVersion {
+    /// The release version's id.
+    pub id: String,
+    /// The owning Project's id.
+    pub project_id: String,
+    /// The release's display name.
+    pub name: String,
+    /// A separate display version label, when set.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub display_version: Option<String>,
+    /// The release's description, when set.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub description: Option<String>,
+    /// The release owner's user id, when assigned.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub owner_id: Option<String>,
+    /// The release owner's public id, when assigned.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub owner_public_id: Option<String>,
+    /// The release owner's display name, when assigned.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub owner_name: Option<String>,
+    /// The id of the user who created the release.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub created_by_id: Option<String>,
+    /// The creator's public id, when available.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub creator_public_id: Option<String>,
+    /// The creator's display name, when available.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub creator_name: Option<String>,
+    /// The target date (RFC 3339), when set.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub target_date: Option<String>,
+    /// The actual release date (RFC 3339), when released.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub release_date: Option<String>,
+    /// The release's lifecycle state (`planned`, `in_progress`, `released`,
+    /// or `archived`).
+    pub state: String,
+    /// The state the release had before archiving, when archived.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub state_before_archive: Option<String>,
+    /// When the release first reached `released`, if it has.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub first_released_at: Option<String>,
+    /// When the release was archived; null while unarchived.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub archived_at: Option<String>,
+    /// Optimistic-concurrency revision.
+    pub revision: i64,
+    /// Creation timestamp (RFC 3339).
+    pub created_at: String,
+    /// Last-update timestamp (RFC 3339).
+    pub updated_at: String,
+}
+
+/// A compact Release Version reference.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseVersionSummary {
+    /// The release version's id.
+    pub id: String,
+    /// The release's display name.
+    pub name: String,
+    /// A separate display version label, when set.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub display_version: Option<String>,
+    /// The release's lifecycle state.
+    pub state: String,
+    /// When the release was archived; null while unarchived.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub archived_at: Option<String>,
+}
+
+/// A paginated Release Version list.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReleaseVersionList {
+    /// One page of release versions.
+    pub items: Vec<ReleaseVersion>,
+    /// Pagination metadata.
+    pub page: Page,
+}
+
+/// One permitted Release Version transition.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseVersionTransition {
+    /// The state this transition moves the release to.
+    pub target_state: String,
+}
+
+/// The transition surface of a Release Version.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseVersionTransitionList {
+    /// The release's current state.
+    pub current_state: String,
+    /// Transitions permitted from the current state.
+    pub transitions: Vec<ReleaseVersionTransition>,
+}
+
+/// Body for `POST .../releases`.
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateReleaseVersionRequest {
+    /// The new release's name (required).
+    pub name: String,
+    /// A separate display version label; `Some(None)` sends an explicit null.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_version: Option<Option<String>>,
+    /// The release's description; `Some(None)` sends an explicit null.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<Option<String>>,
+    /// The release owner's user id; `Some(None)` sends an explicit null.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner_id: Option<Option<String>>,
+    /// The target date (RFC 3339); `Some(None)` sends an explicit null.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_date: Option<Option<String>>,
+    /// The release date (RFC 3339); `Some(None)` sends an explicit null.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub release_date: Option<Option<String>>,
+}
+
+/// Body for `PATCH .../releases/{id}` (all fields optional, at least one).
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateReleaseVersionRequest {
+    /// The release's display name; `Some(None)` sends an explicit null.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Option<String>>,
+    /// A separate display version label; `Some(None)` clears it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_version: Option<Option<String>>,
+    /// The release's description; `Some(None)` clears it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<Option<String>>,
+    /// The release owner's user id; `Some(None)` clears it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner_id: Option<Option<String>>,
+    /// The target date (RFC 3339); `Some(None)` clears it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_date: Option<Option<String>>,
+    /// The release date (RFC 3339); `Some(None)` clears it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub release_date: Option<Option<String>>,
+}
+
+impl UpdateReleaseVersionRequest {
+    /// True when no field is set: the request would fail `minProperties: 1`.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.name.is_none()
+            && self.display_version.is_none()
+            && self.description.is_none()
+            && self.owner_id.is_none()
+            && self.target_date.is_none()
+            && self.release_date.is_none()
+    }
+}
+
+/// Body for `POST .../releases/{id}/transitions`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransitionReleaseVersionRequest {
+    /// The state to move the release to (`planned`, `in_progress`,
+    /// `released`, or `archived`).
+    pub target_state: String,
+    /// Confirm releasing a scope that still contains incomplete Work Items.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confirm_incomplete_scope: Option<bool>,
+    /// Why the transition was made.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// Body for `POST .../releases/{id}/archive` and `.../restore`.
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseVersionLifecycleRequest {
+    /// Why the release was archived or restored.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// One Work Item in a Release Version's scope page.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseVersionScopeItem {
+    /// Work Item id.
+    pub id: String,
+    /// Work Item key.
+    pub key: String,
+    /// Work Item title.
+    pub title: String,
+    /// Work Item type.
+    #[serde(rename = "type")]
+    pub item_type: String,
+    /// Work Item status.
+    pub status: String,
+    /// Work Item priority.
+    pub priority: String,
+    /// Work Item revision at capture time.
+    pub revision: i64,
+    /// Assignee user id, when assigned.
+    #[serde(default)]
+    pub assignee_id: Option<String>,
+    /// When the Work Item was archived, if it is.
+    #[serde(default)]
+    pub archived_at: Option<String>,
+}
+
+/// The scope page metadata of a Release Version (adds a `total`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseVersionScopePage {
+    /// The page size the server used.
+    pub limit: i64,
+    /// The total number of Work Items in the release scope.
+    pub total: i64,
+    /// Whether more pages exist after this one.
+    pub has_more: bool,
+    /// The opaque cursor for the next page, when `hasMore` is true.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub next_cursor: Option<String>,
+}
+
+/// A Release Version's scope, progress, and a page of its Work Items.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseVersionScope {
+    /// Server-shaped release metadata and progress rollups.
+    pub release: Value,
+    /// One page of the release's Work Items.
+    pub items: Vec<ReleaseVersionScopeItem>,
+    /// Scope page metadata.
+    pub page: ReleaseVersionScopePage,
+}
+
+/// An Organization Milestone resource.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrganizationMilestone {
+    /// The milestone's id.
+    pub id: String,
+    /// The owning Organization's id.
+    pub organization_id: String,
+    /// The milestone's display name.
+    pub name: String,
+    /// The milestone's description, when set.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub description: Option<String>,
+    /// The milestone owner's user id, when assigned.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub owner_id: Option<String>,
+    /// The owner's public id, when assigned.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub owner_public_id: Option<String>,
+    /// The owner's display name, when assigned.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub owner_name: Option<String>,
+    /// The target date (RFC 3339), when set.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub target_date: Option<String>,
+    /// The milestone's lifecycle state (`planned`, `in_progress`,
+    /// `completed`, or `archived`).
+    pub state: String,
+    /// The state before archiving, when archived.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub state_before_archive: Option<String>,
+    /// When the milestone was completed, if it has been.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub completed_at: Option<String>,
+    /// When the milestone was archived; null while unarchived.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub archived_at: Option<String>,
+    /// Optimistic-concurrency revision.
+    pub revision: i64,
+    /// Creation timestamp (RFC 3339).
+    pub created_at: String,
+    /// Last-update timestamp (RFC 3339).
+    pub updated_at: String,
+    /// Release Versions in the milestone, when the projection includes them.
+    #[serde(default)]
+    pub release_count: Option<i64>,
+    /// Work Items in scope, when the projection includes them.
+    #[serde(default)]
+    pub work_item_count: Option<i64>,
+    /// Completed Work Items in scope, when the projection includes them.
+    #[serde(default)]
+    pub completed_work_item_count: Option<i64>,
+    /// The progress scope the counts cover (`authorized_projects`).
+    #[serde(default)]
+    pub scope: Option<String>,
+}
+
+/// The release-page metadata of a Milestone detail/list response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrganizationMilestoneReleasePage {
+    /// The page size the server used.
+    pub limit: i64,
+    /// Whether more pages exist after this one.
+    pub has_more: bool,
+    /// The release-version cursor for the next page, when there is one.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub next_after: Option<String>,
+}
+
+/// One Release Version listed in a Milestone.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrganizationMilestoneRelease {
+    /// The release version's id.
+    pub id: String,
+    /// The release's display name.
+    pub name: String,
+    /// The release's lifecycle state.
+    pub state: String,
+    /// The owning Project's id.
+    pub project_id: String,
+    /// The owning Project's name.
+    pub project_name: String,
+    /// The owning Project's key.
+    pub project_key: String,
+    /// The release's target date, when set.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub target_date: Option<String>,
+    /// The release's release date, when released.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub release_date: Option<String>,
+    /// Work Items in the release scope.
+    pub total_work_items: i64,
+    /// Completed Work Items in the release scope.
+    pub completed_work_items: i64,
+}
+
+/// A Milestone plus one page of its Release Versions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrganizationMilestoneDetail {
+    /// The milestone resource.
+    #[serde(flatten)]
+    pub milestone: OrganizationMilestone,
+    /// One page of the milestone's Release Versions.
+    pub releases: Vec<OrganizationMilestoneRelease>,
+    /// Release-page metadata.
+    pub page: OrganizationMilestoneReleasePage,
+    /// The release scope the page covers (`authorized_projects`).
+    pub scope: String,
+}
+
+/// One page of a Milestone's Release Versions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrganizationMilestoneReleaseList {
+    /// One page of the milestone's Release Versions.
+    pub items: Vec<OrganizationMilestoneRelease>,
+    /// Release-page metadata.
+    pub page: OrganizationMilestoneReleasePage,
+    /// The release scope the page covers (`authorized_projects`).
+    pub scope: String,
+}
+
+/// A paginated Organization Milestone list.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrganizationMilestoneList {
+    /// One page of milestones.
+    pub items: Vec<OrganizationMilestone>,
+    /// Pagination metadata.
+    pub page: Page,
+}
+
+/// Body for `POST .../milestones`.
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateOrganizationMilestoneRequest {
+    /// The new milestone's name (required).
+    pub name: String,
+    /// The milestone's description; `Some(None)` sends an explicit null.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<Option<String>>,
+    /// The milestone owner's user id; `Some(None)` sends an explicit null.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner_id: Option<Option<String>>,
+    /// The target date (RFC 3339); `Some(None)` sends an explicit null.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_date: Option<Option<String>>,
+}
+
+/// Body for `PATCH .../milestones/{id}` (all fields optional).
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateOrganizationMilestoneRequest {
+    /// The milestone's display name; `Some(None)` sends an explicit null.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Option<String>>,
+    /// The milestone's description; `Some(None)` clears it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<Option<String>>,
+    /// The milestone owner's user id; `Some(None)` clears it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner_id: Option<Option<String>>,
+    /// The target date (RFC 3339); `Some(None)` clears it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_date: Option<Option<String>>,
+    /// Why the milestone changed (recorded in events).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+impl UpdateOrganizationMilestoneRequest {
+    /// True when no field is set; the server rejects empty updates.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.name.is_none()
+            && self.description.is_none()
+            && self.owner_id.is_none()
+            && self.target_date.is_none()
+            && self.reason.is_none()
+    }
+}
+
+/// Body for `POST .../milestones/{id}/transitions`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransitionOrganizationMilestoneRequest {
+    /// The state to move the milestone to (`planned`, `in_progress`,
+    /// `completed`, or `archived`).
+    pub target_state: String,
+    /// Why the milestone moved.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// One permitted Milestone transition.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrganizationMilestoneTransition {
+    /// The state this transition moves the milestone to.
+    pub target_state: String,
+}
+
+/// The transition surface of an Organization Milestone.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrganizationMilestoneTransitionList {
+    /// The milestone's current state.
+    pub current_state: String,
+    /// Transitions permitted from the current state.
+    pub transitions: Vec<OrganizationMilestoneTransition>,
+}
+
+/// Body for `POST .../milestones/{id}/releases` (add or remove).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MutateOrganizationMilestoneReleaseRequest {
+    /// The Release Version to add or remove.
+    pub release_version_id: String,
+    /// Whether to add or remove the release.
+    pub mode: String,
+    /// Required by the server when removing a release from a milestone.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confirm_remove: Option<bool>,
+    /// Why the membership changed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// One Milestone event in the milestone history feed.
+///
+/// The server shapes events as closed objects the CLI renders verbatim, so
+/// they are kept as raw JSON for `--json` fidelity.
+pub type OrganizationMilestoneEvent = Value;
+
+/// The milestone history feed (newest first).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrganizationMilestoneEventList {
+    /// One page of events.
+    pub items: Vec<OrganizationMilestoneEvent>,
+    /// The `beforeEventId` cursor for the next (older) page, when any.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub next_before_event_id: Option<String>,
+}
+
+// ---- Release announcements ---------------------------------------------------
+
+/// One category grouping in a release announcement.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseAnnouncementCategory {
+    /// The category's stable id (author-chosen).
+    pub id: String,
+    /// The category's display title.
+    pub title: String,
+    /// The Work Item ids listed under this category.
+    pub work_item_ids: Vec<String>,
+}
+
+/// One Work Item in a release announcement draft.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseAnnouncementItem {
+    /// The Work Item's id.
+    pub id: String,
+    /// The Work Item's key.
+    pub key: String,
+    /// The Work Item's title.
+    pub title: String,
+    /// The Work Item's type.
+    pub item_type: String,
+    /// The Work Item's status.
+    pub status: String,
+    /// Whether the item is included in the announcement.
+    pub include: bool,
+    /// The category the item belongs to.
+    pub category_id: String,
+    /// The item's position within its category.
+    pub position: i64,
+}
+
+/// What changed in the release scope since the draft was generated.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseAnnouncementDiff {
+    /// Keys added to the release scope.
+    pub added: Vec<String>,
+    /// Keys removed from the release scope.
+    pub removed: Vec<String>,
+    /// Keys whose relevant fields changed.
+    pub changed: Vec<String>,
+}
+
+/// The editable Release announcement draft.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseAnnouncementDraft {
+    /// The release version the draft belongs to.
+    pub release_version_id: String,
+    /// The draft's revision (bumped by every edit or regeneration).
+    pub revision: i64,
+    /// The announcement's introduction paragraph.
+    pub introduction: String,
+    /// Highlight bullet lines.
+    pub highlights: Vec<String>,
+    /// Categories in display order.
+    pub categories: Vec<ReleaseAnnouncementCategory>,
+    /// Work Items considered by the announcement.
+    pub items: Vec<ReleaseAnnouncementItem>,
+    /// The release revision the draft was generated from.
+    pub source_release_revision: i64,
+    /// When the draft was generated (RFC 3339).
+    pub generated_at: String,
+    /// When the draft was last edited (RFC 3339).
+    pub updated_at: String,
+    /// Scope drift since generation, when the server computed it.
+    #[serde(default)]
+    pub diff: Option<ReleaseAnnouncementDiff>,
+}
+
+/// The scope diff frozen into a published announcement.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseAnnouncementScopeDiff {
+    /// Keys added since the original scope snapshot.
+    pub added: Vec<String>,
+    /// Keys removed since the original scope snapshot.
+    pub removed: Vec<String>,
+    /// Keys changed since the original scope snapshot.
+    pub changed: Vec<String>,
+    /// Whether the original scope snapshot was available.
+    pub original_scope_available: bool,
+}
+
+/// A published, immutable Release announcement revision.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseAnnouncementRevision {
+    /// The announcement revision's id.
+    pub id: String,
+    /// The release version the announcement belongs to.
+    pub release_version_id: String,
+    /// The announcement's revision number.
+    pub revision: i64,
+    /// When the announcement was published (RFC 3339).
+    pub published_at: String,
+    /// The publisher's public id, when recorded.
+    #[serde(default)]
+    pub published_by_public_id: Option<String>,
+    /// The publisher's display name, when recorded.
+    #[serde(default)]
+    pub published_by_name: Option<String>,
+    /// The publish reason, when given.
+    #[serde(default)]
+    pub reason: Option<String>,
+    /// Server-shaped release metadata frozen with the announcement.
+    pub release_metadata: Value,
+    /// The announcement's introduction paragraph.
+    pub introduction: String,
+    /// Highlight bullet lines.
+    pub highlights: Vec<String>,
+    /// Categories in display order.
+    pub categories: Vec<ReleaseAnnouncementCategory>,
+    /// Work Items in the announcement.
+    pub items: Vec<ReleaseAnnouncementItem>,
+    /// The scope diff frozen at publish time.
+    pub original_scope_diff: ReleaseAnnouncementScopeDiff,
+    /// The rendered Markdown document.
+    pub markdown: String,
+}
+
+/// Body for `POST .../announcements/draft` (generate or refresh).
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateReleaseAnnouncementDraftRequest {
+    /// The release revision to generate from; the server default is current.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revision: Option<i64>,
+    /// Confirm replacing a draft generated from a different Organization view.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confirm_replace_organization: Option<bool>,
+}
+
+/// Body for `PATCH .../announcements/draft` (full replace).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EditReleaseAnnouncementDraftRequest {
+    /// The draft revision being replaced.
+    pub revision: i64,
+    /// The new introduction paragraph.
+    pub introduction: String,
+    /// The new highlight bullet lines (at most 50).
+    pub highlights: Vec<String>,
+    /// The new categories in display order (at most 50).
+    pub categories: Vec<ReleaseAnnouncementCategory>,
+    /// The Work Item ids included in the announcement (at most 10,000).
+    pub included_work_item_ids: Vec<String>,
+}
+
+/// Body for `DELETE .../announcements/draft` (discard the draft).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnnouncementDraftRevisionRequest {
+    /// The draft revision being discarded.
+    pub revision: i64,
+}
+
+/// Body for `POST .../announcements/publish`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PublishReleaseAnnouncementRequest {
+    /// The draft revision being published.
+    pub revision: i64,
+    /// Confirm publishing an announcement with no included Work Items.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confirm_empty: Option<bool>,
+    /// Why the announcement was published.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// The reference returned by publishing an announcement.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PublishedReleaseAnnouncementReference {
+    /// The published announcement revision's id.
+    pub id: String,
+    /// The published revision number.
+    pub revision: i64,
+}
+
+// ---- Work Item release membership --------------------------------------------
+
+/// A Work Item's Release Version memberships.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkItemReleaseVersions {
+    /// The Work Item's id.
+    pub work_item_id: String,
+    /// The Work Item's revision the membership state reflects.
+    pub work_item_revision: i64,
+    /// The Release Versions the Work Item belongs to.
+    pub release_versions: Vec<ReleaseVersionSummary>,
+}
+
+/// Body for `POST .../work-items/{key}/releases`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MutateWorkItemReleaseVersionsRequest {
+    /// Whether to add, remove, or replace the memberships.
+    pub mode: String,
+    /// The Release Versions affected (at most 100).
+    pub release_version_ids: Vec<String>,
+    /// Required by the server when correcting a released item's scope.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confirm_released_scope_correction: Option<bool>,
+    /// Why the membership changed (1–2,000 characters when given).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// One Work Item's membership change inside a bulk release-membership call.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BulkReleaseMembershipOperation {
+    /// The Work Item key.
+    pub work_item_key: String,
+    /// The Work Item revision the caller read.
+    pub revision: i64,
+    /// Whether to add, remove, or replace the memberships.
+    pub mode: String,
+    /// The Release Versions to apply (at most 100).
+    pub release_version_ids: Vec<String>,
+    /// Required by the server when correcting a released item's scope.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confirm_released_scope_correction: Option<bool>,
+    /// Why the membership changed, when given.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// Body for `POST .../release-memberships/bulk` (1–50 operations).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BulkReleaseMembershipRequest {
+    /// The per-Work Item membership changes.
+    pub operations: Vec<BulkReleaseMembershipOperation>,
+}
+
+/// The error recorded for one failed bulk membership operation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BulkReleaseMembershipError {
+    /// The stable error code.
+    pub code: String,
+    /// The human-readable failure message.
+    pub message: String,
+}
+
+/// The per-Work Item result of one bulk membership operation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BulkReleaseMembershipResult {
+    /// The operation's zero-based index in the request.
+    pub index: i64,
+    /// The HTTP-style status the operation produced.
+    pub status: i64,
+    /// The Work Item key, when the operation reached one.
+    #[serde(default)]
+    pub work_item_key: Option<String>,
+    /// The Work Item revision after the change, when it succeeded.
+    #[serde(default)]
+    pub work_item_revision: Option<i64>,
+    /// The resulting memberships, when the operation succeeded.
+    #[serde(default)]
+    pub release_versions: Option<Vec<ReleaseVersionSummary>>,
+    /// The recorded failure, when the operation failed.
+    #[serde(default)]
+    pub error: Option<BulkReleaseMembershipError>,
+}
+
+/// The bulk release-membership response envelope.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BulkReleaseMembershipResponse {
+    /// Per-operation results, in request order.
+    pub results: Vec<BulkReleaseMembershipResult>,
+    /// True when at least one operation failed.
+    pub partial: bool,
+}
+
+// ---- Release audit reports -----------------------------------------------------
+
+/// One saved, immutable Release audit package summary.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseAuditReportSummary {
+    /// The audit report's id.
+    pub id: String,
+    /// The package kind (`dossier` or `register`).
+    pub kind: String,
+    /// The SHA-256 of the exact saved JSON bytes.
+    pub sha256: String,
+    /// When the package was generated (RFC 3339).
+    pub generated_at: String,
+}
+
+/// The audit-report page metadata (no `hasMore` is documented).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseAuditReportPage {
+    /// The page size the server used, when reported.
+    #[serde(default)]
+    pub limit: Option<i64>,
+    /// The opaque cursor for the next page, when any.
+    #[serde(default)]
+    pub next_cursor: Option<String>,
+}
+
+/// A page of saved Release audit packages.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReleaseAuditReportList {
+    /// One page of audit package summaries.
+    pub items: Vec<ReleaseAuditReportSummary>,
+    /// Page metadata.
+    pub page: ReleaseAuditReportPage,
+}
+
+/// Body for `POST .../release-audit-reports` (dossier or register).
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum GenerateReleaseAuditReportRequest {
+    /// A frozen dossier for one Release Version.
+    #[serde(rename_all = "camelCase")]
+    Dossier {
+        /// The Release Version to freeze.
+        release_version_id: String,
+    },
+    /// A frozen UTC change register for a closed time range.
+    #[serde(rename_all = "camelCase")]
+    Register {
+        /// The range start (RFC 3339).
+        from: String,
+        /// The range end, inclusive (RFC 3339).
+        through: String,
+    },
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {

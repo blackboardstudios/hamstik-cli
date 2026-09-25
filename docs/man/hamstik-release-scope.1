@@ -1,0 +1,46 @@
+.TH HAMSTIK 1 "HAMSTIK RELEASE SCOPE"
+.SH NAME
+hamstik release scope \- Read a release's scope, progress, and Work Items
+.SH SYNOPSIS
+.B hamstik release scope [OPTIONS]
+.SH DESCRIPTION
+Read a release's scope, progress, and Work Items
+.SH ARGUMENTS
+.TP
+.I ID
+Release version id (UUID)
+.SH OPTIONS
+.TP
+.B --search
+Free-text search over Work Item titles
+.TP
+.B --status
+Filter by status (server-defined spelling)
+.TP
+.B --type
+Filter by type (server-defined spelling)
+.TP
+.B --priority
+Filter by priority (server-defined spelling)
+.TP
+.B --assignee
+Filter by assignee user UUID or public ID (usr_...)
+.TP
+.B --sort
+Sort key (server-defined)
+.TP
+.B --direction
+Sort direction (server-defined)
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --limit
+Maximum total items to emit, counted across pages (distinct from the server page size). Without `--all` at most one page is returned, holding at most this many items; a page is never requested larger than the endpoint allows (200 items, or 100 on organization, project, sprint, label, and link endpoints). With `--all` successive pages are followed until this cap or the end of the collection. A cap that cuts through a server page ends the run with `page.nextCursor: null`, because the Public API has no cursor for a position partway through a page
+.TP
+.B --cursor
+Opaque cursor returned by a preceding page; the result starts after it. `--since-cursor` is the pipeline-checkpoint spelling of the same option: resume an interrupted stream from the `page.nextCursor` a previous run reported. Cursors are opaque and are always forwarded verbatim
+.TP
+.B --all
+Follow all pages
+Choices: true, false

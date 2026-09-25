@@ -1,0 +1,49 @@
+.TH HAMSTIK 1 "HAMSTIK MILESTONE EDIT"
+.SH NAME
+hamstik milestone edit \- Edit a milestone
+.SH SYNOPSIS
+.B hamstik milestone edit [OPTIONS]
+.SH DESCRIPTION
+Edit a milestone
+.SH ARGUMENTS
+.TP
+.I ID
+Milestone id (UUID)
+.SH OPTIONS
+.TP
+.B --name
+New name
+.TP
+.B --description
+New description text
+.TP
+.B --description-file
+New description source (path, or - for stdin)
+.TP
+.B --description-editor
+Author the description in $VISUAL/$EDITOR instead of passing text
+Choices: true, false
+.TP
+.B --clear-description
+Clear the description
+Choices: true, false
+.TP
+.B --owner
+New milestone owner: me, a user UUID, a public ID (usr_...), or `none`
+.TP
+.B --target-date
+New target date
+.TP
+.B --clear-target-date
+Clear the target date
+Choices: true, false
+.TP
+.B --reason
+Why the milestone changed (recorded in events)
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false
+.TP
+.B --idempotency-key
+Explicit idempotency key

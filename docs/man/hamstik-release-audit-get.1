@@ -1,0 +1,23 @@
+.TH HAMSTIK 1 "HAMSTIK RELEASE AUDIT GET"
+.SH NAME
+hamstik release audit get \- Download the exact saved package as JSON or a CSV ZIP
+.SH SYNOPSIS
+.B hamstik release audit get [OPTIONS]
+.SH DESCRIPTION
+Download the exact saved package as JSON or a CSV ZIP
+.SH ARGUMENTS
+.TP
+.I REPORT_ID
+Audit report id (UUID)
+.SH OPTIONS
+.TP
+.B --format
+Package format to download
+Choices: json, csv
+Default: json
+.TP
+.B --output
+Write the package bytes to this file instead of stdout (CSV ZIP)
+.TP
+.B --project
+Project key (overrides context)

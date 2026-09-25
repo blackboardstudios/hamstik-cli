@@ -133,6 +133,8 @@ fn root_command_hierarchy_matches_documented_surface() {
             "report",
             "dashboard",
             "sprint",
+            "release",
+            "milestone",
             "label",
             "attribute",
             "work",
@@ -146,7 +148,7 @@ fn root_command_hierarchy_matches_documented_surface() {
             "commands",
             "version",
         ],
-        "root subcommand set changed; update README + CHANGELOG (Breaking) + this fixture"
+        "root subcommand set changed; update README + CHANGELOG + this fixture"
     );
 }
 
@@ -243,6 +245,40 @@ fn subcommand_groups_match_documented_surface() {
                 "transition",
                 "transitions",
                 "unarchive",
+                "view",
+            ],
+        ),
+        (
+            "release",
+            &["release"],
+            &[
+                "announcement",
+                "archive",
+                "audit",
+                "bulk-membership",
+                "create",
+                "edit",
+                "item",
+                "list",
+                "restore",
+                "scope",
+                "transition",
+                "transitions",
+                "view",
+            ],
+        ),
+        (
+            "milestone",
+            &["milestone"],
+            &[
+                "create",
+                "edit",
+                "events",
+                "list",
+                "release",
+                "releases",
+                "transition",
+                "transitions",
                 "view",
             ],
         ),

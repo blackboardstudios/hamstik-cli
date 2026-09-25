@@ -1,0 +1,39 @@
+.TH HAMSTIK 1 "HAMSTIK RELEASE CREATE"
+.SH NAME
+hamstik release create \- Create a release version
+.SH SYNOPSIS
+.B hamstik release create [OPTIONS]
+.SH DESCRIPTION
+Create a release version
+.SH OPTIONS
+.TP
+.B --name
+Release name
+.TP
+.B --display-version
+Separate display version label
+.TP
+.B --description
+Description text
+.TP
+.B --description-file
+Description source (path, or - for stdin)
+.TP
+.B --description-editor
+Author the description in $VISUAL/$EDITOR instead of passing text
+Choices: true, false
+.TP
+.B --owner
+Release owner: me, a user UUID, or a public ID (usr_...)
+.TP
+.B --target-date
+Target date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone
+.TP
+.B --release-date
+Release date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --idempotency-key
+Explicit idempotency key

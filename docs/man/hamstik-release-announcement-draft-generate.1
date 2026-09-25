@@ -1,0 +1,25 @@
+.TH HAMSTIK 1 "HAMSTIK RELEASE ANNOUNCEMENT DRAFT GENERATE"
+.SH NAME
+hamstik release announcement draft generate \- Generate or refresh the announcement draft from release scope
+.SH SYNOPSIS
+.B hamstik release announcement draft generate [OPTIONS]
+.SH DESCRIPTION
+Generate or refresh the announcement draft from release scope
+.SH ARGUMENTS
+.TP
+.I RELEASE_ID
+Release version id (UUID)
+.SH OPTIONS
+.TP
+.B --revision
+Generate from this release revision instead of the current one
+.TP
+.B --confirm-replace-organization
+Confirm replacing a draft generated from a different Organization view
+Choices: true, false
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --idempotency-key
+Explicit idempotency key

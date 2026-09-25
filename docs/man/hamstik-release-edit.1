@@ -1,0 +1,63 @@
+.TH HAMSTIK 1 "HAMSTIK RELEASE EDIT"
+.SH NAME
+hamstik release edit \- Edit a release version
+.SH SYNOPSIS
+.B hamstik release edit [OPTIONS]
+.SH DESCRIPTION
+Edit a release version
+.SH ARGUMENTS
+.TP
+.I ID
+Release version id (UUID)
+.SH OPTIONS
+.TP
+.B --name
+New name
+.TP
+.B --display-version
+New display version label
+.TP
+.B --clear-display-version
+Clear the display version label
+Choices: true, false
+.TP
+.B --description
+New description text
+.TP
+.B --description-file
+New description source (path, or - for stdin)
+.TP
+.B --description-editor
+Author the description in $VISUAL/$EDITOR instead of passing text
+Choices: true, false
+.TP
+.B --clear-description
+Clear the description
+Choices: true, false
+.TP
+.B --owner
+New release owner: me, a user UUID, a public ID (usr_...), or `none`
+.TP
+.B --target-date
+New target date
+.TP
+.B --clear-target-date
+Clear the target date
+Choices: true, false
+.TP
+.B --release-date
+New release date
+.TP
+.B --clear-release-date
+Clear the release date
+Choices: true, false
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --idempotency-key
+Explicit idempotency key

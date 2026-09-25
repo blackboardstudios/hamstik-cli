@@ -34,8 +34,10 @@ pub mod init;
 pub mod label;
 pub mod manifest;
 pub mod me;
+pub mod milestone;
 pub mod org;
 pub mod project;
+pub mod release;
 pub mod report;
 pub mod sprint;
 pub mod squeakql;
@@ -78,6 +80,23 @@ pub(crate) fn destructive_action(command: &Command) -> Option<&'static str> {
         Command::Sprint(args) => match &args.command {
             SprintCommand::Transition { target, .. } if target.as_str() == "done" => {
                 Some("complete a sprint")
+            }
+            _ => None,
+        },
+        Command::Release(args) => match &args.command {
+            crate::args::ReleaseCommand::Archive { .. } => Some("archive a release version"),
+            crate::args::ReleaseCommand::Transition { target, .. }
+                if target.as_str() == "archived" =>
+            {
+                Some("archive a release version")
+            }
+            _ => None,
+        },
+        Command::Milestone(args) => match &args.command {
+            crate::args::MilestoneCommand::Transition { target, .. }
+                if target.as_str() == "archived" =>
+            {
+                Some("archive a milestone")
             }
             _ => None,
         },
@@ -132,6 +151,8 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
         Command::Report(args) => advanced_report::run(session, args).await,
         Command::Dashboard(args) => advanced_dashboard::run(session, args).await,
         Command::Sprint(args) => sprint::run(session, args).await,
+        Command::Release(args) => release::run(session, args).await,
+        Command::Milestone(args) => milestone::run(session, args).await,
         Command::Label(args) => label::run(session, args).await,
         Command::Work(args) => work::run(session, args).await,
         Command::User(args) => user::run(session, args).await,
@@ -244,6 +265,48 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
         Command::Label(args) => {
             matches!(args.command, crate::args::LabelCommand::Create { .. })
         }
+        Command::Release(args) => match &args.command {
+            crate::args::ReleaseCommand::List { .. }
+            | crate::args::ReleaseCommand::View { .. }
+            | crate::args::ReleaseCommand::Transitions { .. }
+            | crate::args::ReleaseCommand::Scope { .. } => false,
+            crate::args::ReleaseCommand::Announcement(announcement) => {
+                match &announcement.command {
+                    crate::args::ReleaseAnnouncementCommand::Current { .. }
+                    | crate::args::ReleaseAnnouncementCommand::Revision { .. } => false,
+                    crate::args::ReleaseAnnouncementCommand::Draft(draft) => matches!(
+                        draft.command,
+                        crate::args::ReleaseAnnouncementDraftCommand::Show { .. }
+                    ),
+                    crate::args::ReleaseAnnouncementCommand::Publish { .. } => true,
+                }
+            }
+            crate::args::ReleaseCommand::Item(item) => {
+                !matches!(item.command, crate::args::ReleaseItemCommand::List { .. })
+            }
+            crate::args::ReleaseCommand::Audit(audit) => match &audit.command {
+                crate::args::ReleaseAuditCommand::Get { .. }
+                | crate::args::ReleaseAuditCommand::List { .. } => false,
+                crate::args::ReleaseAuditCommand::Generate { .. } => true,
+            },
+            crate::args::ReleaseCommand::Create { .. }
+            | crate::args::ReleaseCommand::Edit { .. }
+            | crate::args::ReleaseCommand::Transition { .. }
+            | crate::args::ReleaseCommand::Archive { .. }
+            | crate::args::ReleaseCommand::Restore { .. }
+            | crate::args::ReleaseCommand::BulkMembership { .. } => true,
+        },
+        Command::Milestone(args) => match &args.command {
+            crate::args::MilestoneCommand::List { .. }
+            | crate::args::MilestoneCommand::View { .. }
+            | crate::args::MilestoneCommand::Transitions { .. }
+            | crate::args::MilestoneCommand::Releases { .. }
+            | crate::args::MilestoneCommand::Events { .. } => false,
+            crate::args::MilestoneCommand::Create { .. }
+            | crate::args::MilestoneCommand::Edit { .. }
+            | crate::args::MilestoneCommand::Transition { .. }
+            | crate::args::MilestoneCommand::Release { .. } => true,
+        },
         Command::Attribute(args) => match &args.command {
             crate::args::AttributeCommand::List { .. }
             | crate::args::AttributeCommand::View { .. } => false,

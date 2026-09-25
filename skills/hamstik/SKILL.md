@@ -344,6 +344,43 @@ Completing a sprint can move unfinished items back to the backlog
 (`sprint transition <SPRINT-ID> done --move-to-backlog`) or into a future sprint
 (`--move-to-sprint <SPRINT-ID>`); both are explicit, previewable choices.
 
+Release versions, announcements, and audit packages follow the same shape —
+list first, read server transitions, then transition with a reason:
+
+```bash
+hamstik --json --no-input --org <ORG> --project <KEY> release list --all
+hamstik --json --no-input --org <ORG> --project <KEY> release view <RELEASE-ID>
+hamstik --json --no-input --org <ORG> --project <KEY> release transitions <RELEASE-ID>
+hamstik --json --no-input --org <ORG> --project <KEY> release transition \
+  <RELEASE-ID> released --confirm-incomplete-scope --reason "GA day"
+hamstik --json --no-input --org <ORG> --project <KEY> release item list <ITEM-KEY>
+hamstik --json --no-input --org <ORG> --project <KEY> release item add \
+  <ITEM-KEY> <RELEASE-ID>
+hamstik --json --no-input --org <ORG> --project <KEY> release announcement draft show <RELEASE-ID>
+hamstik --json --no-input --org <ORG> --project <KEY> release audit generate \
+  --kind dossier --release <RELEASE-ID>
+```
+
+Releasing with incomplete Work Items requires
+`--confirm-incomplete-scope`; archiving a release (`release archive`, or
+`release transition <RELEASE-ID> archived`) is a consent-gated destructive
+operation and requires `--confirm-destructive` or `--yes`. CSV audit packages
+are binary ZIP downloads and must be written to a file with `--output`.
+
+Organization Milestones are Organization-scoped (no `--project`):
+
+```bash
+hamstik --json --no-input --org <ORG> milestone list --all
+hamstik --json --no-input --org <ORG> milestone view <MILESTONE-ID>
+hamstik --json --no-input --org <ORG> milestone transition \
+  <MILESTONE-ID> completed --reason "all releases shipped"
+hamstik --json --no-input --org <ORG> milestone release add \
+  <MILESTONE-ID> <RELEASE-ID>
+```
+
+Removing a release from a milestone requires `--confirm-remove`; archiving a
+milestone (`milestone transition <ID> archived`) is consent-gated.
+
 Comments, labels, links, and attachments remain scoped to the selected resource.
 Comment `edit`/`delete` and attachment `delete` apply only to resources the
 authenticated user owns (or, for attachments, Organization administrators); link
@@ -431,12 +468,15 @@ Bulk results in JSON preserve per-operation `index`, `status`, `workItem`, and
 failure details.
 
 Project and Sprint administration (project create/edit/archive/unarchive, sprint
-create, label create, work archive/unarchive/delete) exists where the Public API
+create, label create, release create, milestone create, work archive/unarchive/delete)
+exists where the Public API
 exposes it and is restricted to administrators or owners server-side; the CLI does not
 decide eligibility. `work archive`/`unarchive` is the reversible path; `work delete`
 is owner-only and destructive — use it only when the user explicitly asks to delete
 the resolved item, and always pass `--confirm-destructive` (or `--yes`). Likewise,
-`project archive` and completing a Sprint with `sprint transition <ID> done`
+`project archive`, completing a Sprint with `sprint transition <ID> done`,
+archiving a release (`release archive` or `release transition <ID> archived`),
+and archiving a milestone (`milestone transition <ID> archived`)
 require `--confirm-destructive`/`--yes`.
 
 Server reports (CLI-63) are computed by the server. Read them with the typed

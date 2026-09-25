@@ -1,0 +1,32 @@
+.TH HAMSTIK 1 "HAMSTIK RELEASE ITEM REMOVE"
+.SH NAME
+hamstik release item remove \- Remove the Work Item from one or more release versions
+.SH SYNOPSIS
+.B hamstik release item remove [OPTIONS]
+.SH DESCRIPTION
+Remove the Work Item from one or more release versions
+.SH ARGUMENTS
+.TP
+.I KEY
+Work item key
+.TP
+.I RELEASE_ID
+Release version ids (UUIDs)
+.SH OPTIONS
+.TP
+.B --confirm-released-scope-correction
+Confirm correcting the scope of a released Work Item
+Choices: true, false
+.TP
+.B --reason
+Why the membership changed
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --idempotency-key
+Explicit idempotency key

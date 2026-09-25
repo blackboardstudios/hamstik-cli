@@ -1,0 +1,32 @@
+.TH HAMSTIK 1 "HAMSTIK RELEASE TRANSITION"
+.SH NAME
+hamstik release transition \- Transition a release to a target state
+.SH SYNOPSIS
+.B hamstik release transition [OPTIONS]
+.SH DESCRIPTION
+Transition a release to a target state
+.SH ARGUMENTS
+.TP
+.I ID
+Release version id (UUID)
+.TP
+.I TARGET
+Target state
+.SH OPTIONS
+.TP
+.B --confirm-incomplete-scope
+Confirm releasing a scope that still contains incomplete Work Items
+Choices: true, false
+.TP
+.B --reason
+Why the release moved
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --idempotency-key
+Explicit idempotency key

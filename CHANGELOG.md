@@ -10,6 +10,36 @@ before upgrading.
 
 ## [Unreleased]
 
+### Added
+
+- Release Version support through the typed API client and new CLI commands:
+  `hamstik release list|view|create|edit|transitions|transition|archive|
+  restore|scope` for Project release lifecycle (with `If-Match` revision
+  protection and idempotency keys on every mutation), Work Item release
+  membership via `release item list|add|remove|replace` and
+  `release bulk-membership` (JSON envelope, preflighted to the documented
+  1–50 operation bound), release announcements via `release announcement
+  current|revision|publish` and `release announcement draft
+  show|generate|edit|discard`, and frozen audit packages via `release audit
+  generate|get|list` (JSON packages print verbatim; CSV ZIP packages require
+  `--output` and are written atomically).
+
+- Organization Milestone support: `hamstik milestone
+  list|view|create|edit|transitions|transition|releases|events` with release
+  membership via `milestone release add|remove` (`--confirm-remove` is
+  required to remove a release). Milestone edits and transitions carry the
+  exact current ETag plus an idempotency key.
+
+- `release archive` (and `release transition <ID> archived`) and
+  `milestone transition <ID> archived` join the destructive-consent gate:
+  they require `--confirm-destructive` or `--yes` before any request is sent.
+
+- The frozen Public API v1 snapshot now covers the 0.4.0 server contract
+  (109 operations; the previous snapshot tracked 78). All 31 new operations
+  are classified in `openapi/api-parity.json` with typed client methods, CLI
+  commands, and transport tests, so `hamstik doctor` no longer reports the
+  0.4.0 endpoints as additive.
+
 ## [0.4.0] - 2026-09-24
 
 ### Breaking

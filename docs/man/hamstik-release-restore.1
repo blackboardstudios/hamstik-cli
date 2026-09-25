@@ -1,0 +1,25 @@
+.TH HAMSTIK 1 "HAMSTIK RELEASE RESTORE"
+.SH NAME
+hamstik release restore \- Restore an archived release version
+.SH SYNOPSIS
+.B hamstik release restore [OPTIONS]
+.SH DESCRIPTION
+Restore an archived release version
+.SH ARGUMENTS
+.TP
+.I ID
+Release version id (UUID)
+.SH OPTIONS
+.TP
+.B --reason
+Why the release was restored
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --idempotency-key
+Explicit idempotency key

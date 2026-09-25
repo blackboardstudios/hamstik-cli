@@ -177,6 +177,16 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   expiration, default Organization, and memberships;
 - sprints — `hamstik sprint list|view|create|transitions|transition|report|stats`
   with completion actions for sprints that still have unfinished work items;
+- release versions — `hamstik release
+  list|view|create|edit|transitions|transition|archive|restore|scope`, Work
+  Item membership (`release item list|add|remove|replace`, `release
+  bulk-membership`), announcements (`release announcement
+  current|revision|publish`, `release announcement draft
+  show|generate|edit|discard`), and frozen audit packages (`release audit
+  generate|get|list`);
+- Organization Milestones — `hamstik milestone
+  list|view|create|edit|transitions|transition|releases|events` with release
+  membership (`milestone release add|remove`);
 - labels — `hamstik label list|create` and `hamstik work label add|remove`
   (attach/detach with Work Item revision protection);
 - work items — `hamstik work list|view|create|edit`, status transitions
@@ -290,6 +300,30 @@ hamstik project edit WEB --description "Public site"
 hamstik sprint create --name "September" --goal "Ship v1" --target-points 40
 hamstik sprint transitions 11111111-1111-4111-8111-111111111111
 hamstik sprint transition 11111111-1111-4111-8111-111111111111 active
+
+# Release versions, announcements, and audit packages
+hamstik release create --name "Hamstik 0.4.0" --display-version 0.4.0
+hamstik release list --state planned --include-archived
+hamstik release view 22222222-2222-2222-2222-222222222222
+hamstik release edit 22222222-2222-2222-2222-222222222222 --clear-target-date
+hamstik release transitions 22222222-2222-2222-2222-222222222222
+hamstik release transition 22222222-2222-2222-2222-222222222222 released \
+  --confirm-incomplete-scope --reason "GA day"
+hamstik release scope 22222222-2222-2222-2222-222222222222 --search checkout --all
+hamstik release item add HAM-42 22222222-2222-2222-2222-222222222222
+hamstik release announcement draft show 22222222-2222-2222-2222-222222222222
+hamstik release announcement publish 22222222-2222-2222-2222-222222222222 --confirm-empty
+hamstik release audit generate --kind register --from 2026-09-01T00:00:00Z \
+  --through 2026-09-30T00:00:00Z
+hamstik release audit get 77777777-7777-7777-7777-777777777777
+
+# Organization Milestones (Organization context)
+hamstik milestone create --name "Q4 hardening" --target-date 2026-12-31
+hamstik milestone list --state in_progress
+hamstik milestone view 44444444-4444-4444-4444-444444444444
+hamstik milestone release add 44444444-4444-4444-4444-444444444444 \
+  22222222-2222-2222-2222-222222222222
+hamstik milestone events 44444444-4444-4444-4444-444444444444
 
 # Advanced Reports and Dashboards (Organization context)
 hamstik --org acme report list --visibility organization --all
@@ -504,12 +538,14 @@ instead of sending anything.
 
 ## Destructive-operation consent
 
-Three commands are destructive and require explicit per-process consent
+Five commands are destructive and require explicit per-process consent
 before any request is sent:
 
 - `work delete` (soft-delete a Work Item);
 - `project archive`;
-- `sprint transition <SPRINT-ID> done` (completing a Sprint).
+- `sprint transition <SPRINT-ID> done` (completing a Sprint);
+- `release archive` (and `release transition <RELEASE-ID> archived`);
+- `milestone transition <MILESTONE-ID> archived`.
 
 Consent is expressed with the global `--confirm-destructive` flag. The
 `--yes` flag is the documented scripting override and satisfies the same gate
@@ -682,7 +718,8 @@ For automation:
 - `--no-input` disables prompts and `--no-retry` disables safe automatic
   retries;
 - `--confirm-destructive` consents to the destructive operation an invocation
-  performs (`work delete`, `project archive`, completing a Sprint); `--yes`
+  performs (`work delete`, `project archive`, completing a Sprint, archiving a
+  release version, archiving a milestone); `--yes`
   is the scripting override. Destructive commands require one of them even
   outside `--no-input` (see [Destructive-operation consent](#destructive-operation-consent));
 - `--cursor` requests the page that follows an opaque cursor — `--since-cursor`

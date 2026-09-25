@@ -1,0 +1,25 @@
+.TH HAMSTIK 1 "HAMSTIK RELEASE ARCHIVE"
+.SH NAME
+hamstik release archive \- Archive a release version
+.SH SYNOPSIS
+.B hamstik release archive [OPTIONS]
+.SH DESCRIPTION
+Archive a release version
+.SH ARGUMENTS
+.TP
+.I ID
+Release version id (UUID)
+.SH OPTIONS
+.TP
+.B --reason
+Why the release was archived
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --idempotency-key
+Explicit idempotency key

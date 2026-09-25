@@ -1660,6 +1660,279 @@ pub trait HamstikApi: Send + Sync {
         dashboard_id: &str,
         body: &AdvancedDashboardRunRequest,
     ) -> Result<ApiResponse<AdvancedDashboardRunResult>, ClientError>;
+    /// `GET .../releases`: list the Project's Release Versions.
+    async fn list_release_versions(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        opts: ListReleaseVersionsOptions,
+    ) -> Result<ApiResponse<ReleaseVersionList>, ClientError>;
+    /// `POST .../releases`: create a Release Version (idempotent).
+    async fn create_release_version(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        body: &CreateReleaseVersionRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ReleaseVersion>, ClientError>;
+    /// `GET .../releases/{releaseId}`: one Release Version (captures the ETag).
+    async fn get_release_version(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+    ) -> Result<ApiResponse<ReleaseVersion>, ClientError>;
+    /// `PATCH .../releases/{releaseId}`: update release metadata
+    /// (`If-Match` + idempotency key).
+    async fn update_release_version(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &UpdateReleaseVersionRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ReleaseVersion>, ClientError>;
+    /// `GET .../releases/{releaseId}/transitions`: permitted transitions.
+    async fn list_release_version_transitions(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+    ) -> Result<ApiResponse<ReleaseVersionTransitionList>, ClientError>;
+    /// `POST .../releases/{releaseId}/transitions`: move the release to a
+    /// state (`If-Match` + idempotency key).
+    async fn transition_release_version(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &TransitionReleaseVersionRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ReleaseVersion>, ClientError>;
+    /// `POST .../releases/{releaseId}/archive`: archive a release
+    /// (`If-Match` + idempotency key).
+    async fn archive_release_version(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &ReleaseVersionLifecycleRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ReleaseVersion>, ClientError>;
+    /// `POST .../releases/{releaseId}/restore`: restore an archived release
+    /// (`If-Match` + idempotency key).
+    async fn restore_release_version(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &ReleaseVersionLifecycleRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ReleaseVersion>, ClientError>;
+    /// `GET .../releases/{releaseId}/scope`: release progress and a page of
+    /// its Work Items.
+    async fn get_release_version_scope(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        query: ReleaseScopeQuery,
+    ) -> Result<ApiResponse<ReleaseVersionScope>, ClientError>;
+    /// `GET .../work-items/{key}/releases`: the item's Release Versions.
+    async fn list_work_item_release_versions(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        key: &str,
+    ) -> Result<ApiResponse<WorkItemReleaseVersions>, ClientError>;
+    /// `POST .../work-items/{key}/releases`: add, remove, or replace the
+    /// item's Release Version memberships (`If-Match` + idempotency key).
+    async fn mutate_work_item_release_versions(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        key: &str,
+        body: &MutateWorkItemReleaseVersionsRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<WorkItemReleaseVersions>, ClientError>;
+    /// `POST .../release-memberships/bulk`: change memberships for up to 50
+    /// Work Items (idempotent).
+    async fn bulk_mutate_release_memberships(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        body: &BulkReleaseMembershipRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<BulkReleaseMembershipResponse>, ClientError>;
+    /// `GET .../releases/{releaseId}/announcements`: the latest published
+    /// announcement.
+    async fn get_current_release_announcement(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+    ) -> Result<ApiResponse<ReleaseAnnouncementRevision>, ClientError>;
+    /// `GET .../announcements/{revision}`: one published revision.
+    async fn get_release_announcement_revision(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        revision: i64,
+    ) -> Result<ApiResponse<ReleaseAnnouncementRevision>, ClientError>;
+    /// `GET .../announcements/draft`: the active announcement draft.
+    async fn get_release_announcement_draft(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+    ) -> Result<ApiResponse<ReleaseAnnouncementDraft>, ClientError>;
+    /// `POST .../announcements/draft`: generate or refresh the draft
+    /// (idempotent).
+    async fn generate_release_announcement_draft(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &GenerateReleaseAnnouncementDraftRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ReleaseAnnouncementDraft>, ClientError>;
+    /// `PATCH .../announcements/draft`: replace the draft narrative
+    /// (revision-checked body, no `If-Match`).
+    async fn edit_release_announcement_draft(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &EditReleaseAnnouncementDraftRequest,
+    ) -> Result<ApiResponse<ReleaseAnnouncementDraft>, ClientError>;
+    /// `DELETE .../announcements/draft`: discard the active draft.
+    async fn archive_release_announcement_draft(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &AnnouncementDraftRevisionRequest,
+    ) -> Result<ApiResponse<()>, ClientError>;
+    /// `POST .../announcements/publish`: publish an immutable revision
+    /// (idempotent).
+    async fn publish_release_announcement(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &PublishReleaseAnnouncementRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<PublishedReleaseAnnouncementReference>, ClientError>;
+    /// `POST .../release-audit-reports`: generate a dossier or register
+    /// (idempotent).
+    async fn generate_release_audit_report(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        body: &GenerateReleaseAuditReportRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ReleaseAuditReportSummary>, ClientError>;
+    /// `GET .../release-audit-reports/{reportId}?format=json`: the exact
+    /// saved JSON package.
+    async fn get_release_audit_report(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        report_id: &str,
+    ) -> Result<ApiResponse<Value>, ClientError>;
+    /// `GET .../release-audit-reports/{reportId}?format=csv`: the CSV ZIP
+    /// package as bytes (the operation's binary response form).
+    async fn download_release_audit_report(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        report_id: &str,
+    ) -> Result<DownloadedAttachment, ClientError>;
+    /// `GET .../release-audit-reports`: list saved audit packages.
+    async fn list_release_audit_reports(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        opts: ListReleaseAuditReportsOptions,
+    ) -> Result<ApiResponse<ReleaseAuditReportList>, ClientError>;
+    /// `GET .../milestones`: list Organization Milestones.
+    async fn list_organization_milestones(
+        &self,
+        org_slug: &str,
+        opts: ListMilestonesOptions,
+    ) -> Result<ApiResponse<OrganizationMilestoneList>, ClientError>;
+    /// `POST .../milestones`: create an Organization Milestone (idempotent).
+    async fn create_organization_milestone(
+        &self,
+        org_slug: &str,
+        body: &CreateOrganizationMilestoneRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<OrganizationMilestone>, ClientError>;
+    /// `GET .../milestones/{milestoneId}`: the milestone plus a page of its
+    /// Release Versions.
+    async fn get_organization_milestone(
+        &self,
+        org_slug: &str,
+        milestone_id: &str,
+        query: MilestoneDetailQuery,
+    ) -> Result<ApiResponse<OrganizationMilestoneDetail>, ClientError>;
+    /// `PATCH .../milestones/{milestoneId}`: update milestone metadata
+    /// (`If-Match` + idempotency key).
+    async fn update_organization_milestone(
+        &self,
+        org_slug: &str,
+        milestone_id: &str,
+        body: &UpdateOrganizationMilestoneRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<OrganizationMilestone>, ClientError>;
+    /// `GET .../milestones/{milestoneId}/transitions`: permitted transitions.
+    async fn list_organization_milestone_transitions(
+        &self,
+        org_slug: &str,
+        milestone_id: &str,
+    ) -> Result<ApiResponse<OrganizationMilestoneTransitionList>, ClientError>;
+    /// `POST .../milestones/{milestoneId}/transitions`: move the milestone to
+    /// a state (`If-Match` + idempotency key).
+    async fn transition_organization_milestone(
+        &self,
+        org_slug: &str,
+        milestone_id: &str,
+        body: &TransitionOrganizationMilestoneRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<OrganizationMilestone>, ClientError>;
+    /// `GET .../milestones/{milestoneId}/releases`: the milestone's Release
+    /// Versions.
+    async fn list_organization_milestone_releases(
+        &self,
+        org_slug: &str,
+        milestone_id: &str,
+        query: MilestoneReleasesQuery,
+    ) -> Result<ApiResponse<OrganizationMilestoneReleaseList>, ClientError>;
+    /// `POST .../milestones/{milestoneId}/releases`: add or remove one
+    /// Release Version (`If-Match` + idempotency key).
+    async fn mutate_organization_milestone_release(
+        &self,
+        org_slug: &str,
+        milestone_id: &str,
+        body: &MutateOrganizationMilestoneReleaseRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<OrganizationMilestone>, ClientError>;
+    /// `GET .../milestones/{milestoneId}/events`: the milestone history feed.
+    async fn list_organization_milestone_events(
+        &self,
+        org_slug: &str,
+        milestone_id: &str,
+        query: MilestoneEventsQuery,
+    ) -> Result<ApiResponse<OrganizationMilestoneEventList>, ClientError>;
 }
 
 #[async_trait]
@@ -3808,6 +4081,926 @@ impl HamstikApi for HamstikClient {
             query: Vec::new(),
             headers: Vec::new(),
             body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn list_release_versions(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        opts: ListReleaseVersionsOptions,
+    ) -> Result<ApiResponse<ReleaseVersionList>, ClientError> {
+        let mut query = Vec::new();
+        push_list(
+            &mut query,
+            &ListOptions {
+                limit: opts.limit,
+                cursor: opts.cursor,
+            },
+        );
+        push_opt(&mut query, "state", opts.state);
+        push_bool(&mut query, "includeArchived", opts.include_archived);
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+            ],
+            query,
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn create_release_version(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        body: &CreateReleaseVersionRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ReleaseVersion>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![(header_idempotency_key(), idempotency_key.to_string())],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn get_release_version(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+    ) -> Result<ApiResponse<ReleaseVersion>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+                release_id.to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn update_release_version(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &UpdateReleaseVersionRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ReleaseVersion>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::PATCH,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+                release_id.to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn list_release_version_transitions(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+    ) -> Result<ApiResponse<ReleaseVersionTransitionList>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+                release_id.to_string(),
+                "transitions".to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn transition_release_version(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &TransitionReleaseVersionRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ReleaseVersion>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+                release_id.to_string(),
+                "transitions".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn archive_release_version(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &ReleaseVersionLifecycleRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ReleaseVersion>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+                release_id.to_string(),
+                "archive".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn restore_release_version(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &ReleaseVersionLifecycleRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ReleaseVersion>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+                release_id.to_string(),
+                "restore".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn get_release_version_scope(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        query: ReleaseScopeQuery,
+    ) -> Result<ApiResponse<ReleaseVersionScope>, ClientError> {
+        let mut query_pairs = Vec::new();
+        push_list(
+            &mut query_pairs,
+            &ListOptions {
+                limit: query.limit,
+                cursor: query.cursor,
+            },
+        );
+        push_opt(&mut query_pairs, "q", query.query);
+        push_opt(&mut query_pairs, "status", query.status);
+        push_opt(&mut query_pairs, "type", query.item_type);
+        push_opt(&mut query_pairs, "priority", query.priority);
+        push_opt(&mut query_pairs, "assigneeId", query.assignee_id);
+        push_opt(&mut query_pairs, "sort", query.sort);
+        push_opt(&mut query_pairs, "direction", query.direction);
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+                release_id.to_string(),
+                "scope".to_string(),
+            ],
+            query: query_pairs,
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn list_work_item_release_versions(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        key: &str,
+    ) -> Result<ApiResponse<WorkItemReleaseVersions>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "work-items".to_string(),
+                key.to_string(),
+                "releases".to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn mutate_work_item_release_versions(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        key: &str,
+        body: &MutateWorkItemReleaseVersionsRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<WorkItemReleaseVersions>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "work-items".to_string(),
+                key.to_string(),
+                "releases".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn bulk_mutate_release_memberships(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        body: &BulkReleaseMembershipRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<BulkReleaseMembershipResponse>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "release-memberships".to_string(),
+                "bulk".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![(header_idempotency_key(), idempotency_key.to_string())],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn get_current_release_announcement(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+    ) -> Result<ApiResponse<ReleaseAnnouncementRevision>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+                release_id.to_string(),
+                "announcements".to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn get_release_announcement_revision(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        revision: i64,
+    ) -> Result<ApiResponse<ReleaseAnnouncementRevision>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+                release_id.to_string(),
+                "announcements".to_string(),
+                revision.to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn get_release_announcement_draft(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+    ) -> Result<ApiResponse<ReleaseAnnouncementDraft>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+                release_id.to_string(),
+                "announcements".to_string(),
+                "draft".to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn generate_release_announcement_draft(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &GenerateReleaseAnnouncementDraftRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ReleaseAnnouncementDraft>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+                release_id.to_string(),
+                "announcements".to_string(),
+                "draft".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![(header_idempotency_key(), idempotency_key.to_string())],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn edit_release_announcement_draft(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &EditReleaseAnnouncementDraftRequest,
+    ) -> Result<ApiResponse<ReleaseAnnouncementDraft>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::PATCH,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+                release_id.to_string(),
+                "announcements".to_string(),
+                "draft".to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn archive_release_announcement_draft(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &AnnouncementDraftRevisionRequest,
+    ) -> Result<ApiResponse<()>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_void(RequestSpec {
+            method: Method::DELETE,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+                release_id.to_string(),
+                "announcements".to_string(),
+                "draft".to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn publish_release_announcement(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        release_id: &str,
+        body: &PublishReleaseAnnouncementRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<PublishedReleaseAnnouncementReference>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "releases".to_string(),
+                release_id.to_string(),
+                "announcements".to_string(),
+                "publish".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![(header_idempotency_key(), idempotency_key.to_string())],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn generate_release_audit_report(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        body: &GenerateReleaseAuditReportRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<ReleaseAuditReportSummary>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "release-audit-reports".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![(header_idempotency_key(), idempotency_key.to_string())],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn get_release_audit_report(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        report_id: &str,
+    ) -> Result<ApiResponse<Value>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "release-audit-reports".to_string(),
+                report_id.to_string(),
+            ],
+            query: vec![("format".to_string(), "json".to_string())],
+            headers: vec![(ACCEPT.clone(), "application/json".to_string())],
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn download_release_audit_report(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        report_id: &str,
+    ) -> Result<DownloadedAttachment, ClientError> {
+        self.send_bytes(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "release-audit-reports".to_string(),
+                report_id.to_string(),
+            ],
+            query: vec![("format".to_string(), "csv".to_string())],
+            headers: vec![(ACCEPT.clone(), "application/zip".to_string())],
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn list_release_audit_reports(
+        &self,
+        org_slug: &str,
+        project_key: &str,
+        opts: ListReleaseAuditReportsOptions,
+    ) -> Result<ApiResponse<ReleaseAuditReportList>, ClientError> {
+        let mut query = Vec::new();
+        push_list(
+            &mut query,
+            &ListOptions {
+                limit: opts.limit,
+                cursor: opts.cursor,
+            },
+        );
+        push_opt(&mut query, "releaseVersionId", opts.release_version_id);
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "projects".to_string(),
+                project_key.to_string(),
+                "release-audit-reports".to_string(),
+            ],
+            query,
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn list_organization_milestones(
+        &self,
+        org_slug: &str,
+        opts: ListMilestonesOptions,
+    ) -> Result<ApiResponse<OrganizationMilestoneList>, ClientError> {
+        let mut query = Vec::new();
+        push_list(
+            &mut query,
+            &ListOptions {
+                limit: opts.limit,
+                cursor: opts.cursor,
+            },
+        );
+        push_opt(&mut query, "state", opts.state);
+        push_bool(&mut query, "includeArchived", opts.include_archived);
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "milestones".to_string(),
+            ],
+            query,
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn create_organization_milestone(
+        &self,
+        org_slug: &str,
+        body: &CreateOrganizationMilestoneRequest,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<OrganizationMilestone>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "milestones".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![(header_idempotency_key(), idempotency_key.to_string())],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn get_organization_milestone(
+        &self,
+        org_slug: &str,
+        milestone_id: &str,
+        query: MilestoneDetailQuery,
+    ) -> Result<ApiResponse<OrganizationMilestoneDetail>, ClientError> {
+        let mut query_pairs = Vec::new();
+        push_opt(&mut query_pairs, "releaseAfter", query.release_after);
+        push_opt(
+            &mut query_pairs,
+            "limit",
+            query.limit.map(|limit| limit.to_string()),
+        );
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "milestones".to_string(),
+                milestone_id.to_string(),
+            ],
+            query: query_pairs,
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn update_organization_milestone(
+        &self,
+        org_slug: &str,
+        milestone_id: &str,
+        body: &UpdateOrganizationMilestoneRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<OrganizationMilestone>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::PATCH,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "milestones".to_string(),
+                milestone_id.to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn list_organization_milestone_transitions(
+        &self,
+        org_slug: &str,
+        milestone_id: &str,
+    ) -> Result<ApiResponse<OrganizationMilestoneTransitionList>, ClientError> {
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "milestones".to_string(),
+                milestone_id.to_string(),
+                "transitions".to_string(),
+            ],
+            query: Vec::new(),
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn transition_organization_milestone(
+        &self,
+        org_slug: &str,
+        milestone_id: &str,
+        body: &TransitionOrganizationMilestoneRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<OrganizationMilestone>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "milestones".to_string(),
+                milestone_id.to_string(),
+                "transitions".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn list_organization_milestone_releases(
+        &self,
+        org_slug: &str,
+        milestone_id: &str,
+        query: MilestoneReleasesQuery,
+    ) -> Result<ApiResponse<OrganizationMilestoneReleaseList>, ClientError> {
+        let mut query_pairs = Vec::new();
+        push_opt(&mut query_pairs, "cursor", query.cursor);
+        push_opt(
+            &mut query_pairs,
+            "limit",
+            query.limit.map(|limit| limit.to_string()),
+        );
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "milestones".to_string(),
+                milestone_id.to_string(),
+                "releases".to_string(),
+            ],
+            query: query_pairs,
+            headers: Vec::new(),
+            body: None,
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn mutate_organization_milestone_release(
+        &self,
+        org_slug: &str,
+        milestone_id: &str,
+        body: &MutateOrganizationMilestoneReleaseRequest,
+        if_match: &str,
+        idempotency_key: &str,
+    ) -> Result<ApiResponse<OrganizationMilestone>, ClientError> {
+        let payload = serde_json::to_value(body)
+            .map_err(|err| ClientError::Protocol(format!("invalid request body: {err}")))?;
+        self.send_json(RequestSpec {
+            method: Method::POST,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "milestones".to_string(),
+                milestone_id.to_string(),
+                "releases".to_string(),
+            ],
+            query: Vec::new(),
+            headers: vec![
+                (IF_MATCH.clone(), if_match.to_string()),
+                (header_idempotency_key(), idempotency_key.to_string()),
+            ],
+            body: Some(&payload),
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn list_organization_milestone_events(
+        &self,
+        org_slug: &str,
+        milestone_id: &str,
+        query: MilestoneEventsQuery,
+    ) -> Result<ApiResponse<OrganizationMilestoneEventList>, ClientError> {
+        let mut query_pairs = Vec::new();
+        push_opt(&mut query_pairs, "beforeEventId", query.before_event_id);
+        push_opt(
+            &mut query_pairs,
+            "limit",
+            query.limit.map(|limit| limit.to_string()),
+        );
+        self.send_json(RequestSpec {
+            method: Method::GET,
+            segments: vec![
+                "organizations".to_string(),
+                org_slug.to_string(),
+                "milestones".to_string(),
+                milestone_id.to_string(),
+                "events".to_string(),
+            ],
+            query: query_pairs,
+            headers: Vec::new(),
+            body: None,
             retryable: true,
         })
         .await

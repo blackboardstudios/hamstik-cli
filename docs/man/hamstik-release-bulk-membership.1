@@ -1,0 +1,17 @@
+.TH HAMSTIK 1 "HAMSTIK RELEASE BULK MEMBERSHIP"
+.SH NAME
+hamstik release bulk-membership \- Change release memberships for up to 50 Work Items from a JSON file
+.SH SYNOPSIS
+.B hamstik release bulk-membership [OPTIONS]
+.SH DESCRIPTION
+Change release memberships for up to 50 Work Items from a JSON file
+.SH OPTIONS
+.TP
+.B --file
+JSON file containing `{ "operations": [...] }` (`-` for stdin)
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --idempotency-key
+Explicit idempotency key

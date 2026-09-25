@@ -1,0 +1,25 @@
+.TH HAMSTIK 1 "HAMSTIK MILESTONE RELEASE ADD"
+.SH NAME
+hamstik milestone release add \- Add a release version to the milestone
+.SH SYNOPSIS
+.B hamstik milestone release add [OPTIONS]
+.SH DESCRIPTION
+Add a release version to the milestone
+.SH ARGUMENTS
+.TP
+.I ID
+Milestone id (UUID)
+.TP
+.I RELEASE_ID
+Release version id (UUID)
+.SH OPTIONS
+.TP
+.B --reason
+Why the release was added
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false
+.TP
+.B --idempotency-key
+Explicit idempotency key

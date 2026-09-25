@@ -139,6 +139,10 @@ pub enum Command {
     Dashboard(AdvancedDashboardArgs),
     /// Work with sprints.
     Sprint(SprintArgs),
+    /// Work with Project release versions, announcements, and audit packages.
+    Release(ReleaseArgs),
+    /// Work with Organization Milestones.
+    Milestone(MilestoneArgs),
     /// Work with labels.
     Label(LabelArgs),
     /// Discover and administer Organization Attributes.
@@ -3086,6 +3090,839 @@ impl SprintStateArg {
             SprintStateArg::Done => "done",
         }
     }
+}
+
+/// Release Version lifecycle states (request-side validation).
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReleaseStateArg {
+    /// Planned.
+    #[value(name = "planned")]
+    Planned,
+    /// In progress.
+    #[value(name = "in_progress")]
+    InProgress,
+    /// Released.
+    #[value(name = "released")]
+    Released,
+    /// Archived.
+    #[value(name = "archived")]
+    Archived,
+}
+
+impl ReleaseStateArg {
+    /// The wire value for this release state.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ReleaseStateArg::Planned => "planned",
+            ReleaseStateArg::InProgress => "in_progress",
+            ReleaseStateArg::Released => "released",
+            ReleaseStateArg::Archived => "archived",
+        }
+    }
+}
+
+/// Organization Milestone lifecycle states (request-side validation).
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MilestoneStateArg {
+    /// Planned.
+    #[value(name = "planned")]
+    Planned,
+    /// In progress.
+    #[value(name = "in_progress")]
+    InProgress,
+    /// Completed.
+    #[value(name = "completed")]
+    Completed,
+    /// Archived.
+    #[value(name = "archived")]
+    Archived,
+}
+
+impl MilestoneStateArg {
+    /// The wire value for this milestone state.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MilestoneStateArg::Planned => "planned",
+            MilestoneStateArg::InProgress => "in_progress",
+            MilestoneStateArg::Completed => "completed",
+            MilestoneStateArg::Archived => "archived",
+        }
+    }
+}
+
+/// Arguments for the `release` command group.
+#[derive(Args, Debug)]
+pub struct ReleaseArgs {
+    /// The release subcommand to run.
+    #[command(subcommand)]
+    pub command: ReleaseCommand,
+}
+
+/// Release subcommands.
+#[derive(Subcommand, Debug)]
+pub enum ReleaseCommand {
+    /// List release versions in a project.
+    List {
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Only releases in this lifecycle state.
+        #[arg(long, value_enum)]
+        state: Option<ReleaseStateArg>,
+        /// Include archived releases in the results.
+        #[arg(
+            long = "include-archived",
+            value_name = "true|false",
+            num_args = 0..=1,
+            default_missing_value = "true"
+        )]
+        include_archived: Option<bool>,
+        /// Pagination options.
+        #[command(flatten)]
+        pagination: PaginationArgs,
+    },
+    /// View a release version.
+    View {
+        /// Release version id (UUID).
+        id: String,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+    },
+    /// Create a release version.
+    Create {
+        /// Release name.
+        #[arg(long)]
+        name: Option<String>,
+        /// Separate display version label.
+        #[arg(long = "display-version", value_name = "LABEL")]
+        display_version: Option<String>,
+        /// Description text.
+        #[arg(long, conflicts_with_all = ["description_file", "description_editor"])]
+        description: Option<String>,
+        /// Description source (path, or - for stdin).
+        #[arg(
+            long = "description-file",
+            value_name = "PATH",
+            conflicts_with_all = ["description", "description_editor"]
+        )]
+        description_file: Option<String>,
+        /// Author the description in $VISUAL/$EDITOR instead of passing text.
+        #[arg(
+            long = "description-editor",
+            conflicts_with_all = ["description", "description_file"]
+        )]
+        description_editor: bool,
+        /// Release owner: me, a user UUID, or a public ID (usr_...).
+        #[arg(long, value_name = "ME|ID")]
+        owner: Option<String>,
+        /// Target date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+        /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+        /// is read in the host's local time zone.
+        #[arg(long = "target-date", value_name = "DATE")]
+        target_date: Option<TimeArg>,
+        /// Release date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+        /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+        /// is read in the host's local time zone.
+        #[arg(long = "release-date", value_name = "DATE")]
+        release_date: Option<TimeArg>,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Edit a release version.
+    Edit {
+        /// Release version id (UUID).
+        id: String,
+        /// New name.
+        #[arg(long)]
+        name: Option<String>,
+        /// New display version label.
+        #[arg(
+            long = "display-version",
+            value_name = "LABEL",
+            conflicts_with_all = ["clear_display_version"]
+        )]
+        display_version: Option<String>,
+        /// Clear the display version label.
+        #[arg(long = "clear-display-version")]
+        clear_display_version: bool,
+        /// New description text.
+        #[arg(long, conflicts_with_all = ["description_file", "description_editor", "clear_description"])]
+        description: Option<String>,
+        /// New description source (path, or - for stdin).
+        #[arg(
+            long = "description-file",
+            value_name = "PATH",
+            conflicts_with_all = ["description", "clear_description", "description_editor"]
+        )]
+        description_file: Option<String>,
+        /// Author the description in $VISUAL/$EDITOR instead of passing text.
+        #[arg(
+            long = "description-editor",
+            conflicts_with_all = ["description", "description_file", "clear_description"]
+        )]
+        description_editor: bool,
+        /// Clear the description.
+        #[arg(long = "clear-description")]
+        clear_description: bool,
+        /// New release owner: me, a user UUID, a public ID (usr_...), or `none`.
+        #[arg(long, value_name = "ME|NONE|ID")]
+        owner: Option<String>,
+        /// New target date.
+        #[arg(long = "target-date", value_name = "DATE")]
+        target_date: Option<TimeArg>,
+        /// Clear the target date.
+        #[arg(
+            long = "clear-target-date",
+            conflicts_with_all = ["target_date"]
+        )]
+        clear_target_date: bool,
+        /// New release date.
+        #[arg(long = "release-date", value_name = "DATE")]
+        release_date: Option<TimeArg>,
+        /// Clear the release date.
+        #[arg(
+            long = "clear-release-date",
+            conflicts_with_all = ["release_date"]
+        )]
+        clear_release_date: bool,
+        /// Bypass revision conflict protection (If-Match: *).
+        #[arg(long)]
+        force: bool,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// List allowed release state transitions.
+    Transitions {
+        /// Release version id (UUID).
+        id: String,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+    },
+    /// Transition a release to a target state.
+    Transition {
+        /// Release version id (UUID).
+        id: String,
+        /// Target state.
+        #[arg(value_enum)]
+        target: ReleaseStateArg,
+        /// Confirm releasing a scope that still contains incomplete Work Items.
+        #[arg(long = "confirm-incomplete-scope")]
+        confirm_incomplete_scope: bool,
+        /// Why the release moved.
+        #[arg(long, value_name = "TEXT")]
+        reason: Option<String>,
+        /// Bypass revision conflict protection (If-Match: *).
+        #[arg(long)]
+        force: bool,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Archive a release version.
+    Archive {
+        /// Release version id (UUID).
+        id: String,
+        /// Why the release was archived.
+        #[arg(long, value_name = "TEXT")]
+        reason: Option<String>,
+        /// Bypass revision conflict protection (If-Match: *).
+        #[arg(long)]
+        force: bool,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Restore an archived release version.
+    Restore {
+        /// Release version id (UUID).
+        id: String,
+        /// Why the release was restored.
+        #[arg(long, value_name = "TEXT")]
+        reason: Option<String>,
+        /// Bypass revision conflict protection (If-Match: *).
+        #[arg(long)]
+        force: bool,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Read a release's scope, progress, and Work Items.
+    Scope {
+        /// Release version id (UUID).
+        id: String,
+        /// Free-text search over Work Item titles.
+        #[arg(long = "search", value_name = "TEXT")]
+        search: Option<String>,
+        /// Filter by status (server-defined spelling).
+        #[arg(long, value_name = "STATUS")]
+        status: Option<String>,
+        /// Filter by type (server-defined spelling).
+        #[arg(long = "type", value_name = "TYPE")]
+        item_type: Option<String>,
+        /// Filter by priority (server-defined spelling).
+        #[arg(long, value_name = "PRIORITY")]
+        priority: Option<String>,
+        /// Filter by assignee user UUID or public ID (usr_...).
+        #[arg(long, value_name = "ID")]
+        assignee: Option<String>,
+        /// Sort key (server-defined).
+        #[arg(long, value_name = "KEY")]
+        sort: Option<String>,
+        /// Sort direction (server-defined).
+        #[arg(long, value_name = "DIR")]
+        direction: Option<String>,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Pagination options.
+        #[command(flatten)]
+        pagination: PaginationArgs,
+    },
+    /// Manage a Work Item's release memberships.
+    Item(ReleaseItemArgs),
+    /// Change release memberships for up to 50 Work Items from a JSON file.
+    BulkMembership {
+        /// JSON file containing `{ "operations": [...] }` (`-` for stdin).
+        #[arg(long = "file", value_name = "PATH")]
+        file: String,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Read and publish release announcements.
+    Announcement(ReleaseAnnouncementArgs),
+    /// Generate and download frozen release audit packages.
+    Audit(ReleaseAuditArgs),
+}
+
+/// Arguments for `release item`: a Work Item's release memberships.
+#[derive(Args, Debug)]
+pub struct ReleaseItemArgs {
+    /// The release item subcommand to run.
+    #[command(subcommand)]
+    pub command: ReleaseItemCommand,
+}
+
+/// Release item subcommands.
+#[derive(Subcommand, Debug)]
+pub enum ReleaseItemCommand {
+    /// List the release versions a Work Item belongs to.
+    List {
+        /// Work item key.
+        key: String,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+    },
+    /// Add the Work Item to one or more release versions.
+    Add {
+        /// Work item key.
+        key: String,
+        /// Release version ids (UUIDs).
+        #[arg(value_name = "RELEASE_ID", num_args = 1..)]
+        release_ids: Vec<String>,
+        /// Confirm correcting the scope of a released Work Item.
+        #[arg(long = "confirm-released-scope-correction")]
+        confirm_released_scope_correction: bool,
+        /// Why the membership changed.
+        #[arg(long, value_name = "TEXT")]
+        reason: Option<String>,
+        /// Bypass revision conflict protection (If-Match: *).
+        #[arg(long)]
+        force: bool,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Remove the Work Item from one or more release versions.
+    Remove {
+        /// Work item key.
+        key: String,
+        /// Release version ids (UUIDs).
+        #[arg(value_name = "RELEASE_ID", num_args = 1..)]
+        release_ids: Vec<String>,
+        /// Confirm correcting the scope of a released Work Item.
+        #[arg(long = "confirm-released-scope-correction")]
+        confirm_released_scope_correction: bool,
+        /// Why the membership changed.
+        #[arg(long, value_name = "TEXT")]
+        reason: Option<String>,
+        /// Bypass revision conflict protection (If-Match: *).
+        #[arg(long)]
+        force: bool,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Replace the Work Item's release versions with exactly these.
+    Replace {
+        /// Work item key.
+        key: String,
+        /// Release version ids (UUIDs).
+        #[arg(value_name = "RELEASE_ID", num_args = 1..)]
+        release_ids: Vec<String>,
+        /// Confirm correcting the scope of a released Work Item.
+        #[arg(long = "confirm-released-scope-correction")]
+        confirm_released_scope_correction: bool,
+        /// Why the membership changed.
+        #[arg(long, value_name = "TEXT")]
+        reason: Option<String>,
+        /// Bypass revision conflict protection (If-Match: *).
+        #[arg(long)]
+        force: bool,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+}
+
+/// Arguments for `release announcement`.
+#[derive(Args, Debug)]
+pub struct ReleaseAnnouncementArgs {
+    /// The announcement subcommand to run.
+    #[command(subcommand)]
+    pub command: ReleaseAnnouncementCommand,
+}
+
+/// Release announcement subcommands.
+#[derive(Subcommand, Debug)]
+pub enum ReleaseAnnouncementCommand {
+    /// Read the latest published announcement.
+    Current {
+        /// Release version id (UUID).
+        release_id: String,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+    },
+    /// Read one historical published announcement revision.
+    Revision {
+        /// Release version id (UUID).
+        release_id: String,
+        /// Announcement revision number.
+        revision: i64,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+    },
+    /// Work with the editable announcement draft.
+    Draft(ReleaseAnnouncementDraftArgs),
+    /// Publish the draft as an immutable announcement revision.
+    Publish {
+        /// Release version id (UUID).
+        release_id: String,
+        /// Draft revision to publish (defaults to the current draft's).
+        #[arg(long, value_name = "N")]
+        revision: Option<i64>,
+        /// Confirm publishing an announcement with no included Work Items.
+        #[arg(long = "confirm-empty")]
+        confirm_empty: bool,
+        /// Why the announcement was published.
+        #[arg(long, value_name = "TEXT")]
+        reason: Option<String>,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+}
+
+/// Arguments for `release announcement draft`.
+#[derive(Args, Debug)]
+pub struct ReleaseAnnouncementDraftArgs {
+    /// The draft subcommand to run.
+    #[command(subcommand)]
+    pub command: ReleaseAnnouncementDraftCommand,
+}
+
+/// Release announcement draft subcommands.
+#[derive(Subcommand, Debug)]
+pub enum ReleaseAnnouncementDraftCommand {
+    /// Show the active announcement draft.
+    Show {
+        /// Release version id (UUID).
+        release_id: String,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+    },
+    /// Generate or refresh the announcement draft from release scope.
+    Generate {
+        /// Release version id (UUID).
+        release_id: String,
+        /// Generate from this release revision instead of the current one.
+        #[arg(long, value_name = "N")]
+        revision: Option<i64>,
+        /// Confirm replacing a draft generated from a different Organization view.
+        #[arg(long = "confirm-replace-organization")]
+        confirm_replace_organization: bool,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Replace the draft narrative, categories, and included Work Items.
+    Edit {
+        /// Release version id (UUID).
+        release_id: String,
+        /// JSON file containing `{introduction, highlights, categories,
+        /// includedWorkItemIds}` (`-` for stdin).
+        #[arg(long = "file", value_name = "PATH")]
+        file: String,
+        /// Draft revision to replace (defaults to the current draft's).
+        #[arg(long, value_name = "N")]
+        revision: Option<i64>,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+    },
+    /// Discard the active announcement draft.
+    Discard {
+        /// Release version id (UUID).
+        release_id: String,
+        /// Draft revision to discard (defaults to the current draft's).
+        #[arg(long, value_name = "N")]
+        revision: Option<i64>,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+    },
+}
+
+/// Arguments for `release audit`.
+#[derive(Args, Debug)]
+pub struct ReleaseAuditArgs {
+    /// The audit subcommand to run.
+    #[command(subcommand)]
+    pub command: ReleaseAuditCommand,
+}
+
+/// Release audit subcommands.
+#[derive(Subcommand, Debug)]
+pub enum ReleaseAuditCommand {
+    /// Generate a frozen dossier or UTC change register.
+    Generate {
+        /// Package kind: dossier (one release) or register (date range).
+        #[arg(long, value_enum)]
+        kind: ReleaseAuditKindArg,
+        /// Release version id (required for dossier packages).
+        #[arg(
+            long,
+            value_name = "UUID",
+            requires_if("dossier", "kind"),
+            requires_if("dossier", "kind")
+        )]
+        release: Option<String>,
+        /// Range start (required for register packages).
+        #[arg(long, value_name = "DATE")]
+        from: Option<TimeArg>,
+        /// Range end, inclusive (required for register packages).
+        #[arg(long, value_name = "DATE")]
+        through: Option<TimeArg>,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Download the exact saved package as JSON or a CSV ZIP.
+    Get {
+        /// Audit report id (UUID).
+        report_id: String,
+        /// Package format to download.
+        #[arg(long, value_enum, default_value = "json")]
+        format: ReleaseAuditFormatArg,
+        /// Write the package bytes to this file instead of stdout (CSV ZIP).
+        #[arg(long, value_name = "PATH")]
+        output: Option<PathBuf>,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+    },
+    /// List saved audit packages in the project.
+    List {
+        /// Only packages generated for this Release Version.
+        #[arg(long, value_name = "UUID")]
+        release: Option<String>,
+        /// Project key (overrides context).
+        #[arg(long)]
+        project: Option<String>,
+        /// Pagination options.
+        #[command(flatten)]
+        pagination: PaginationArgs,
+    },
+}
+
+/// Release audit package kinds.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReleaseAuditKindArg {
+    /// A frozen dossier for one Release Version.
+    #[value(name = "dossier")]
+    Dossier,
+    /// A frozen UTC change register for a date range.
+    #[value(name = "register")]
+    Register,
+}
+
+/// Release audit download formats.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReleaseAuditFormatArg {
+    /// The exact saved JSON package.
+    #[value(name = "json")]
+    Json,
+    /// The CSV ZIP package.
+    #[value(name = "csv")]
+    Csv,
+}
+
+/// Arguments for the `milestone` command group.
+#[derive(Args, Debug)]
+pub struct MilestoneArgs {
+    /// The milestone subcommand to run.
+    #[command(subcommand)]
+    pub command: MilestoneCommand,
+}
+
+/// Milestone subcommands.
+#[derive(Subcommand, Debug)]
+pub enum MilestoneCommand {
+    /// List Organization Milestones.
+    List {
+        /// Only milestones in this lifecycle state.
+        #[arg(long, value_enum)]
+        state: Option<MilestoneStateArg>,
+        /// Include archived milestones in the results.
+        #[arg(
+            long = "include-archived",
+            value_name = "true|false",
+            num_args = 0..=1,
+            default_missing_value = "true"
+        )]
+        include_archived: Option<bool>,
+        /// Pagination options.
+        #[command(flatten)]
+        pagination: PaginationArgs,
+    },
+    /// View a milestone and one page of its releases.
+    View {
+        /// Milestone id (UUID).
+        id: String,
+        /// The release cursor the release page starts after.
+        #[arg(long = "release-after", value_name = "UUID")]
+        release_after: Option<String>,
+        /// Maximum releases per page.
+        #[arg(long = "release-limit", value_name = "N")]
+        release_limit: Option<u32>,
+    },
+    /// Create an Organization Milestone.
+    Create {
+        /// Milestone name.
+        #[arg(long)]
+        name: Option<String>,
+        /// Description text.
+        #[arg(long, conflicts_with_all = ["description_file", "description_editor"])]
+        description: Option<String>,
+        /// Description source (path, or - for stdin).
+        #[arg(
+            long = "description-file",
+            value_name = "PATH",
+            conflicts_with_all = ["description", "description_editor"]
+        )]
+        description_file: Option<String>,
+        /// Author the description in $VISUAL/$EDITOR instead of passing text.
+        #[arg(
+            long = "description-editor",
+            conflicts_with_all = ["description", "description_file"]
+        )]
+        description_editor: bool,
+        /// Milestone owner: me, a user UUID, or a public ID (usr_...).
+        #[arg(long, value_name = "ME|ID")]
+        owner: Option<String>,
+        /// Target date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a
+        /// relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset
+        /// is read in the host's local time zone.
+        #[arg(long = "target-date", value_name = "DATE")]
+        target_date: Option<TimeArg>,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Edit a milestone.
+    Edit {
+        /// Milestone id (UUID).
+        id: String,
+        /// New name.
+        #[arg(long)]
+        name: Option<String>,
+        /// New description text.
+        #[arg(long, conflicts_with_all = ["description_file", "description_editor", "clear_description"])]
+        description: Option<String>,
+        /// New description source (path, or - for stdin).
+        #[arg(
+            long = "description-file",
+            value_name = "PATH",
+            conflicts_with_all = ["description", "clear_description", "description_editor"]
+        )]
+        description_file: Option<String>,
+        /// Author the description in $VISUAL/$EDITOR instead of passing text.
+        #[arg(
+            long = "description-editor",
+            conflicts_with_all = ["description", "description_file", "clear_description"]
+        )]
+        description_editor: bool,
+        /// Clear the description.
+        #[arg(long = "clear-description")]
+        clear_description: bool,
+        /// New milestone owner: me, a user UUID, a public ID (usr_...), or `none`.
+        #[arg(long, value_name = "ME|NONE|ID")]
+        owner: Option<String>,
+        /// New target date.
+        #[arg(long = "target-date", value_name = "DATE")]
+        target_date: Option<TimeArg>,
+        /// Clear the target date.
+        #[arg(
+            long = "clear-target-date",
+            conflicts_with_all = ["target_date"]
+        )]
+        clear_target_date: bool,
+        /// Why the milestone changed (recorded in events).
+        #[arg(long, value_name = "TEXT")]
+        reason: Option<String>,
+        /// Bypass revision conflict protection (If-Match: *).
+        #[arg(long)]
+        force: bool,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// List allowed milestone state transitions.
+    Transitions {
+        /// Milestone id (UUID).
+        id: String,
+    },
+    /// Transition a milestone to a target state.
+    Transition {
+        /// Milestone id (UUID).
+        id: String,
+        /// Target state.
+        #[arg(value_enum)]
+        target: MilestoneStateArg,
+        /// Why the milestone moved.
+        #[arg(long, value_name = "TEXT")]
+        reason: Option<String>,
+        /// Bypass revision conflict protection (If-Match: *).
+        #[arg(long)]
+        force: bool,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// List the release versions in a milestone.
+    Releases {
+        /// Milestone id (UUID).
+        id: String,
+        /// The release cursor the page starts after.
+        #[arg(long = "release-after", value_name = "UUID")]
+        release_after: Option<String>,
+        /// Pagination options.
+        #[command(flatten)]
+        pagination: PaginationArgs,
+    },
+    /// Add or remove a release version from a milestone.
+    Release {
+        /// The milestone release subcommand to run.
+        #[command(subcommand)]
+        command: MilestoneReleaseCommand,
+    },
+    /// Read the milestone history feed (newest first).
+    Events {
+        /// Milestone id (UUID).
+        id: String,
+        /// The event id the (older) page starts before.
+        #[arg(long = "before-event-id", value_name = "UUID")]
+        before_event_id: Option<String>,
+        /// Maximum events per page.
+        #[arg(long, value_name = "N")]
+        limit: Option<u32>,
+    },
+}
+
+/// Milestone release subcommands.
+#[derive(Subcommand, Debug)]
+pub enum MilestoneReleaseCommand {
+    /// Add a release version to the milestone.
+    Add {
+        /// Milestone id (UUID).
+        id: String,
+        /// Release version id (UUID).
+        release_id: String,
+        /// Why the release was added.
+        #[arg(long, value_name = "TEXT")]
+        reason: Option<String>,
+        /// Bypass revision conflict protection (If-Match: *).
+        #[arg(long)]
+        force: bool,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
+    /// Remove a release version from the milestone.
+    Remove {
+        /// Milestone id (UUID).
+        id: String,
+        /// Release version id (UUID).
+        release_id: String,
+        /// Confirm removing the release and its milestone progress.
+        #[arg(long = "confirm-remove")]
+        confirm_remove: bool,
+        /// Why the release was removed.
+        #[arg(long, value_name = "TEXT")]
+        reason: Option<String>,
+        /// Bypass revision conflict protection (If-Match: *).
+        #[arg(long)]
+        force: bool,
+        /// Explicit idempotency key.
+        #[arg(long = "idempotency-key", value_name = "KEY")]
+        idempotency_key: Option<String>,
+    },
 }
 
 #[cfg(test)]

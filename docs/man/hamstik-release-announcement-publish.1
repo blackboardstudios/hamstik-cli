@@ -1,0 +1,28 @@
+.TH HAMSTIK 1 "HAMSTIK RELEASE ANNOUNCEMENT PUBLISH"
+.SH NAME
+hamstik release announcement publish \- Publish the draft as an immutable announcement revision
+.SH SYNOPSIS
+.B hamstik release announcement publish [OPTIONS]
+.SH DESCRIPTION
+Publish the draft as an immutable announcement revision
+.SH ARGUMENTS
+.TP
+.I RELEASE_ID
+Release version id (UUID)
+.SH OPTIONS
+.TP
+.B --revision
+Draft revision to publish (defaults to the current draft's)
+.TP
+.B --confirm-empty
+Confirm publishing an announcement with no included Work Items
+Choices: true, false
+.TP
+.B --reason
+Why the announcement was published
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --idempotency-key
+Explicit idempotency key

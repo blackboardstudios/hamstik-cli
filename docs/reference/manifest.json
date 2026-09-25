@@ -2469,6 +2469,1939 @@
    ]
   },
   {
+   "about": "Work with Project release versions, announcements, and audit packages",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List release versions in a project",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "choices": [
+      "planned",
+      "in_progress",
+      "released",
+      "archived"
+     ],
+     "help": "Only releases in this lifecycle state",
+     "kind": "option",
+     "long": "--state"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Include archived releases in the results",
+     "kind": "option",
+     "long": "--include-archived"
+    },
+    {
+     "help": "Maximum total items to emit, counted across pages (distinct from the server page size). Without `--all` at most one page is returned, holding at most this many items; a page is never requested larger than the endpoint allows (200 items, or 100 on organization, project, sprint, label, and link endpoints). With `--all` successive pages are followed until this cap or the end of the collection. A cap that cuts through a server page ends the run with `page.nextCursor: null`, because the Public API has no cursor for a position partway through a page",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque cursor returned by a preceding page; the result starts after it. `--since-cursor` is the pipeline-checkpoint spelling of the same option: resume an interrupted stream from the `page.nextCursor` a previous run reported. Cursors are opaque and are always forwarded verbatim",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release list",
+   "hasSubcommands": false,
+   "options": [
+    "--project",
+    "--state",
+    "--include-archived",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "View a release version",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release view",
+   "hasSubcommands": false,
+   "options": [
+    "--project"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Create a release version",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release name",
+     "kind": "option",
+     "long": "--name"
+    },
+    {
+     "help": "Separate display version label",
+     "kind": "option",
+     "long": "--display-version"
+    },
+    {
+     "help": "Description text",
+     "kind": "option",
+     "long": "--description"
+    },
+    {
+     "help": "Description source (path, or - for stdin)",
+     "kind": "option",
+     "long": "--description-file"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Author the description in $VISUAL/$EDITOR instead of passing text",
+     "kind": "option",
+     "long": "--description-editor"
+    },
+    {
+     "help": "Release owner: me, a user UUID, or a public ID (usr_...)",
+     "kind": "option",
+     "long": "--owner"
+    },
+    {
+     "help": "Target date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
+     "kind": "option",
+     "long": "--target-date"
+    },
+    {
+     "help": "Release date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
+     "kind": "option",
+     "long": "--release-date"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release create",
+   "hasSubcommands": false,
+   "options": [
+    "--name",
+    "--display-version",
+    "--description",
+    "--description-file",
+    "--description-editor",
+    "--owner",
+    "--target-date",
+    "--release-date",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Edit a release version",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "New name",
+     "kind": "option",
+     "long": "--name"
+    },
+    {
+     "help": "New display version label",
+     "kind": "option",
+     "long": "--display-version"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Clear the display version label",
+     "kind": "option",
+     "long": "--clear-display-version"
+    },
+    {
+     "help": "New description text",
+     "kind": "option",
+     "long": "--description"
+    },
+    {
+     "help": "New description source (path, or - for stdin)",
+     "kind": "option",
+     "long": "--description-file"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Author the description in $VISUAL/$EDITOR instead of passing text",
+     "kind": "option",
+     "long": "--description-editor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Clear the description",
+     "kind": "option",
+     "long": "--clear-description"
+    },
+    {
+     "help": "New release owner: me, a user UUID, a public ID (usr_...), or `none`",
+     "kind": "option",
+     "long": "--owner"
+    },
+    {
+     "help": "New target date",
+     "kind": "option",
+     "long": "--target-date"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Clear the target date",
+     "kind": "option",
+     "long": "--clear-target-date"
+    },
+    {
+     "help": "New release date",
+     "kind": "option",
+     "long": "--release-date"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Clear the release date",
+     "kind": "option",
+     "long": "--clear-release-date"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release edit",
+   "hasSubcommands": false,
+   "options": [
+    "--name",
+    "--display-version",
+    "--clear-display-version",
+    "--description",
+    "--description-file",
+    "--description-editor",
+    "--clear-description",
+    "--owner",
+    "--target-date",
+    "--clear-target-date",
+    "--release-date",
+    "--clear-release-date",
+    "--force",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "List allowed release state transitions",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release transitions",
+   "hasSubcommands": false,
+   "options": [
+    "--project"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Transition a release to a target state",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "choices": [
+      "planned",
+      "in_progress",
+      "released",
+      "archived"
+     ],
+     "help": "Target state",
+     "kind": "positional",
+     "name": "target",
+     "valueName": "TARGET"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Confirm releasing a scope that still contains incomplete Work Items",
+     "kind": "option",
+     "long": "--confirm-incomplete-scope"
+    },
+    {
+     "help": "Why the release moved",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release transition",
+   "hasSubcommands": false,
+   "options": [
+    "--confirm-incomplete-scope",
+    "--reason",
+    "--force",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "id",
+    "target"
+   ]
+  },
+  {
+   "about": "Archive a release version",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "Why the release was archived",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release archive",
+   "hasSubcommands": false,
+   "options": [
+    "--reason",
+    "--force",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Restore an archived release version",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "Why the release was restored",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release restore",
+   "hasSubcommands": false,
+   "options": [
+    "--reason",
+    "--force",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Read a release's scope, progress, and Work Items",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "Free-text search over Work Item titles",
+     "kind": "option",
+     "long": "--search"
+    },
+    {
+     "help": "Filter by status (server-defined spelling)",
+     "kind": "option",
+     "long": "--status"
+    },
+    {
+     "help": "Filter by type (server-defined spelling)",
+     "kind": "option",
+     "long": "--type"
+    },
+    {
+     "help": "Filter by priority (server-defined spelling)",
+     "kind": "option",
+     "long": "--priority"
+    },
+    {
+     "help": "Filter by assignee user UUID or public ID (usr_...)",
+     "kind": "option",
+     "long": "--assignee"
+    },
+    {
+     "help": "Sort key (server-defined)",
+     "kind": "option",
+     "long": "--sort"
+    },
+    {
+     "help": "Sort direction (server-defined)",
+     "kind": "option",
+     "long": "--direction"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Maximum total items to emit, counted across pages (distinct from the server page size). Without `--all` at most one page is returned, holding at most this many items; a page is never requested larger than the endpoint allows (200 items, or 100 on organization, project, sprint, label, and link endpoints). With `--all` successive pages are followed until this cap or the end of the collection. A cap that cuts through a server page ends the run with `page.nextCursor: null`, because the Public API has no cursor for a position partway through a page",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque cursor returned by a preceding page; the result starts after it. `--since-cursor` is the pipeline-checkpoint spelling of the same option: resume an interrupted stream from the `page.nextCursor` a previous run reported. Cursors are opaque and are always forwarded verbatim",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release scope",
+   "hasSubcommands": false,
+   "options": [
+    "--search",
+    "--status",
+    "--type",
+    "--priority",
+    "--assignee",
+    "--sort",
+    "--direction",
+    "--project",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Manage a Work Item's release memberships",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release item",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List the release versions a Work Item belongs to",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release item list",
+   "hasSubcommands": false,
+   "options": [
+    "--project"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Add the Work Item to one or more release versions",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Release version ids (UUIDs)",
+     "kind": "positional",
+     "name": "release_ids",
+     "valueName": "RELEASE_ID"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Confirm correcting the scope of a released Work Item",
+     "kind": "option",
+     "long": "--confirm-released-scope-correction"
+    },
+    {
+     "help": "Why the membership changed",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release item add",
+   "hasSubcommands": false,
+   "options": [
+    "--confirm-released-scope-correction",
+    "--reason",
+    "--force",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key",
+    "release_ids"
+   ]
+  },
+  {
+   "about": "Remove the Work Item from one or more release versions",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Release version ids (UUIDs)",
+     "kind": "positional",
+     "name": "release_ids",
+     "valueName": "RELEASE_ID"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Confirm correcting the scope of a released Work Item",
+     "kind": "option",
+     "long": "--confirm-released-scope-correction"
+    },
+    {
+     "help": "Why the membership changed",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release item remove",
+   "hasSubcommands": false,
+   "options": [
+    "--confirm-released-scope-correction",
+    "--reason",
+    "--force",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key",
+    "release_ids"
+   ]
+  },
+  {
+   "about": "Replace the Work Item's release versions with exactly these",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "help": "Release version ids (UUIDs)",
+     "kind": "positional",
+     "name": "release_ids",
+     "valueName": "RELEASE_ID"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Confirm correcting the scope of a released Work Item",
+     "kind": "option",
+     "long": "--confirm-released-scope-correction"
+    },
+    {
+     "help": "Why the membership changed",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release item replace",
+   "hasSubcommands": false,
+   "options": [
+    "--confirm-released-scope-correction",
+    "--reason",
+    "--force",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "key",
+    "release_ids"
+   ]
+  },
+  {
+   "about": "Change release memberships for up to 50 Work Items from a JSON file",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "JSON file containing `{ \"operations\": [...] }` (`-` for stdin)",
+     "kind": "option",
+     "long": "--file"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release bulk-membership",
+   "hasSubcommands": false,
+   "options": [
+    "--file",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Read and publish release announcements",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release announcement",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Read the latest published announcement",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "release_id",
+     "valueName": "RELEASE_ID"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release announcement current",
+   "hasSubcommands": false,
+   "options": [
+    "--project"
+   ],
+   "positionals": [
+    "release_id"
+   ]
+  },
+  {
+   "about": "Read one historical published announcement revision",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "release_id",
+     "valueName": "RELEASE_ID"
+    },
+    {
+     "help": "Announcement revision number",
+     "kind": "positional",
+     "name": "revision",
+     "valueName": "REVISION"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release announcement revision",
+   "hasSubcommands": false,
+   "options": [
+    "--project"
+   ],
+   "positionals": [
+    "release_id",
+    "revision"
+   ]
+  },
+  {
+   "about": "Work with the editable announcement draft",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release announcement draft",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Show the active announcement draft",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "release_id",
+     "valueName": "RELEASE_ID"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release announcement draft show",
+   "hasSubcommands": false,
+   "options": [
+    "--project"
+   ],
+   "positionals": [
+    "release_id"
+   ]
+  },
+  {
+   "about": "Generate or refresh the announcement draft from release scope",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "release_id",
+     "valueName": "RELEASE_ID"
+    },
+    {
+     "help": "Generate from this release revision instead of the current one",
+     "kind": "option",
+     "long": "--revision"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Confirm replacing a draft generated from a different Organization view",
+     "kind": "option",
+     "long": "--confirm-replace-organization"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release announcement draft generate",
+   "hasSubcommands": false,
+   "options": [
+    "--revision",
+    "--confirm-replace-organization",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "release_id"
+   ]
+  },
+  {
+   "about": "Replace the draft narrative, categories, and included Work Items",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "release_id",
+     "valueName": "RELEASE_ID"
+    },
+    {
+     "help": "JSON file containing `{introduction, highlights, categories, includedWorkItemIds}` (`-` for stdin)",
+     "kind": "option",
+     "long": "--file"
+    },
+    {
+     "help": "Draft revision to replace (defaults to the current draft's)",
+     "kind": "option",
+     "long": "--revision"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release announcement draft edit",
+   "hasSubcommands": false,
+   "options": [
+    "--file",
+    "--revision",
+    "--project"
+   ],
+   "positionals": [
+    "release_id"
+   ]
+  },
+  {
+   "about": "Discard the active announcement draft",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "release_id",
+     "valueName": "RELEASE_ID"
+    },
+    {
+     "help": "Draft revision to discard (defaults to the current draft's)",
+     "kind": "option",
+     "long": "--revision"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release announcement draft discard",
+   "hasSubcommands": false,
+   "options": [
+    "--revision",
+    "--project"
+   ],
+   "positionals": [
+    "release_id"
+   ]
+  },
+  {
+   "about": "Publish the draft as an immutable announcement revision",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "release_id",
+     "valueName": "RELEASE_ID"
+    },
+    {
+     "help": "Draft revision to publish (defaults to the current draft's)",
+     "kind": "option",
+     "long": "--revision"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Confirm publishing an announcement with no included Work Items",
+     "kind": "option",
+     "long": "--confirm-empty"
+    },
+    {
+     "help": "Why the announcement was published",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release announcement publish",
+   "hasSubcommands": false,
+   "options": [
+    "--revision",
+    "--confirm-empty",
+    "--reason",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "release_id"
+   ]
+  },
+  {
+   "about": "Generate and download frozen release audit packages",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release audit",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Generate a frozen dossier or UTC change register",
+   "aliases": [],
+   "arguments": [
+    {
+     "choices": [
+      "dossier",
+      "register"
+     ],
+     "help": "Package kind: dossier (one release) or register (date range)",
+     "kind": "option",
+     "long": "--kind"
+    },
+    {
+     "help": "Release version id (required for dossier packages)",
+     "kind": "option",
+     "long": "--release"
+    },
+    {
+     "help": "Range start (required for register packages)",
+     "kind": "option",
+     "long": "--from"
+    },
+    {
+     "help": "Range end, inclusive (required for register packages)",
+     "kind": "option",
+     "long": "--through"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release audit generate",
+   "hasSubcommands": false,
+   "options": [
+    "--kind",
+    "--release",
+    "--from",
+    "--through",
+    "--project",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Download the exact saved package as JSON or a CSV ZIP",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Audit report id (UUID)",
+     "kind": "positional",
+     "name": "report_id",
+     "valueName": "REPORT_ID"
+    },
+    {
+     "choices": [
+      "json",
+      "csv"
+     ],
+     "default": "json",
+     "help": "Package format to download",
+     "kind": "option",
+     "long": "--format"
+    },
+    {
+     "help": "Write the package bytes to this file instead of stdout (CSV ZIP)",
+     "kind": "option",
+     "long": "--output"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release audit get",
+   "hasSubcommands": false,
+   "options": [
+    "--format",
+    "--output",
+    "--project"
+   ],
+   "positionals": [
+    "report_id"
+   ]
+  },
+  {
+   "about": "List saved audit packages in the project",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Only packages generated for this Release Version",
+     "kind": "option",
+     "long": "--release"
+    },
+    {
+     "help": "Project key (overrides context)",
+     "kind": "option",
+     "long": "--project"
+    },
+    {
+     "help": "Maximum total items to emit, counted across pages (distinct from the server page size). Without `--all` at most one page is returned, holding at most this many items; a page is never requested larger than the endpoint allows (200 items, or 100 on organization, project, sprint, label, and link endpoints). With `--all` successive pages are followed until this cap or the end of the collection. A cap that cuts through a server page ends the run with `page.nextCursor: null`, because the Public API has no cursor for a position partway through a page",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque cursor returned by a preceding page; the result starts after it. `--since-cursor` is the pipeline-checkpoint spelling of the same option: resume an interrupted stream from the `page.nextCursor` a previous run reported. Cursors are opaque and are always forwarded verbatim",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik release audit list",
+   "hasSubcommands": false,
+   "options": [
+    "--release",
+    "--project",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Work with Organization Milestones",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik milestone",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List Organization Milestones",
+   "aliases": [],
+   "arguments": [
+    {
+     "choices": [
+      "planned",
+      "in_progress",
+      "completed",
+      "archived"
+     ],
+     "help": "Only milestones in this lifecycle state",
+     "kind": "option",
+     "long": "--state"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Include archived milestones in the results",
+     "kind": "option",
+     "long": "--include-archived"
+    },
+    {
+     "help": "Maximum total items to emit, counted across pages (distinct from the server page size). Without `--all` at most one page is returned, holding at most this many items; a page is never requested larger than the endpoint allows (200 items, or 100 on organization, project, sprint, label, and link endpoints). With `--all` successive pages are followed until this cap or the end of the collection. A cap that cuts through a server page ends the run with `page.nextCursor: null`, because the Public API has no cursor for a position partway through a page",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque cursor returned by a preceding page; the result starts after it. `--since-cursor` is the pipeline-checkpoint spelling of the same option: resume an interrupted stream from the `page.nextCursor` a previous run reported. Cursors are opaque and are always forwarded verbatim",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik milestone list",
+   "hasSubcommands": false,
+   "options": [
+    "--state",
+    "--include-archived",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "View a milestone and one page of its releases",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Milestone id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "The release cursor the release page starts after",
+     "kind": "option",
+     "long": "--release-after"
+    },
+    {
+     "help": "Maximum releases per page",
+     "kind": "option",
+     "long": "--release-limit"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik milestone view",
+   "hasSubcommands": false,
+   "options": [
+    "--release-after",
+    "--release-limit"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Create an Organization Milestone",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Milestone name",
+     "kind": "option",
+     "long": "--name"
+    },
+    {
+     "help": "Description text",
+     "kind": "option",
+     "long": "--description"
+    },
+    {
+     "help": "Description source (path, or - for stdin)",
+     "kind": "option",
+     "long": "--description-file"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Author the description in $VISUAL/$EDITOR instead of passing text",
+     "kind": "option",
+     "long": "--description-editor"
+    },
+    {
+     "help": "Milestone owner: me, a user UUID, or a public ID (usr_...)",
+     "kind": "option",
+     "long": "--owner"
+    },
+    {
+     "help": "Target date. Accepts RFC 3339, `YYYY-MM-DD`, `today`/`yesterday`/`tomorrow`, or a relative offset such as `7d`, `2w`, or `+3h`; input without a UTC offset is read in the host's local time zone",
+     "kind": "option",
+     "long": "--target-date"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik milestone create",
+   "hasSubcommands": false,
+   "options": [
+    "--name",
+    "--description",
+    "--description-file",
+    "--description-editor",
+    "--owner",
+    "--target-date",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Edit a milestone",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Milestone id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "New name",
+     "kind": "option",
+     "long": "--name"
+    },
+    {
+     "help": "New description text",
+     "kind": "option",
+     "long": "--description"
+    },
+    {
+     "help": "New description source (path, or - for stdin)",
+     "kind": "option",
+     "long": "--description-file"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Author the description in $VISUAL/$EDITOR instead of passing text",
+     "kind": "option",
+     "long": "--description-editor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Clear the description",
+     "kind": "option",
+     "long": "--clear-description"
+    },
+    {
+     "help": "New milestone owner: me, a user UUID, a public ID (usr_...), or `none`",
+     "kind": "option",
+     "long": "--owner"
+    },
+    {
+     "help": "New target date",
+     "kind": "option",
+     "long": "--target-date"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Clear the target date",
+     "kind": "option",
+     "long": "--clear-target-date"
+    },
+    {
+     "help": "Why the milestone changed (recorded in events)",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik milestone edit",
+   "hasSubcommands": false,
+   "options": [
+    "--name",
+    "--description",
+    "--description-file",
+    "--description-editor",
+    "--clear-description",
+    "--owner",
+    "--target-date",
+    "--clear-target-date",
+    "--reason",
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "List allowed milestone state transitions",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Milestone id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik milestone transitions",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Transition a milestone to a target state",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Milestone id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "choices": [
+      "planned",
+      "in_progress",
+      "completed",
+      "archived"
+     ],
+     "help": "Target state",
+     "kind": "positional",
+     "name": "target",
+     "valueName": "TARGET"
+    },
+    {
+     "help": "Why the milestone moved",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik milestone transition",
+   "hasSubcommands": false,
+   "options": [
+    "--reason",
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "id",
+    "target"
+   ]
+  },
+  {
+   "about": "List the release versions in a milestone",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Milestone id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "The release cursor the page starts after",
+     "kind": "option",
+     "long": "--release-after"
+    },
+    {
+     "help": "Maximum total items to emit, counted across pages (distinct from the server page size). Without `--all` at most one page is returned, holding at most this many items; a page is never requested larger than the endpoint allows (200 items, or 100 on organization, project, sprint, label, and link endpoints). With `--all` successive pages are followed until this cap or the end of the collection. A cap that cuts through a server page ends the run with `page.nextCursor: null`, because the Public API has no cursor for a position partway through a page",
+     "kind": "option",
+     "long": "--limit"
+    },
+    {
+     "help": "Opaque cursor returned by a preceding page; the result starts after it. `--since-cursor` is the pipeline-checkpoint spelling of the same option: resume an interrupted stream from the `page.nextCursor` a previous run reported. Cursors are opaque and are always forwarded verbatim",
+     "kind": "option",
+     "long": "--cursor"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Follow all pages",
+     "kind": "option",
+     "long": "--all"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik milestone releases",
+   "hasSubcommands": false,
+   "options": [
+    "--release-after",
+    "--limit",
+    "--cursor",
+    "--all"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
+   "about": "Add or remove a release version from a milestone",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik milestone release",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "Add a release version to the milestone",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Milestone id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "release_id",
+     "valueName": "RELEASE_ID"
+    },
+    {
+     "help": "Why the release was added",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik milestone release add",
+   "hasSubcommands": false,
+   "options": [
+    "--reason",
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "id",
+    "release_id"
+   ]
+  },
+  {
+   "about": "Remove a release version from the milestone",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Milestone id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "Release version id (UUID)",
+     "kind": "positional",
+     "name": "release_id",
+     "valueName": "RELEASE_ID"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Confirm removing the release and its milestone progress",
+     "kind": "option",
+     "long": "--confirm-remove"
+    },
+    {
+     "help": "Why the release was removed",
+     "kind": "option",
+     "long": "--reason"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Bypass revision conflict protection (If-Match: *)",
+     "kind": "option",
+     "long": "--force"
+    },
+    {
+     "help": "Explicit idempotency key",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik milestone release remove",
+   "hasSubcommands": false,
+   "options": [
+    "--confirm-remove",
+    "--reason",
+    "--force",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "id",
+    "release_id"
+   ]
+  },
+  {
+   "about": "Read the milestone history feed (newest first)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Milestone id (UUID)",
+     "kind": "positional",
+     "name": "id",
+     "valueName": "ID"
+    },
+    {
+     "help": "The event id the (older) page starts before",
+     "kind": "option",
+     "long": "--before-event-id"
+    },
+    {
+     "help": "Maximum events per page",
+     "kind": "option",
+     "long": "--limit"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik milestone events",
+   "hasSubcommands": false,
+   "options": [
+    "--before-event-id",
+    "--limit"
+   ],
+   "positionals": [
+    "id"
+   ]
+  },
+  {
    "about": "Work with labels",
    "aliases": [],
    "arguments": [],

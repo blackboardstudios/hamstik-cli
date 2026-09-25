@@ -1,0 +1,21 @@
+.TH HAMSTIK 1 "HAMSTIK RELEASE ANNOUNCEMENT DRAFT EDIT"
+.SH NAME
+hamstik release announcement draft edit \- Replace the draft narrative, categories, and included Work Items
+.SH SYNOPSIS
+.B hamstik release announcement draft edit [OPTIONS]
+.SH DESCRIPTION
+Replace the draft narrative, categories, and included Work Items
+.SH ARGUMENTS
+.TP
+.I RELEASE_ID
+Release version id (UUID)
+.SH OPTIONS
+.TP
+.B --file
+JSON file containing `{introduction, highlights, categories, includedWorkItemIds}` (`-` for stdin)
+.TP
+.B --revision
+Draft revision to replace (defaults to the current draft's)
+.TP
+.B --project
+Project key (overrides context)

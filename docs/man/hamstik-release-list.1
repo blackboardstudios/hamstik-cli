@@ -1,0 +1,29 @@
+.TH HAMSTIK 1 "HAMSTIK RELEASE LIST"
+.SH NAME
+hamstik release list \- List release versions in a project
+.SH SYNOPSIS
+.B hamstik release list [OPTIONS]
+.SH DESCRIPTION
+List release versions in a project
+.SH OPTIONS
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --state
+Only releases in this lifecycle state
+Choices: planned, in_progress, released, archived
+.TP
+.B --include-archived
+Include archived releases in the results
+Choices: true, false
+.TP
+.B --limit
+Maximum total items to emit, counted across pages (distinct from the server page size). Without `--all` at most one page is returned, holding at most this many items; a page is never requested larger than the endpoint allows (200 items, or 100 on organization, project, sprint, label, and link endpoints). With `--all` successive pages are followed until this cap or the end of the collection. A cap that cuts through a server page ends the run with `page.nextCursor: null`, because the Public API has no cursor for a position partway through a page
+.TP
+.B --cursor
+Opaque cursor returned by a preceding page; the result starts after it. `--since-cursor` is the pipeline-checkpoint spelling of the same option: resume an interrupted stream from the `page.nextCursor` a previous run reported. Cursors are opaque and are always forwarded verbatim
+.TP
+.B --all
+Follow all pages
+Choices: true, false

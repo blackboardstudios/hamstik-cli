@@ -1,0 +1,25 @@
+.TH HAMSTIK 1 "HAMSTIK MILESTONE TRANSITION"
+.SH NAME
+hamstik milestone transition \- Transition a milestone to a target state
+.SH SYNOPSIS
+.B hamstik milestone transition [OPTIONS]
+.SH DESCRIPTION
+Transition a milestone to a target state
+.SH ARGUMENTS
+.TP
+.I ID
+Milestone id (UUID)
+.TP
+.I TARGET
+Target state
+.SH OPTIONS
+.TP
+.B --reason
+Why the milestone moved
+.TP
+.B --force
+Bypass revision conflict protection (If-Match: *)
+Choices: true, false
+.TP
+.B --idempotency-key
+Explicit idempotency key

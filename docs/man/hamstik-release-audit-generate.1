@@ -1,0 +1,27 @@
+.TH HAMSTIK 1 "HAMSTIK RELEASE AUDIT GENERATE"
+.SH NAME
+hamstik release audit generate \- Generate a frozen dossier or UTC change register
+.SH SYNOPSIS
+.B hamstik release audit generate [OPTIONS]
+.SH DESCRIPTION
+Generate a frozen dossier or UTC change register
+.SH OPTIONS
+.TP
+.B --kind
+Package kind: dossier (one release) or register (date range)
+Choices: dossier, register
+.TP
+.B --release
+Release version id (required for dossier packages)
+.TP
+.B --from
+Range start (required for register packages)
+.TP
+.B --through
+Range end, inclusive (required for register packages)
+.TP
+.B --project
+Project key (overrides context)
+.TP
+.B --idempotency-key
+Explicit idempotency key
