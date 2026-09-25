@@ -1538,6 +1538,11 @@ The detailed product and technical direction lives in:
   `hamstik webhook` management family (no command or network behavior ships
   until the Public API exposes documented webhook/subscription operations;
   `hamstik api request` remains the manual escape hatch)
+- [design/SELF_UPDATE.md](design/SELF_UPDATE.md) — gated design stub for
+  `hamstik self update` with stable/prerelease channels (no command or network
+  behavior ships until the packaging/release milestone; explicit
+  opt-in/opt-out, verified package replacement, no telemetry, no silent network
+  calls)
 
 Notable changes are tracked in [CHANGELOG.md](CHANGELOG.md) following the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.

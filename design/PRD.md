@@ -1232,6 +1232,11 @@ Normal API calls obviously reach the configured Hamstik server.
 
 Any future telemetry feature would require an explicit product decision and privacy documentation.
 
+In-place self-update (`hamstik self update`) remains gated on the
+packaging/release milestone and MUST stay explicit, opt-in/opt-out,
+telemetry-free, and free of silent network calls; the design lives in
+[`design/SELF_UPDATE.md`](SELF_UPDATE.md).
+
 ---
 
 # 43. Initial Non-Goals
@@ -1255,6 +1260,10 @@ The initial CLI does not need:
   [`design/AUTOMATION_RULES.md`](AUTOMATION_RULES.md));
 - webhook/subscription management (gated on a documented Public API webhook
   surface; see [`design/WEBHOOKS.md`](WEBHOOKS.md));
+- in-place self-update (`hamstik self update`, `--channel stable|prerelease`),
+  gated on the packaging/release milestone and required to remain opt-in,
+  opt-out, and telemetry-free with no silent network calls (see
+  [`design/SELF_UPDATE.md`](SELF_UPDATE.md));
 - offline editing;
 - local data synchronization.
 

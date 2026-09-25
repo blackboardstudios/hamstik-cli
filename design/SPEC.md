@@ -969,6 +969,7 @@ agent
 config
 rule        # gated; only after a documented event/subscription API
 webhook     # gated; only after documented webhook/subscription operations
+self        # gated; only after the packaging/release milestone
 ```
 
 Advanced Reporting grammar:
@@ -2002,7 +2003,13 @@ A future:
 hamstik update
 ```
 
-may be considered later.
+may be considered later. The gated design for that surface lives in
+[`design/SELF_UPDATE.md`](SELF_UPDATE.md): `hamstik self update
+[--channel stable|prerelease]`, with explicit opt-in/opt-out, verified package
+replacement, no telemetry, and no silent network calls. It MUST NOT be
+implemented before the packaging/release milestone (CLI-79). The rename from
+the placeholder `hamstik update` to the namespaced `hamstik self update` is
+intentional and recorded in the stub.
 
 ---
 
@@ -2411,3 +2418,36 @@ In particular:
 - when the gate opens, authorization, validation, Organization isolation,
   capability checks, ETags, and idempotency remain server-authoritative, exactly
   as for every other command.
+
+---
+
+# 94. Gated Future Feature — Self Update (stable/prerelease channels)
+
+CLI-79 adds in-place CLI updates, surfaced as `hamstik self update` with an
+explicit `--channel stable|prerelease`. The feature is **gated**: it MUST NOT ship any command or
+network behavior until the packaging/release milestone is declared and its
+verified-replacement prerequisites are met.
+
+The full gated design stub (gate condition, channel semantics, verified
+replacement rules, privacy constraints, non-goals, and the activation
+checklist) lives in [`design/SELF_UPDATE.md`](SELF_UPDATE.md).
+
+In particular:
+
+- no `hamstik self` command (and no root `hamstik update`) exists before the
+  gate opens, and no placeholder that only prints upgrade instructions is
+  shipped as a typed command;
+- automatic update checks are off by default and require an explicit opt-in
+  that can be revoked; manual `self update` is always an explicit user action;
+- replacement is fail-closed: the artifact's checksum and build-provenance
+  attestation are verified per [`design/SIGNING.md`](SIGNING.md) before any byte
+  of the installed binary changes, and the previous binary stays recoverable;
+- `stable` never offers a prerelease, and `prerelease` is never inferred — the
+  channel is always explicit or configured;
+- package-manager-owned installs are refused in favor of that manager's upgrade
+  path, and the CLI never elevates privileges or writes outside its install
+  directory;
+- there is no telemetry, no startup version ping, and no network call the user
+  did not request; `hamstik self status` is offline;
+- `hamstik version` and the offline diagnostics remain network-free and
+  unchanged.

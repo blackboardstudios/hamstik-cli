@@ -12,6 +12,17 @@ before upgrading.
 
 ### Added
 
+- Gated design stub for self update with stable/prerelease channels (CLI-79):
+  [`design/SELF_UPDATE.md`](design/SELF_UPDATE.md) documents the intended
+  `hamstik self update [--channel stable|prerelease]` surface, channel
+  semantics, verified package replacement (checksum + provenance before any
+  write, atomic and recoverable), and the safety constraints — explicit
+  opt-in/opt-out, off-by-default automatic checks, no telemetry, and no silent
+  network calls. No command or network behavior ships: the design names the
+  packaging/release-milestone gate and the activation checklist, and the
+  existing channel upgrade steps in [`design/INSTALL.md`](design/INSTALL.md)
+  remain the only supported upgrade path.
+
 - Gated design stub for webhook management (CLI-78):
   [`design/WEBHOOKS.md`](design/WEBHOOKS.md) documents the intended typed
   `hamstik webhook list/view/create/edit/enable/disable/delete` family for
