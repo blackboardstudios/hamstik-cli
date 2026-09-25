@@ -18,6 +18,7 @@ mod comment;
 pub(crate) mod common;
 mod create;
 mod edit;
+mod handoff;
 mod label;
 mod link;
 mod list;
@@ -97,6 +98,8 @@ pub async fn run(session: &mut Session<'_>, args: &WorkArgs) -> Result<(), CliEr
         WorkCommand::Await(await_args) => await_cmd::await_item(session, await_args).await,
         WorkCommand::Watch(watch_args) => watch::watch(session, watch_args).await,
         WorkCommand::Bulk(bulk_args) => bulk::bulk(session, bulk_args).await,
+        WorkCommand::Export(export_args) => handoff::export(session, export_args).await,
+        WorkCommand::Import(import_args) => handoff::import(session, import_args).await,
     }
 }
 /// Reports the resolved instant of the shared date filters on `--verbose`.

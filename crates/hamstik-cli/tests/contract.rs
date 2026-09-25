@@ -299,6 +299,8 @@ fn subcommand_groups_match_documented_surface() {
                 "create",
                 "delete",
                 "edit",
+                "export",
+                "import",
                 "label",
                 "link",
                 "list",

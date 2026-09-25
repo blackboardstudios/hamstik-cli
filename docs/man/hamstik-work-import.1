@@ -1,0 +1,14 @@
+.TH HAMSTIK 1 "HAMSTIK WORK IMPORT"
+.SH NAME
+hamstik work import \- Create or update work items from an exported Markdown document
+.SH SYNOPSIS
+.B hamstik work import [OPTIONS]
+.SH DESCRIPTION
+Create or update work items from an exported Markdown document
+.SH OPTIONS
+.TP
+.B --file
+Exported Markdown document (path, or `-` for stdin)
+.TP
+.B --idempotency-key
+Explicit idempotency key for the create. Overrides the key derived from the document's embedded `key`; the derived key keeps re-imports from duplicating items

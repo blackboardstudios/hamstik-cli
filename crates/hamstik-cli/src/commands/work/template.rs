@@ -183,7 +183,7 @@ fn parse(text: &str) -> Result<StartPoint, String> {
 /// Any byte-order mark must already be stripped by the caller; a leading
 /// `---` line opens the frontmatter and a later `---` line closes it;
 /// everything after the closing line is the body.
-fn split_frontmatter(text: &str) -> Result<(&str, &str), String> {
+pub(super) fn split_frontmatter(text: &str) -> Result<(&str, &str), String> {
     let rest = text
         .strip_prefix("---\n")
         .or_else(|| text.strip_prefix("---\r\n"))
@@ -213,7 +213,7 @@ fn split_frontmatter(text: &str) -> Result<(&str, &str), String> {
 }
 
 /// Validates a template `type` against the documented choices.
-fn normalize_type(raw: &str) -> Result<String, String> {
+pub(super) fn normalize_type(raw: &str) -> Result<String, String> {
     let value = raw.trim().to_ascii_lowercase();
     TypeArg::ALL
         .iter()
@@ -230,7 +230,7 @@ fn normalize_type(raw: &str) -> Result<String, String> {
 }
 
 /// Validates a template `priority` against the documented choices.
-fn normalize_priority(raw: &str) -> Result<String, String> {
+pub(super) fn normalize_priority(raw: &str) -> Result<String, String> {
     let value = raw.trim().to_ascii_lowercase();
     PriorityArg::ALL
         .iter()

@@ -12,6 +12,19 @@ before upgrading.
 
 ### Added
 
+- `work export` / `work import` (CLI-66): Markdown-based handoff and
+  migration. `work export <KEY> [--comments] [--output <PATH>]` writes one
+  canonical document — YAML frontmatter (`key`, `title`, `type`, `status`,
+  `priority`, `labels`, and optionally `links`/`comments`) plus the description
+  as the Markdown body, suitable for pasting into a GitHub/GitLab issue;
+  `--json` exposes the same fields as `documentVersion: 1`. `work import --file
+  <PATH|->` reads that document and maps its fields onto the existing
+  create/edit requests: a resolvable embedded `key` updates the item in place,
+  otherwise a new item is created with an idempotency key derived from the
+  embedded key (or an explicit `--idempotency-key`), so re-importing the same
+  document does not duplicate items. Labels, links, and comments are applied
+  through the documented endpoints and reconciled against the current item, and
+  `--dry-run` previews the mapped operations without sending a mutation.
 - `board view` (CLI-64): a read-only, kanban-style board composed entirely
   from the existing Work Item list read (`GET
   .../projects/{key}/work-items`, optionally filtered by `--sprint`). It

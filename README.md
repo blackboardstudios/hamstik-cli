@@ -368,6 +368,9 @@ hamstik work create --title "Document API" --type task --assignee me
 # Start from an existing Work Item or a local Markdown/YAML-frontmatter template
 hamstik work create --from HAM-42 --title "Recurring bug report"
 hamstik work create --template bug-template.md
+# Hand off a Work Item as Markdown and re-import it elsewhere
+hamstik work export HAM-42 --format markdown --comments > HAM-42.md
+hamstik work import --file HAM-42.md --json
 hamstik work edit HAM-42 --priority high --parent HAM-7
 # Organization-governed Attributes; use stable keys in API, CLI and queries.
 hamstik attribute list --org acme --include-retired --json
@@ -1164,6 +1167,41 @@ per-operation array for a completed batch, and `error` carries the stable
 `code`, `message`, optional `status`, and optional `requestId` for a
 failed/uncertain batch. The in-progress `uncertain` marker written before each
 attempt is what makes a crash between send and response unambiguous.
+
+## Markdown handoff
+
+`work export <KEY> --format markdown` writes one canonical document — YAML
+frontmatter (`key`, `title`, `type`, `status`, `priority`, `labels`, and
+optionally `links`/`comments`) plus the description as the Markdown body — so a
+Work Item can be pasted into a GitHub/GitLab issue or handed to another
+tracker. `--comments` includes the item's comments, and `--output <PATH>`
+writes the document to a file. Pass the global `--json` to get the same fields
+as a `documentVersion: 1` envelope instead of the Markdown text.
+
+`work import --file <PATH|->` reads that format and maps its fields onto the
+existing create/edit requests. When the embedded `key` resolves in the selected
+Project, the item is updated in place; otherwise a new item is created with an
+idempotency key derived from the embedded key (or an explicit
+`--idempotency-key`), so **re-importing the same document does not duplicate
+items**. Labels, links, and comments are applied through the documented
+endpoints and reconciled against the item's current state, so a re-import adds
+nothing. `--dry-run` previews the mapped operations without sending a mutation,
+and revision conflicts surface exactly as they do for `work edit`. The
+`status` field is applied when import creates the item; on the update path it
+is informational, because the Public API's edit body has no status field
+(status changes go through the transition commands), and the `--dry-run`
+preview calls this out.
+
+```bash
+# Export a Work Item as a portable document (links always, comments on request)
+hamstik work export HAM-42 --format markdown --comments > HAM-42.md
+
+# Import it elsewhere; re-running the same file is idempotent
+hamstik --org acme --project HAM work import --file HAM-42.md --json
+
+# Preview the mapped create/edit without touching the server
+hamstik work import --file HAM-42.md --dry-run --json
+```
 
 ## Public API passthrough
 

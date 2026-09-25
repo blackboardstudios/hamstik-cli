@@ -2030,6 +2030,50 @@ pub enum WorkCommand {
     Watch(WorkWatchArgs),
     /// Create, update, or transition many work items in one request.
     Bulk(WorkBulkArgs),
+    /// Export a work item as a portable Markdown document.
+    ///
+    /// The document is YAML frontmatter (`key`, `title`, `type`, `status`,
+    /// `priority`, `labels`, and optionally `links`/`comments`) plus the
+    /// description as the Markdown body. It is suitable for pasting into a
+    /// GitHub/GitLab issue or handing work to another tracker. `--format
+    /// markdown` (the default) writes the document; `--json` emits the same
+    /// fields as a structured envelope.
+    Export(WorkExportArgs),
+    /// Create or update work items from an exported Markdown document.
+    ///
+    /// Reads the format `work export` writes and maps its fields onto the
+    /// existing create/edit operations. When the embedded `key` already
+    /// resolves, the item is updated in place; otherwise a new item is created
+    /// with an idempotency key derived from the embedded key, so re-importing
+    /// the same document does not duplicate items. `--dry-run` previews the
+    /// mapped operations without sending them.
+    Import(WorkImportArgs),
+}
+
+/// Arguments for `work export`.
+#[derive(Args, Debug)]
+pub struct WorkExportArgs {
+    /// Work item key.
+    pub key: String,
+    /// Include the item's comments in the exported frontmatter.
+    #[arg(long)]
+    pub comments: bool,
+    /// Write the document to a file instead of stdout.
+    #[arg(long = "output", value_name = "PATH", short = 'o')]
+    pub output: Option<String>,
+}
+
+/// Arguments for `work import`.
+#[derive(Args, Debug)]
+pub struct WorkImportArgs {
+    /// Exported Markdown document (path, or `-` for stdin).
+    #[arg(long, value_name = "PATH")]
+    pub file: String,
+    /// Explicit idempotency key for the create. Overrides the key derived from
+    /// the document's embedded `key`; the derived key keeps re-imports from
+    /// duplicating items.
+    #[arg(long = "idempotency-key", value_name = "KEY")]
+    pub idempotency_key: Option<String>,
 }
 
 /// Filters accepted by the authenticated user's My Work endpoint.

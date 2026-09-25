@@ -355,6 +355,28 @@ either source with `--dry-run` before sending. The Public API v1 create body doe
 not accept labels, so the preview names them and a real invocation attaches each
 copied label after create through the documented label endpoint.
 
+For handoff and migration, `work export` writes one portable Markdown document
+(YAML frontmatter `key`, `title`, `type`, `status`, `priority`, `labels`, and
+optionally `links`/`comments`; the description is the Markdown body) and
+`work import` reads that same format:
+
+```bash
+hamstik --no-input --org <ORG> --project <KEY> work export <ITEM-KEY> \
+  --format markdown --comments --output <ITEM.md>
+hamstik --json --no-input --org <ORG> --project <KEY> work import --file <ITEM.md>
+```
+
+Import maps fields onto the existing create/edit requests. When the embedded
+`key` resolves in the selected Project it updates the item in place; otherwise
+it creates one with an idempotency key derived from the embedded key (or an
+explicit `--idempotency-key`), so re-importing the same document does not
+duplicate items. Labels, links, and comments are applied through the documented
+endpoints and reconciled against the item's current state; preview the mapped
+operations first with `--dry-run` (the document's `status` is applied on
+create; the edit body has no status field, so an in-place import leaves the
+current status untouched). Revision conflicts surface normally — the CLI
+never overrides them.
+
 Date-like flags (`--due-date`, `--start-date`, and the `--updated-after` filter) accept
 RFC 3339, a plain `YYYY-MM-DD` calendar date, the keywords `today`, `yesterday`, and
 `tomorrow`, or a relative offset such as `30m`, `7d`, `2w`, `+3h`, `1mo`, or `1y`. The CLI

@@ -7404,6 +7404,75 @@
    ]
   },
   {
+   "about": "Export a work item as a portable Markdown document",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Work item key",
+     "kind": "positional",
+     "name": "key",
+     "valueName": "KEY"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Include the item's comments in the exported frontmatter",
+     "kind": "option",
+     "long": "--comments"
+    },
+    {
+     "help": "Write the document to a file instead of stdout",
+     "kind": "option",
+     "long": "--output",
+     "short": "-o"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work export",
+   "hasSubcommands": false,
+   "longAbout": "Export a work item as a portable Markdown document.\n\nThe document is YAML frontmatter (`key`, `title`, `type`, `status`, `priority`, `labels`, and optionally `links`/`comments`) plus the description as the Markdown body. It is suitable for pasting into a GitHub/GitLab issue or handing work to another tracker. `--format markdown` (the default) writes the document; `--json` emits the same fields as a structured envelope.",
+   "options": [
+    "--comments",
+    "--output"
+   ],
+   "positionals": [
+    "key"
+   ]
+  },
+  {
+   "about": "Create or update work items from an exported Markdown document",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Exported Markdown document (path, or `-` for stdin)",
+     "kind": "option",
+     "long": "--file"
+    },
+    {
+     "help": "Explicit idempotency key for the create. Overrides the key derived from the document's embedded `key`; the derived key keeps re-imports from duplicating items",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work import",
+   "hasSubcommands": false,
+   "longAbout": "Create or update work items from an exported Markdown document.\n\nReads the format `work export` writes and maps its fields onto the existing create/edit operations. When the embedded `key` already resolves, the item is updated in place; otherwise a new item is created with an idempotency key derived from the embedded key, so re-importing the same document does not duplicate items. `--dry-run` previews the mapped operations without sending them.",
+   "options": [
+    "--file",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
    "about": "View user profiles, work, activity, and avatars",
    "aliases": [],
    "arguments": [],

@@ -188,6 +188,7 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
             | crate::args::WorkCommand::Triage(_)
             | crate::args::WorkCommand::Transitions { .. }
             | crate::args::WorkCommand::Watch(_)
+            | crate::args::WorkCommand::Export(_)
             | crate::args::WorkCommand::Activity { .. } => false,
             crate::args::WorkCommand::Watcher(args) => {
                 !matches!(args.command, crate::args::WorkWatcherCommand::Show { .. })
@@ -229,6 +230,7 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
             | crate::args::WorkCommand::Archive { .. }
             | crate::args::WorkCommand::Unarchive { .. }
             | crate::args::WorkCommand::Delete { .. }
+            | crate::args::WorkCommand::Import(_)
             | crate::args::WorkCommand::Await(_) => true,
             // `bulk from-csv` only converts a local file into JSON and `bulk
             // run` owns a resumable journal instead of a one-shot preview; the
