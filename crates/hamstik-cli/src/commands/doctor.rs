@@ -1929,6 +1929,10 @@ mod tests {
         fn read_secret(&mut self, _prompt: &str) -> io::Result<String> {
             unimplemented!()
         }
+
+        fn select(&mut self, _prompt: &str, _options: &[String]) -> io::Result<Option<usize>> {
+            unimplemented!()
+        }
     }
 
     fn selection() -> Selection {

@@ -12,6 +12,16 @@ before upgrading.
 
 ### Added
 
+- Interactive fuzzy picker for ambiguous references (CLI-38): when an
+  Organization slug, Project key, or Work Item key supplied to `context set`,
+  `org use`, `project use`, `work context`, or a single-key `work view` fails
+  its exact Public API lookup on a real TTY, the CLI now lists the plausible
+  candidates and asks for an explicit choice instead of failing immediately.
+  A unique fuzzy match resolves without prompting; cancelling (Esc/Ctrl+C)
+  aborts with no changes. The picker never appears under `--no-input`,
+  `--json`/`--jsonl`/`--tsv`, `--quiet`, or a non-TTY stdin/stdout: those
+  paths keep today's exact `NOT_FOUND` fail-fast behavior and make no
+  candidate-list request.
 - `api rate-limit` (CLI-36): one cheap authenticated Public API read that
   reports the current `RateLimit-*` snapshot so long-running scripts and
   agents can see headroom before hitting a 429. `--json --no-input` emits a

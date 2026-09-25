@@ -389,22 +389,20 @@ async fn set(
     // SPEC §35: validate the selected resources through the Public API before
     // persisting them. A project is validated inside the resolved
     // organization, so a typo fails here instead of surfacing later as an
-    // opaque not-found.
+    // opaque not-found. On an interactive TTY a failed exact lookup offers
+    // the CLI-38 picker; every other path keeps the fail-fast behavior and
+    // persists the canonical value the API accepted.
+    let api = session.api(&selection)?;
     let resolved_org = match org {
-        Some(org) => org.to_string(),
+        Some(org) => super::resolve_organization_reference(session, &api, org).await?,
         None => session.require_org(&selection)?,
     };
-    let api = session.api(&selection)?;
-    if org.is_some() {
-        api.get_organization(&resolved_org)
-            .await
-            .map_err(CliError::from_client)?;
-    }
-    if let Some(project) = project {
-        api.get_project(&resolved_org, project)
-            .await
-            .map_err(CliError::from_client)?;
-    }
+    let resolved_project = match project {
+        Some(project) => {
+            Some(super::resolve_project_reference(session, &api, &resolved_org, project).await?)
+        }
+        None => None,
+    };
     let path = selection
         .context_path
         .clone()
@@ -419,11 +417,11 @@ async fn set(
             project: None,
         }
     };
-    if let Some(org) = org {
-        document.organization = Some(org.to_string());
+    if org.is_some() {
+        document.organization = Some(resolved_org);
     }
-    if let Some(project) = project {
-        document.project = Some(project.to_string());
+    if resolved_project.is_some() {
+        document.project = resolved_project;
     }
     context::save(&path, &document)?;
     crate::audit::record(

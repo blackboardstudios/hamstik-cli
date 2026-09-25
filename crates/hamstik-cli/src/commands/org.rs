@@ -123,13 +123,11 @@ async fn view(session: &mut Session<'_>, slug: &str) -> Result<(), CliError> {
 async fn use_org(session: &mut Session<'_>, slug: &str) -> Result<(), CliError> {
     let selection = session.selection()?;
     // SPEC §35: validate the organization through the Public API before
-    // persisting it, so a typo never lands in the config.
+    // persisting it, so a typo never lands in the config. On an interactive
+    // TTY a failed exact lookup offers the CLI-38 picker; the canonical slug
+    // the API accepted is what gets persisted and reported.
     let api = session.api(&selection)?;
-    let response = api
-        .get_organization(slug)
-        .await
-        .map_err(CliError::from_client)?;
-    let org = response.value;
+    let resolved = super::resolve_organization_reference(session, &api, slug).await?;
 
     let profile_name = ensure_profile_for_default(session, &selection).await?;
 
@@ -138,7 +136,7 @@ async fn use_org(session: &mut Session<'_>, slug: &str) -> Result<(), CliError> 
         .profiles
         .get_mut(&profile_name)
         .ok_or_else(|| CliError::config(format!("no such profile: {profile_name}")))?;
-    profile.default_organization = Some(org.slug);
+    profile.default_organization = Some(resolved.clone());
     session.config.save(&config)?;
     crate::audit::record(
         &session.config,
@@ -151,13 +149,13 @@ async fn use_org(session: &mut Session<'_>, slug: &str) -> Result<(), CliError> 
     if session.json() {
         emit_json(
             session,
-            &json!({ "profile": profile_name, "defaultOrganization": slug }),
+            &json!({ "profile": profile_name, "defaultOrganization": resolved }),
         )
     } else {
         session
             .out
             .line(&format!(
-                "Default organization for profile {profile_name}: {slug}"
+                "Default organization for profile {profile_name}: {resolved}"
             ))
             .map_err(CliError::general)
     }

@@ -49,7 +49,7 @@ pub(crate) struct ContextBundle {
 
 /// Fetches every section for one Work Item and returns the bundle.
 async fn fetch_bundle(
-    session: &Session<'_>,
+    session: &mut Session<'_>,
     args: &WorkContextArgs,
 ) -> Result<ContextBundle, CliError> {
     let selection = session.selection()?;
@@ -57,15 +57,25 @@ async fn fetch_bundle(
     let project = session.require_project(&selection)?;
     let api = session.api(&selection)?;
 
+    // On an interactive TTY a 404 from the exact lookup offers the CLI-38
+    // picker; every section below uses the resolved key so the whole bundle
+    // describes one Work Item. Non-interactive sessions keep today's single
+    // `get` and fail-fast behavior — no extra candidate request is made.
+    let key = if session.can_pick() {
+        super::resolve_work_item_reference(session, &api, &org, &project, &args.key).await?
+    } else {
+        args.key.clone()
+    };
+
     let item_response = api
-        .get_work_item(&org, &project, &args.key)
+        .get_work_item(&org, &project, &key)
         .await
         .map_err(CliError::from_client)?;
     let item = item_response.value.clone();
 
     // Watcher state may be unavailable to some credential scopes; a failure
     // is non-fatal and simply omits the section (with a marker).
-    let watcher = match api.get_work_item_watcher(&org, &project, &args.key).await {
+    let watcher = match api.get_work_item_watcher(&org, &project, &key).await {
         Ok(response) => Some(response.raw),
         Err(_) => None,
     };
@@ -77,7 +87,7 @@ async fn fetch_bundle(
             .list_comments(
                 &org,
                 &project,
-                &args.key,
+                &key,
                 hamstik_api_client::ListOptions {
                     limit: Some(args.comments),
                     cursor: None,
@@ -95,7 +105,7 @@ async fn fetch_bundle(
             .list_work_item_activity(
                 &org,
                 &project,
-                &args.key,
+                &key,
                 hamstik_api_client::ActivityOptions {
                     limit: Some(args.activity),
                     cursor: None,
@@ -111,7 +121,7 @@ async fn fetch_bundle(
         .list_work_item_links(
             &org,
             &project,
-            &args.key,
+            &key,
             hamstik_api_client::ListOptions {
                 limit: None,
                 cursor: None,

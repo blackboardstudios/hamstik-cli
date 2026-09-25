@@ -136,6 +136,112 @@ pub(crate) fn require_destructive_consent(
     )))
 }
 
+/// Resolves an Organization slug, offering the interactive picker when the
+/// exact lookup fails on a real TTY (CLI-38).
+///
+/// The exact Public API lookup is always attempted first, so scripts, agents,
+/// CI, `--no-input`, `--json`, `--quiet`, and non-TTY sessions see the same
+/// `NOT_FOUND` failure as before. Only an interactive session whose exact
+/// lookup returned 404 collects candidates and prompts; a unique fuzzy match
+/// resolves without a prompt, and a cancelled prompt aborts with no changes.
+///
+/// # Errors
+/// Returns the mapped API error when the lookup fails and no interactive
+/// choice is made, or a usage error when the user cancels the picker.
+pub(crate) async fn resolve_organization_reference(
+    session: &mut Session<'_>,
+    api: &std::sync::Arc<dyn hamstik_api_client::HamstikApi>,
+    reference: &str,
+) -> Result<String, CliError> {
+    match api.get_organization(reference).await {
+        Ok(response) => Ok(response.value.slug),
+        Err(err) if crate::disambiguate::is_not_found(&err) && session.can_pick() => {
+            let candidates = crate::disambiguate::organization_candidates(api).await?;
+            match crate::disambiguate::choose(
+                session.prompt,
+                true,
+                "organizations",
+                reference,
+                &candidates,
+            )? {
+                Some(slug) => Ok(slug),
+                None => Err(CliError::from_client(err)),
+            }
+        }
+        Err(err) => Err(CliError::from_client(err)),
+    }
+}
+
+/// Resolves a Project key inside `org`, offering the interactive picker when
+/// the exact lookup fails on a real TTY (CLI-38).
+///
+/// See [`resolve_organization_reference`] for the interactive/non-interactive
+/// contract.
+///
+/// # Errors
+/// Returns the mapped API error when the lookup fails and no interactive
+/// choice is made, or a usage error when the user cancels the picker.
+pub(crate) async fn resolve_project_reference(
+    session: &mut Session<'_>,
+    api: &std::sync::Arc<dyn hamstik_api_client::HamstikApi>,
+    org: &str,
+    reference: &str,
+) -> Result<String, CliError> {
+    match api.get_project(org, reference).await {
+        Ok(response) => Ok(response.value.key),
+        Err(err) if crate::disambiguate::is_not_found(&err) && session.can_pick() => {
+            let candidates = crate::disambiguate::project_candidates(api, org).await?;
+            match crate::disambiguate::choose(
+                session.prompt,
+                true,
+                "projects",
+                reference,
+                &candidates,
+            )? {
+                Some(key) => Ok(key),
+                None => Err(CliError::from_client(err)),
+            }
+        }
+        Err(err) => Err(CliError::from_client(err)),
+    }
+}
+
+/// Resolves a Work Item key inside `org`/`project`, offering the interactive
+/// picker when the exact lookup fails on a real TTY (CLI-38).
+///
+/// See [`resolve_organization_reference`] for the interactive/non-interactive
+/// contract.
+///
+/// # Errors
+/// Returns the mapped API error when the lookup fails and no interactive
+/// choice is made, or a usage error when the user cancels the picker.
+pub(crate) async fn resolve_work_item_reference(
+    session: &mut Session<'_>,
+    api: &std::sync::Arc<dyn hamstik_api_client::HamstikApi>,
+    org: &str,
+    project: &str,
+    reference: &str,
+) -> Result<String, CliError> {
+    match api.get_work_item(org, project, reference).await {
+        Ok(response) => Ok(response.value.key),
+        Err(err) if crate::disambiguate::is_not_found(&err) && session.can_pick() => {
+            let candidates =
+                crate::disambiguate::work_item_candidates(api, org, Some(project)).await?;
+            match crate::disambiguate::choose(
+                session.prompt,
+                true,
+                "work items",
+                reference,
+                &candidates,
+            )? {
+                Some(key) => Ok(key),
+                None => Err(CliError::from_client(err)),
+            }
+        }
+        Err(err) => Err(CliError::from_client(err)),
+    }
+}
+
 /// Runs the selected subcommand against the session.
 pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<(), CliError> {
     if let Some(action) = destructive_action(command) {

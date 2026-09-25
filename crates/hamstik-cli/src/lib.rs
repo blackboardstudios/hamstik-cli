@@ -14,6 +14,7 @@ pub mod build_info;
 pub mod config;
 pub mod context;
 pub mod credentials;
+pub mod disambiguate;
 pub mod editor;
 pub mod environment;
 pub mod error;

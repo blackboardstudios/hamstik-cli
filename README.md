@@ -651,6 +651,19 @@ or a token without the membership scope). Because the Public API's `/me`
 exposes Organization memberships only, Project drift is reported only through
 its Organization.
 
+## Ambiguous references (interactive)
+
+Organization slugs, Project keys, and Work Item keys resolve through the
+Public API exactly as before. On a real TTY, when an exact lookup returns
+`NOT_FOUND` for `context set`, `org use`, `project use`, `work context`, or a
+single-key `work view`, the CLI lists the plausible candidates and asks for an
+explicit choice (Esc/Ctrl+C cancels without changes). A unique fuzzy match
+resolves without a prompt.
+
+The picker is interactive-only. `--no-input`, `--json`/`--jsonl`/`--tsv`,
+`--quiet`, and non-TTY stdin/stdout keep the original fail-fast `NOT_FOUND`
+error and never list candidates, so scripts, agents, and CI are unaffected.
+
 ## Editor authoring and stdin conventions
 
 Long-form text (Work Item descriptions, comment bodies, project descriptions)

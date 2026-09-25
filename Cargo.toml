@@ -57,6 +57,9 @@ serde_norway = "0.9"
 directories = "6"
 keyring = "3"
 rpassword = "7"
+# Interactive terminal prompts (SPEC §3/§41): the ambiguous-reference picker
+# needs a fuzzy select list. `inquire` is the prompt library named in SPEC §3.
+inquire = "0.9"
 humantime = "2.2"
 chrono = "0.4"
 

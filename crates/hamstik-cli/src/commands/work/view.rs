@@ -24,7 +24,7 @@ const MAX_KEYS: usize = 500;
 const TRUNCATED_MARKER: &str = "[description truncated]";
 
 pub(super) async fn view(session: &mut Session<'_>, args: &WorkViewArgs) -> Result<(), CliError> {
-    let keys = resolve_keys(args)?;
+    let mut keys = resolve_keys(args)?;
     if keys.is_empty() {
         return Err(CliError::usage("at least one key is required"));
     }
@@ -43,12 +43,24 @@ pub(super) async fn view(session: &mut Session<'_>, args: &WorkViewArgs) -> Resu
     let api = session.api(&selection)?;
 
     // Section selection applies to batch reads; the single-item bundle with
-    // sections is `work context`, not `work view`.
+    // sections is `work context`, not `work view`. Validated before the
+    // CLI-38 picker so an invalid flag combination never prompts first.
     if single && (args.comments > 0 || args.activity > 0 || args.links > 0) {
         return Err(CliError::usage(
             "--comments/--activity/--links apply to batch reads (two or more keys); \
              for one item use `hamstik work context KEY`",
         ));
+    }
+
+    // CLI-38: on an interactive TTY a single ambiguous key offers the picker
+    // before the fetch. The exact lookup already happened inside the resolver,
+    // so non-interactive sessions (and batch reads) keep today's single fetch
+    // and fail-fast behavior unchanged.
+    if single && session.can_pick() {
+        let requested = keys[0].clone();
+        keys[0] =
+            crate::commands::resolve_work_item_reference(session, &api, &org, &project, &requested)
+                .await?;
     }
 
     let semaphore = Arc::new(Semaphore::new(DEFAULT_CONCURRENCY));

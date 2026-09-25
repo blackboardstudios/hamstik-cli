@@ -583,14 +583,12 @@ async fn use_project(session: &mut Session<'_>, key: &str) -> Result<(), CliErro
     let selection = session.selection()?;
     // SPEC §35: validate the project through the Public API — inside the
     // resolved organization — before persisting it, so a typo never lands in
-    // the config and fails later with an opaque not-found.
+    // the config and fails later with an opaque not-found. On an interactive
+    // TTY a failed exact lookup offers the CLI-38 picker; the canonical key
+    // the API accepted is what gets persisted and reported.
     let org = session.require_org(&selection)?;
     let api = session.api(&selection)?;
-    let response = api
-        .get_project(&org, key)
-        .await
-        .map_err(CliError::from_client)?;
-    let project: Project = response.value;
+    let resolved = super::resolve_project_reference(session, &api, &org, key).await?;
 
     let profile_name = ensure_profile_for_default(session, &selection).await?;
 
@@ -599,7 +597,7 @@ async fn use_project(session: &mut Session<'_>, key: &str) -> Result<(), CliErro
         .profiles
         .get_mut(&profile_name)
         .ok_or_else(|| CliError::config(format!("no such profile: {profile_name}")))?;
-    profile.default_project = Some(project.key);
+    profile.default_project = Some(resolved.clone());
     session.config.save(&config)?;
     crate::audit::record(
         &session.config,
@@ -612,13 +610,13 @@ async fn use_project(session: &mut Session<'_>, key: &str) -> Result<(), CliErro
     if session.json() {
         emit_json(
             session,
-            &json!({ "profile": profile_name, "defaultProject": key }),
+            &json!({ "profile": profile_name, "defaultProject": resolved }),
         )
     } else {
         session
             .out
             .line(&format!(
-                "Default project for profile {profile_name}: {key}"
+                "Default project for profile {profile_name}: {resolved}"
             ))
             .map_err(CliError::general)
     }

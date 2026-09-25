@@ -106,12 +106,18 @@ pub fn read_token(reader: impl BufRead) -> io::Result<String> {
     Ok(line)
 }
 
-/// Reads a line or a secret from the user.
+/// Reads a line, a secret, or an explicit choice from the user.
 pub trait Prompt {
     /// Reads one visible line after printing `prompt`.
     fn read_line(&mut self, prompt: &str) -> io::Result<String>;
     /// Reads one hidden (no-echo) secret after printing `prompt`.
     fn read_secret(&mut self, prompt: &str) -> io::Result<String>;
+    /// Presents `options` as an interactive select list.
+    ///
+    /// Returns the chosen index, or `None` when the user cancels (Esc or
+    /// Ctrl+C). Implementations must require an explicit choice and must
+    /// never silently return a default/blank selection.
+    fn select(&mut self, prompt: &str, options: &[String]) -> io::Result<Option<usize>>;
 }
 
 /// Real terminal prompts (visible line + hidden secret).
@@ -135,6 +141,20 @@ impl Prompt for TerminalInput {
             ));
         }
         Ok(secret)
+    }
+
+    fn select(&mut self, prompt: &str, options: &[String]) -> io::Result<Option<usize>> {
+        if options.is_empty() {
+            return Ok(None);
+        }
+        // `inquire` (SPEC §3/§41) renders a fuzzy-filterable list with arrow
+        // keys and type-to-search; Esc/Ctrl+C cancel without choosing.
+        match inquire::Select::new(prompt, options.to_vec()).prompt() {
+            Ok(choice) => Ok(options.iter().position(|option| option == &choice)),
+            Err(inquire::InquireError::OperationCanceled)
+            | Err(inquire::InquireError::OperationInterrupted) => Ok(None),
+            Err(err) => Err(io::Error::other(err)),
+        }
     }
 }
 

@@ -401,6 +401,18 @@ impl Session<'_> {
             && self.env.stdout_is_terminal()
     }
 
+    /// Returns true when the interactive ambiguity picker may run (CLI-38).
+    ///
+    /// Stricter than [`Self::can_prompt`]: the picker must also stay out of
+    /// `--quiet` and every structured output mode (`--json`, `--jsonl`,
+    /// `--tsv`), where a selection list would corrupt machine output or
+    /// suppress identifiers the caller asked for. Every other path keeps the
+    /// existing fail-fast behavior and never prompts.
+    #[must_use]
+    pub fn can_pick(&self) -> bool {
+        self.can_prompt() && !self.global.quiet && !self.json()
+    }
+
     /// The configured editor preference (`[settings] editor`), when set.
     ///
     /// Environment overrides (`$VISUAL`, `$EDITOR`) are applied by
@@ -633,6 +645,9 @@ mod tests {
         fn read_secret(&mut self, _prompt: &str) -> std::io::Result<String> {
             Err(std::io::Error::other("no interactive input in tests"))
         }
+        fn select(&mut self, _prompt: &str, _options: &[String]) -> std::io::Result<Option<usize>> {
+            Err(std::io::Error::other("no interactive input in tests"))
+        }
     }
 
     /// Prompt that returns one canned answer (for consent-prompt tests).
@@ -646,6 +661,9 @@ mod tests {
         }
         fn read_secret(&mut self, _prompt: &str) -> std::io::Result<String> {
             Ok(self.answer.clone())
+        }
+        fn select(&mut self, _prompt: &str, _options: &[String]) -> std::io::Result<Option<usize>> {
+            Ok(None)
         }
     }
 
@@ -964,5 +982,30 @@ mod tests {
             ..test_global()
         };
         assert!(!test_session_with(no_input_global, true).can_prompt());
+    }
+
+    #[test]
+    fn can_pick_requires_a_tty_and_no_quiet_or_structured_mode() {
+        // The picker is allowed only on an interactive human TTY.
+        assert!(test_session_with(test_global(), true).can_pick());
+        assert!(!test_session_with(test_global(), false).can_pick());
+
+        let quiet_global = crate::args::GlobalOptions {
+            quiet: true,
+            ..test_global()
+        };
+        assert!(!test_session_with(quiet_global, true).can_pick());
+
+        // Inherited from `can_prompt`: no-input and json never prompt.
+        let no_input_global = crate::args::GlobalOptions {
+            no_input: true,
+            ..test_global()
+        };
+        assert!(!test_session_with(no_input_global, true).can_pick());
+        let json_global = crate::args::GlobalOptions {
+            json: true,
+            ..test_global()
+        };
+        assert!(!test_session_with(json_global, true).can_pick());
     }
 }
