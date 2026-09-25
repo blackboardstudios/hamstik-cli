@@ -31,6 +31,22 @@ fn chain<'a>(body: &'a Value, field: &str) -> &'a Value {
     &body["values"][field]
 }
 
+/// Runs git in `dir`, asserting success. Commit identity comes from the
+/// environment so the developer's global git config is not required.
+fn git(dir: &std::path::Path, args: &[&str]) {
+    let status = std::process::Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .env("GIT_AUTHOR_NAME", "hamstik-test")
+        .env("GIT_AUTHOR_EMAIL", "hamstik-test@example.com")
+        .env("GIT_COMMITTER_NAME", "hamstik-test")
+        .env("GIT_COMMITTER_EMAIL", "hamstik-test@example.com")
+        .status()
+        .unwrap();
+    assert!(status.success(), "git {args:?} failed");
+}
+
 /// Every configurable value reports its winning source and full chain; the
 /// report is local-only and represents HAMSTIK_TOKEN as presence only.
 #[test]
@@ -118,6 +134,67 @@ fn explain_reports_nearest_context_file_discovery() {
     assert_eq!(
         chain(&body, "organization")["sources"][0]["value"],
         "nearest-org"
+    );
+}
+
+/// A `.hamstik.toml` that exists only in the primary checkout of a git
+/// worktree is still discovered from the linked worktree, and `context
+/// explain` reports the resolved path.
+#[test]
+fn explain_reports_context_found_through_linked_worktree() {
+    let dir = TempDir::new().unwrap();
+    let main = dir.path().join("main");
+    let linked = dir.path().join("linked");
+    std::fs::create_dir_all(&main).unwrap();
+    git(&main, &["init", "-q"]);
+    std::fs::write(main.join("tracked.txt"), "x\n").unwrap();
+    git(&main, &["add", "tracked.txt"]);
+    git(&main, &["commit", "-qm", "init"]);
+    git(
+        &main,
+        &[
+            "worktree",
+            "add",
+            "-q",
+            linked.to_str().unwrap(),
+            "-b",
+            "feature",
+        ],
+    );
+    // Untracked, so the linked worktree never sees it via the walk-up.
+    std::fs::write(
+        main.join(".hamstik.toml"),
+        "version = 1\norganization = \"main-org\"\n",
+    )
+    .unwrap();
+    let nested = linked.join("sub").join("dir");
+    std::fs::create_dir_all(&nested).unwrap();
+
+    let output = Command::cargo_bin("hamstik")
+        .unwrap()
+        .env("HAMSTIK_CONFIG", main.join("config.toml"))
+        .env("HAMSTIK_AUDIT_LOG", dir.path().join("audit.log"))
+        .env_remove("HAMSTIK_PROFILE")
+        .env_remove("HAMSTIK_ORG")
+        .env_remove("HAMSTIK_PROJECT")
+        .env_remove("HAMSTIK_HOST")
+        .env_remove("HAMSTIK_TOKEN")
+        .current_dir(&nested)
+        .args(["--no-input", "--json", "context", "explain"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{:?}", output.stderr);
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let found = body["contextDiscovery"]["found"].as_str().unwrap();
+    let expected = std::fs::canonicalize(&main).unwrap().join(".hamstik.toml");
+    assert_eq!(std::path::Path::new(found), expected.as_path(), "{body:?}");
+    assert_eq!(
+        chain(&body, "organization")["winningSource"],
+        "context_file"
+    );
+    assert_eq!(
+        chain(&body, "organization")["sources"][0]["value"],
+        "main-org"
     );
 }
 

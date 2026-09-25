@@ -389,17 +389,99 @@ pub fn membership_drift_warning(
 }
 
 /// Searches upward from `start` for the nearest `.hamstik.toml`.
+///
+/// Discovery is purely additive: the directory walk-up runs first and nearest
+/// still wins. When the walk-up finds nothing but `start` is inside a git
+/// checkout, the primary checkout behind a linked worktree is searched as
+/// well: git's `--git-common-dir` names the primary `.git` directory, whose
+/// parent is the main checkout root. The current position inside the worktree
+/// is mapped onto the same relative path in the main checkout, then that path
+/// and its ancestors (up to the main root) are probed. This lets a linked
+/// worktree inherit the `.hamstik.toml` of the primary checkout without copying
+/// the file, including one Project per monorepo subtree.
 #[must_use]
 pub fn discover(start: &Path) -> Option<PathBuf> {
     let mut current = Some(start);
+    let mut saw_git = false;
     while let Some(dir) = current {
         let candidate = dir.join(CONTEXT_FILENAME);
         if candidate.is_file() {
             return Some(candidate);
         }
+        if dir.join(".git").exists() {
+            saw_git = true;
+        }
         current = dir.parent();
     }
+    if saw_git {
+        return discover_through_git_worktree(start);
+    }
     None
+}
+
+/// Fallback discovery for a linked git worktree (SPEC §33).
+///
+/// Returns `None` when git is unavailable, `start` is not in a checkout, or
+/// the checkout is not a linked worktree (the primary worktree was already
+/// covered by the walk-up). The primary checkout root is only trusted when the
+/// common git directory is actually named `.git`, which rules out bare repos
+/// and submodule `modules/<name>` directories whose parent is not a checkout.
+fn discover_through_git_worktree(start: &Path) -> Option<PathBuf> {
+    let current_root = git_output(start, &["rev-parse", "--show-toplevel"])?;
+    let common = git_output(start, &["rev-parse", "--git-common-dir"])?;
+    let common = if common.is_absolute() {
+        common
+    } else {
+        start.join(common)
+    };
+    // Canonicalize so the worktree/main comparison and the relative mapping
+    // are separator- and symlink-independent (notably on Windows, where git
+    // may print forward slashes while `canonicalize` uses backslashes).
+    let start = fs::canonicalize(start).ok()?;
+    let current_root = fs::canonicalize(current_root).ok()?;
+    let common = fs::canonicalize(common).ok()?;
+    if common.file_name() != Some(std::ffi::OsStr::new(".git")) {
+        return None;
+    }
+    let main_root = common.parent()?;
+    if main_root == current_root.as_path() {
+        // Primary worktree: the walk-up already searched it.
+        return None;
+    }
+    // Map the current position onto the primary checkout. `strip_prefix`
+    // failing (the cwd is not under the reported toplevel, for example)
+    // degrades to probing the main root.
+    let relative = start.strip_prefix(&current_root).unwrap_or(Path::new(""));
+    let mut probe = main_root.join(relative);
+    loop {
+        let candidate = probe.join(CONTEXT_FILENAME);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+        if main_root == probe.as_path() {
+            return None;
+        }
+        probe = probe.parent()?.to_path_buf();
+    }
+}
+
+/// Runs `git -C <start> <args>` and returns its trimmed stdout on success.
+fn git_output(start: &Path, args: &[&str]) -> Option<PathBuf> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(start)
+        .args(args)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8(output.stdout).ok()?;
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    Some(PathBuf::from(trimmed))
 }
 
 /// Loads and validates a context file.
@@ -600,6 +682,84 @@ mod tests {
         fs::write(root.join(CONTEXT_FILENAME), "version = 1\n").unwrap();
         let found = discover(&nested).unwrap();
         assert_eq!(found, nested.join(CONTEXT_FILENAME));
+    }
+
+    /// Runs git in `dir`, asserting success. Commit identity is supplied via
+    /// the environment so the developer's global git config is not required.
+    fn git(dir: &Path, args: &[&str]) {
+        let status = std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .env("GIT_AUTHOR_NAME", "hamstik-test")
+            .env("GIT_AUTHOR_EMAIL", "hamstik-test@example.com")
+            .env("GIT_COMMITTER_NAME", "hamstik-test")
+            .env("GIT_COMMITTER_EMAIL", "hamstik-test@example.com")
+            .status()
+            .unwrap();
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    /// Creates a primary checkout plus one linked worktree and returns their
+    /// paths. The primary checkout gets a commit so `worktree add` can resolve
+    /// `HEAD`.
+    fn git_worktree_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let main = dir.path().join("main");
+        let linked = dir.path().join("linked");
+        fs::create_dir_all(&main).unwrap();
+        git(&main, &["init", "-q"]);
+        fs::write(main.join("tracked.txt"), "x\n").unwrap();
+        git(&main, &["add", "tracked.txt"]);
+        git(&main, &["commit", "-qm", "init"]);
+        git(
+            &main,
+            &[
+                "worktree",
+                "add",
+                "-q",
+                linked.to_str().unwrap(),
+                "-b",
+                "feature",
+            ],
+        );
+        (dir, main, linked)
+    }
+
+    #[test]
+    fn discovers_context_through_linked_worktree() {
+        let (_dir, main, linked) = git_worktree_fixture();
+        // The config exists only in the primary checkout, untracked, so it is
+        // absent from the linked worktree and the walk-up cannot see it.
+        fs::write(
+            main.join(CONTEXT_FILENAME),
+            "version = 1\norganization = \"main-org\"\n",
+        )
+        .unwrap();
+        let nested = linked.join("sub").join("dir");
+        fs::create_dir_all(&nested).unwrap();
+        let found = discover(&nested).unwrap();
+        let expected = fs::canonicalize(&main).unwrap().join(CONTEXT_FILENAME);
+        assert_eq!(found, expected);
+    }
+
+    #[test]
+    fn worktree_context_wins_over_main_checkout() {
+        let (_dir, main, linked) = git_worktree_fixture();
+        fs::write(
+            main.join(CONTEXT_FILENAME),
+            "version = 1\norganization = \"main-org\"\n",
+        )
+        .unwrap();
+        fs::write(
+            linked.join(CONTEXT_FILENAME),
+            "version = 1\norganization = \"worktree-org\"\n",
+        )
+        .unwrap();
+        let nested = linked.join("sub");
+        fs::create_dir_all(&nested).unwrap();
+        let found = discover(&nested).unwrap();
+        assert_eq!(found, linked.join(CONTEXT_FILENAME));
     }
 
     #[test]

@@ -284,7 +284,7 @@ fn explain(session: &mut Session<'_>) -> Result<(), CliError> {
     session
         .out
         .line(&format!(
-            "context discovery: searched upward from {} for {} -> {}",
+            "context discovery: searched from {} for {} (directory walk-up, then git worktree) -> {}",
             session.cwd.display(),
             crate::context::CONTEXT_FILENAME,
             selection

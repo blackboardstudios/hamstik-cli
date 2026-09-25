@@ -12,6 +12,15 @@ before upgrading.
 
 ### Added
 
+- Git worktree context discovery (CLI-69): when the `.hamstik.toml` directory
+  walk-up finds nothing and the working directory is inside a git checkout,
+  the primary checkout behind a linked worktree is searched
+  (`git rev-parse --show-toplevel`/`--git-common-dir`), mapping the current
+  subtree onto the same relative path in the primary checkout. A linked
+  worktree and monorepo Project subtree can therefore reuse the primary
+  checkout's config without copying it; explicit flags, environment variables,
+  and a worktree-local `.hamstik.toml` still win.
+
 - Scheduled export and report snapshots (CLI-67): `work export --query
   <SQUEAKQL>` (or `--query-file`/`--query-saved`) selects a collection of
   Organization Work Items and renders it through the same output contract as

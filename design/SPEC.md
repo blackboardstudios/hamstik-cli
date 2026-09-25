@@ -862,6 +862,17 @@ Search upward from the current working directory for the nearest:
 
 The nearest file wins.
 
+Discovery is purely additive. When the directory walk-up finds nothing and the
+working directory is inside a git checkout, the primary checkout behind a
+linked worktree is searched as well (`git rev-parse --show-toplevel` and
+`--git-common-dir`). The current position inside the worktree is mapped onto
+the same relative path in the primary checkout, then that path and its
+ancestors up to the primary checkout root are probed. This lets a linked
+worktree use the `.hamstik.toml` of the primary checkout without copying the
+file, including one Project per monorepo subtree. Explicit flags and
+environment variables still win; a `.hamstik.toml` inside the linked worktree
+still beats one in the primary checkout.
+
 `context show --explain` MUST display:
 
 ```text

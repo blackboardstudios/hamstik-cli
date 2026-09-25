@@ -631,7 +631,12 @@ behavior — fully offline (no network connection, no prompts):
   credential values, and proxy variables are never displayed;
 - context-file discovery (searched-from directory, filename, found path) is
   included so an unexpected Organization or Project can be traced to the file
-  that set it.
+  that set it;
+- discovery is purely additive: after the directory walk-up finds nothing, a
+  linked git worktree falls back to the primary checkout (`git rev-parse
+  --show-toplevel`/`--git-common-dir`), mapping the current subtree onto the
+  primary checkout, so a worktree can reuse the primary checkout's
+  `.hamstik.toml` without copying it. A file inside the worktree still wins.
 
 Diagnosing an unexpected host, Organization, Project, or profile:
 

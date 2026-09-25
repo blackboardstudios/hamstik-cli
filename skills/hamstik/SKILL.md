@@ -65,7 +65,10 @@ Host, Organization, and Project resolve in this order:
 
 1. command-line flag;
 2. `HAMSTIK_HOST`, `HAMSTIK_ORG`, or `HAMSTIK_PROJECT`;
-3. the nearest `.hamstik.toml`;
+3. the nearest `.hamstik.toml` (in a linked git worktree, the primary
+   checkout is searched too when the worktree has none, so a worktree inherits
+   the primary checkout's config without copying it; a worktree-local file
+   still wins);
 4. selected profile defaults;
 5. built-in defaults where defined.
 
