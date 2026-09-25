@@ -7226,6 +7226,75 @@
    "positionals": []
   },
   {
+   "about": "Run a large operation set in resumable batches of at most 50",
+   "aliases": [],
+   "arguments": [
+    {
+     "choices": [
+      "create",
+      "update",
+      "transition"
+     ],
+     "help": "Operation kind the batches perform",
+     "kind": "option",
+     "long": "--op"
+    },
+    {
+     "help": "Operations as a JSON array or JSON-lines file (path, or - for stdin)",
+     "kind": "option",
+     "long": "--operations-file"
+    },
+    {
+     "help": "Local journal recording per-batch plans and results (created or resumed)",
+     "kind": "option",
+     "long": "--journal"
+    },
+    {
+     "choices": [
+      "require-revision",
+      "last-write-wins"
+     ],
+     "help": "Concurrency mode for update/transition batches",
+     "kind": "option",
+     "long": "--concurrency"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Re-send batches that previously failed (explicit review action)",
+     "kind": "option",
+     "long": "--retry-failed"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Start a new run, replacing any journal already at `--journal`",
+     "kind": "option",
+     "long": "--restart"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik work bulk run",
+   "hasSubcommands": false,
+   "longAbout": "Run a large operation set in resumable batches of at most 50.\n\nReads a JSON array or JSON-lines operations file (use `-` for stdin), preflights every operation, and sends batches of at most 50 in sequence. Each batch's request body and idempotency key are recorded in a local journal before any request is sent, so an interrupted run resumes from the journal without redoing completed batches or duplicating creates. Failed batches are never retried automatically; pass `--retry-failed` after reviewing the journal. Separate batches are separate API requests and are not one atomic transaction.",
+   "options": [
+    "--op",
+    "--operations-file",
+    "--journal",
+    "--concurrency",
+    "--retry-failed",
+    "--restart"
+   ],
+   "positionals": []
+  },
+  {
    "about": "Convert a CSV file into the `work bulk` operations JSON array",
    "aliases": [],
    "arguments": [

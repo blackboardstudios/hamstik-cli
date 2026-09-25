@@ -492,6 +492,29 @@ Bulk results in JSON preserve per-operation `index`, `status`, `workItem`, and
 `error` exactly; human output summarizes succeeded/failed counts with actionable
 failure details.
 
+For operation sets larger than 50 — migrations, bulk maintenance, agent batches —
+use the resumable runner instead of splitting the JSON yourself:
+
+```bash
+hamstik --json --no-input --org <ORG> work bulk run \
+  --op create --operations-file <OPERATIONS.json> --journal <JOURNAL.jsonl>
+# Resume from the journal alone after an interruption (omit --operations-file):
+hamstik --json --no-input --org <ORG> work bulk run \
+  --op create --journal <JOURNAL.jsonl>
+```
+
+`work bulk run` streams a JSON array or JSON-lines source (`--operations-file -`
+reads stdin one operation per line), preflights every operation, and sends
+batches of at most 50 through the same typed envelopes. It records each batch's
+exact body, idempotency key, and `completed`/`failed`/`uncertain` outcome to the
+local journal before and after each request, so resuming skips completed batches
+and replays uncertain ones with the original key and body (no duplicate creates).
+Failed batches are never retried automatically; review the journal and re-run
+with `--retry-failed` only after that review. Always state to the user that
+separate batches are separate API requests and are not one atomic transaction.
+The journal schema is documented in the README and contains no credentials;
+treat it as local run state, not as a source of truth for server business rules.
+
 Project and Sprint administration (project create/edit/archive/unarchive, sprint
 create, label create, release create, milestone create, work archive/unarchive/delete)
 exists where the Public API

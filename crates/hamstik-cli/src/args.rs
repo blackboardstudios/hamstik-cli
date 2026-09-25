@@ -2698,6 +2698,17 @@ pub enum WorkBulkCommand {
         #[arg(long = "idempotency-key", value_name = "KEY")]
         idempotency_key: Option<String>,
     },
+    /// Run a large operation set in resumable batches of at most 50.
+    ///
+    /// Reads a JSON array or JSON-lines operations file (use `-` for stdin),
+    /// preflights every operation, and sends batches of at most 50 in sequence.
+    /// Each batch's request body and idempotency key are recorded in a local
+    /// journal before any request is sent, so an interrupted run resumes from
+    /// the journal without redoing completed batches or duplicating creates.
+    /// Failed batches are never retried automatically; pass `--retry-failed`
+    /// after reviewing the journal. Separate batches are separate API requests
+    /// and are not one atomic transaction.
+    Run(WorkBulkRunArgs),
     /// Convert a CSV file into the `work bulk` operations JSON array.
     ///
     /// The first row is a header; every later row becomes one operation, so the
@@ -2735,6 +2746,45 @@ pub enum WorkBulkCommand {
         #[arg(long = "output", value_name = "PATH", short = 'o')]
         output: Option<String>,
     },
+}
+
+/// Arguments for `work bulk run`.
+#[derive(Args, Debug)]
+pub struct WorkBulkRunArgs {
+    /// Operation kind the batches perform.
+    #[arg(long, value_enum)]
+    pub op: BulkRunOpArg,
+    /// Operations as a JSON array or JSON-lines file (path, or - for stdin).
+    ///
+    /// Required unless resuming an existing `--journal` (or using `--restart`).
+    #[arg(long = "operations-file", value_name = "PATH")]
+    pub operations_file: Option<String>,
+    /// Local journal recording per-batch plans and results (created or resumed).
+    #[arg(long, value_name = "PATH")]
+    pub journal: String,
+    /// Concurrency mode for update/transition batches.
+    #[arg(long, value_enum)]
+    pub concurrency: Option<ConcurrencyArg>,
+    /// Re-send batches that previously failed (explicit review action).
+    #[arg(long = "retry-failed")]
+    pub retry_failed: bool,
+    /// Start a new run, replacing any journal already at `--journal`.
+    #[arg(long)]
+    pub restart: bool,
+}
+
+/// Bulk runner operation kind.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BulkRunOpArg {
+    /// Create Work Items.
+    #[value(name = "create")]
+    Create,
+    /// Update Work Items.
+    #[value(name = "update")]
+    Update,
+    /// Transition Work Items.
+    #[value(name = "transition")]
+    Transition,
 }
 
 /// Bulk CSV operation kind.

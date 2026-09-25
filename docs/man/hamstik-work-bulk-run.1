@@ -1,0 +1,30 @@
+.TH HAMSTIK 1 "HAMSTIK WORK BULK RUN"
+.SH NAME
+hamstik work bulk run \- Run a large operation set in resumable batches of at most 50
+.SH SYNOPSIS
+.B hamstik work bulk run [OPTIONS]
+.SH DESCRIPTION
+Run a large operation set in resumable batches of at most 50
+.SH OPTIONS
+.TP
+.B --op
+Operation kind the batches perform
+Choices: create, update, transition
+.TP
+.B --operations-file
+Operations as a JSON array or JSON-lines file (path, or - for stdin)
+.TP
+.B --journal
+Local journal recording per-batch plans and results (created or resumed)
+.TP
+.B --concurrency
+Concurrency mode for update/transition batches
+Choices: require-revision, last-write-wins
+.TP
+.B --retry-failed
+Re-send batches that previously failed (explicit review action)
+Choices: true, false
+.TP
+.B --restart
+Start a new run, replacing any journal already at `--journal`
+Choices: true, false

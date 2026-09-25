@@ -228,11 +228,13 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
             | crate::args::WorkCommand::Unarchive { .. }
             | crate::args::WorkCommand::Delete { .. }
             | crate::args::WorkCommand::Await(_) => true,
-            // `bulk from-csv` only converts a local file into JSON; the three
-            // request-producing bulk subcommands keep their preview support.
-            crate::args::WorkCommand::Bulk(args) => {
-                !matches!(args.command, crate::args::WorkBulkCommand::FromCsv { .. })
-            }
+            // `bulk from-csv` only converts a local file into JSON and `bulk
+            // run` owns a resumable journal instead of a one-shot preview; the
+            // three single-request bulk subcommands keep their preview support.
+            crate::args::WorkCommand::Bulk(args) => !matches!(
+                args.command,
+                crate::args::WorkBulkCommand::FromCsv { .. } | crate::args::WorkBulkCommand::Run(_)
+            ),
         },
         Command::Project(args) => match &args.command {
             crate::args::ProjectCommand::List { .. }

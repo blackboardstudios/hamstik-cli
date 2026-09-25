@@ -14,6 +14,7 @@ use crate::error::CliError;
 use super::archive::read_operations;
 use super::bulk_csv;
 use super::bulk_preflight;
+use super::bulk_run;
 use super::common::idem_key;
 use super::dryrun;
 use super::emit_json;
@@ -29,6 +30,9 @@ pub(super) async fn bulk(session: &mut Session<'_>, args: &WorkBulkArgs) -> Resu
     } = &args.command
     {
         return bulk_csv::from_csv(session, file, *op, project.as_deref(), output.as_deref());
+    }
+    if let WorkBulkCommand::Run(run_args) = &args.command {
+        return bulk_run::run(session, run_args).await;
     }
 
     let selection = session.selection()?;
@@ -101,8 +105,8 @@ pub(super) async fn bulk(session: &mut Session<'_>, args: &WorkBulkArgs) -> Resu
                         serde_json::to_value(&body).map_err(CliError::general)?,
                     )
                 }
-                WorkBulkCommand::FromCsv { .. } => {
-                    unreachable!("from-csv is handled before any request")
+                WorkBulkCommand::FromCsv { .. } | WorkBulkCommand::Run(_) => {
+                    unreachable!("from-csv and run are handled before any request")
                 }
             };
         let count = body
@@ -178,8 +182,8 @@ pub(super) async fn bulk(session: &mut Session<'_>, args: &WorkBulkArgs) -> Resu
                 .await
                 .map_err(CliError::from_client)?
         }
-        WorkBulkCommand::FromCsv { .. } => {
-            unreachable!("from-csv is handled before any request")
+        WorkBulkCommand::FromCsv { .. } | WorkBulkCommand::Run(_) => {
+            unreachable!("from-csv and run are handled before any request")
         }
     };
     let concurrency_mode = match &args.command {
@@ -190,8 +194,8 @@ pub(super) async fn bulk(session: &mut Session<'_>, args: &WorkBulkArgs) -> Resu
                 .unwrap_or(crate::args::ConcurrencyArg::RequireRevision)
                 .as_str(),
         ),
-        WorkBulkCommand::FromCsv { .. } => {
-            unreachable!("from-csv is handled before any request")
+        WorkBulkCommand::FromCsv { .. } | WorkBulkCommand::Run(_) => {
+            unreachable!("from-csv and run are handled before any request")
         }
     };
     if response.idempotency_replayed {
@@ -203,8 +207,8 @@ pub(super) async fn bulk(session: &mut Session<'_>, args: &WorkBulkArgs) -> Resu
         WorkBulkCommand::Create { .. } => "work.bulk.create",
         WorkBulkCommand::Update { .. } => "work.bulk.update",
         WorkBulkCommand::Transition { .. } => "work.bulk.transition",
-        WorkBulkCommand::FromCsv { .. } => {
-            unreachable!("from-csv is handled before any request")
+        WorkBulkCommand::FromCsv { .. } | WorkBulkCommand::Run(_) => {
+            unreachable!("from-csv and run are handled before any request")
         }
     };
     // A batch has no single target: record the batch size, which is all the
@@ -234,8 +238,8 @@ fn args_idempotency(command: &WorkBulkCommand) -> Option<String> {
         | WorkBulkCommand::Transition {
             idempotency_key, ..
         } => idempotency_key.clone(),
-        WorkBulkCommand::FromCsv { .. } => {
-            unreachable!("from-csv is handled before any request")
+        WorkBulkCommand::FromCsv { .. } | WorkBulkCommand::Run(_) => {
+            unreachable!("from-csv and run are handled before any request")
         }
     }
 }

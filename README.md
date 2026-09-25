@@ -387,6 +387,16 @@ hamstik work bulk transition --operations-file transition-operations.json \
 hamstik work bulk from-csv items.csv --op create --project HAM \
   | hamstik work bulk create --operations-file -
 
+# Run a large set in resumable batches of at most 50, journaling each result
+hamstik work bulk run --op create --operations-file operations.json \
+  --journal create.journal.jsonl --json
+# JSON-lines and stdin keep pipelines from materializing one huge file
+jq -c '.[]' operations.json \
+  | hamstik work bulk run --op create --operations-file - \
+      --journal create.journal.jsonl
+# Resume from the journal alone; completed batches are skipped
+hamstik work bulk run --op create --journal create.journal.jsonl --json
+
 # Dry-run: preview the exact mutation without sending it
 hamstik work create --title "Document API" --dry-run --json
 hamstik work edit HAM-42 --priority high --dry-run --json
@@ -1086,6 +1096,61 @@ result is re-run through the same bulk preflight and typed envelopes the JSON
 path uses. Status and labels are not part of either bulk envelope (status is a
 transition, labels use the label endpoints), so they are rejected rather than
 silently dropped.
+
+### Resumable bulk execution
+
+`work bulk run --op create|update|transition --journal <FILE>` runs a large
+operation set — larger than the single-request 50-operation limit — as a
+sequence of batches of at most 50. It reads the operations source as a JSON
+array or as JSON-lines (`--operations-file -` streams stdin one operation at a
+time, so `jq`/`xargs`/agent pipelines never materialize one huge input file),
+preflights every operation against the same schema-derived rules the
+single-request commands use, and feeds the existing typed bulk envelopes. No
+new bulk request format is introduced.
+
+**Separate batches are separate API requests and are not one atomic
+transaction.** A later batch can fail (or the process can be interrupted) after
+earlier batches have already been applied. The `--json` envelope carries
+`"atomic": false` and a `note`, and human output prints the same caveat.
+
+Each batch's exact request body and idempotency key are written to the local
+journal *before* the request is sent. Interrupting mid-run, killing the
+process, or hitting a network failure leaves the journal intact; re-running the
+same command with the journal (omit `--operations-file`) skips batches that
+already completed and replays unfinished/uncertain batches with their original
+body and idempotency key. Because the key is reused, the server's idempotency
+replay window prevents duplicate creates. Failed batches are **never** retried
+automatically; review the journal and re-run with `--retry-failed` to retry
+them. `--restart` replaces an existing journal and starts planning over.
+
+A journal records `completed`, `failed`, and `uncertain` outcomes. A batch is
+`uncertain` when a transport failure left the outcome unknown; it is safe to
+replay because the key and body are unchanged. If the server no longer
+replays a key (for example because the replay window expired), the server's
+conflict response is recorded and surfaced for explicit review — the CLI never
+invents a new key or silently drops work. The journal belongs to one
+Organization and operation kind; resuming it with a different `--org`, `--op`,
+or `--concurrency` fails until `--restart` is passed.
+
+#### Journal schema
+
+The journal is a local, append-only JSON-lines file (one JSON object per
+line). It contains no credentials, tokens, or request headers. Later records
+supersede earlier ones for the same batch, and a torn final line from an
+interrupted write is discarded on load.
+
+| `type` | Fields | Written when |
+| --- | --- | --- |
+| `header` | `journalVersion`, `operation`, `organization`, `concurrency`, `source`, `createdAt` | once, before any plan |
+| `batch` | `sequence`, `idempotencyKey`, `operations` | once per planned batch, before execution |
+| `complete` | `at` | once, when planning finishes |
+| `result` | `sequence`, `state`, `attemptedAt`, `recordedAt`, `results`, `error` | before and after each batch attempt |
+
+`state` is `completed`, `failed`, or `uncertain`; `results` is the raw server
+per-operation array for a completed batch, and `error` carries the stable
+`code`, `message`, optional `status`, and optional `requestId` for a
+failed/uncertain batch. The in-progress `uncertain` marker written before each
+attempt is what makes a crash between send and response unambiguous.
 
 ## Public API passthrough
 

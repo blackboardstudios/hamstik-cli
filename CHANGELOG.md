@@ -12,6 +12,18 @@ before upgrading.
 
 ### Added
 
+- `work bulk run` (CLI-62): resumable bulk execution for operation sets larger
+  than the single-request 50-operation limit. The runner reads a JSON array or
+  streamed JSON-lines operations source (`--operations-file -`), preflights
+  every operation against the existing bulk schema, and sends batches of at
+  most 50 through the existing typed bulk envelopes. Each batch's exact request
+  body and idempotency key are written to a local JSON-lines journal before the
+  request, so an interrupted run resumes (omit `--operations-file`) by skipping
+  completed batches and replaying uncertain ones with the same idempotency key;
+  failed batches are never retried automatically and require `--retry-failed`
+  after review. `--restart` replaces an existing journal. Output states
+  explicitly that separate batches are separate requests and not one atomic
+  transaction, and the documented journal schema contains no credentials.
 - `work watch <KEY>` (CLI-61): follow a Work Item's activity and comments
   live by polling the existing Public API v1 reads. New entries are rendered
   incrementally within one `--interval` (default `2s`); the first poll starts

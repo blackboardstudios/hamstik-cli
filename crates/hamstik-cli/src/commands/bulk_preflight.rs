@@ -113,11 +113,7 @@ pub(crate) fn preflight(
         )));
     }
 
-    let rules = match kind {
-        PreflightKind::Create => &CREATE_RULES,
-        PreflightKind::Update => &UPDATE_RULES,
-        PreflightKind::Transition => &TRANSITION_RULES,
-    };
+    let rules = rules_for(kind);
     let mut findings: Vec<Finding> = Vec::new();
     for (index, item) in items.iter().enumerate() {
         validate_operation(index, item, rules, &mut findings);
@@ -137,6 +133,37 @@ pub(crate) enum PreflightKind {
     Update,
     /// `work bulk transition`.
     Transition,
+}
+
+/// The schema-derived rules for one bulk kind.
+fn rules_for(kind: PreflightKind) -> &'static OperationRules {
+    match kind {
+        PreflightKind::Create => &CREATE_RULES,
+        PreflightKind::Update => &UPDATE_RULES,
+        PreflightKind::Transition => &TRANSITION_RULES,
+    }
+}
+
+/// Validates a single streamed operation against the same schema-derived rules
+/// [`preflight`] uses, but without the whole-array 1–50 count bound.
+///
+/// The resumable runner validates and batches operations one at a time, so it
+/// cannot apply the single-request envelope bound; the batch size is enforced
+/// by the runner itself. `index` is the operation's global position in the
+/// stream and is reported verbatim in diagnostics.
+pub(crate) fn preflight_operation(
+    source: &str,
+    index: usize,
+    item: &Value,
+    kind: PreflightKind,
+) -> Result<(), CliError> {
+    let mut findings: Vec<Finding> = Vec::new();
+    validate_operation(index, item, rules_for(kind), &mut findings);
+    if findings.is_empty() {
+        Ok(())
+    } else {
+        Err(preflight_error(source, &findings))
+    }
 }
 
 /// Validates one operation object against the schema-derived rules.
