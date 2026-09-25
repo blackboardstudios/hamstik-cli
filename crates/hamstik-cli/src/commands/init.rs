@@ -28,6 +28,7 @@ pub fn run(session: &mut Session<'_>) -> Result<(), CliError> {
         host: None,
         organization: selection.organization.value.clone(),
         project: selection.project.value.clone(),
+        dashboard_projects: None,
     };
     context::save(&path, &document)?;
     let display = path.display().to_string();

@@ -121,6 +121,10 @@ pub struct ContextFile {
     /// Default project key for this directory.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project: Option<String>,
+    /// Project keys included by `work dashboard` when `--project` is omitted.
+    /// An empty or absent list falls back to the resolved single Project.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dashboard_projects: Option<Vec<String>>,
 }
 
 /// The full resolved selection for a command invocation.
@@ -483,6 +487,7 @@ mod tests {
             host: Some("https://ctx.host".into()),
             organization: Some("ctx-org".into()),
             project: Some("CTX".into()),
+            dashboard_projects: None,
         };
         let resolution = resolve(
             (
@@ -508,6 +513,7 @@ mod tests {
             host: None,
             organization: Some("ctx-org".into()),
             project: None,
+            dashboard_projects: None,
         };
         let resolution = resolve(
             (&None, &None, &None),
@@ -539,6 +545,7 @@ mod tests {
             host: None,
             organization: Some("ctx-org".into()),
             project: None,
+            dashboard_projects: None,
         };
         let resolution = resolve((&None, &None, &None), &env, Some(&context), None);
         assert_eq!(resolution.organization.value.as_deref(), Some("env-org"));
@@ -604,6 +611,7 @@ mod tests {
             host: Some("https://h".into()),
             organization: Some("org".into()),
             project: None,
+            dashboard_projects: Some(vec!["HAM".into(), "WEB".into()]),
         };
         save(&path, &context).unwrap();
         assert_eq!(load(&path).unwrap(), context);

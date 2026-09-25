@@ -1969,6 +1969,10 @@ pub enum WorkCommand {
     /// from existing Public API v1 reads. A failed section is reported and
     /// never aborts the others.
     Triage(TriageArgs),
+    /// Read-only multi-project overview composing My Work and per-Project
+    /// Work Item lists for a configurable Project set. One Project's failure
+    /// is reported without hiding the others.
+    Dashboard(WorkDashboardArgs),
     /// Search Organization Work Items with SqueakQL.
     Search {
         /// SqueakQL expression (inline).
@@ -2227,6 +2231,36 @@ pub struct TriageArgs {
     /// is read in the host's local time zone.
     #[arg(long, value_name = "DATE")]
     pub since: Option<TimeArg>,
+}
+
+/// Arguments for `work dashboard`.
+///
+/// A read-only multi-project overview composed from the existing My Work and
+/// per-Project Work Item list reads. The Project set comes from repeated
+/// `--project` flags, otherwise from `dashboard_projects` in `.hamstik.toml`,
+/// otherwise from the resolved single Project. Each section is fetched with
+/// bounded concurrency, and one Project's failure is reported without hiding
+/// the other Projects' results.
+#[derive(Args, Debug)]
+pub struct WorkDashboardArgs {
+    /// Project key to include (repeatable; overrides `.hamstik.toml`).
+    #[arg(long = "project", value_name = "KEY")]
+    pub project: Vec<String>,
+    /// Include a My Work section (Work assigned to you across the Project
+    /// set). Pass `--mine false` to omit it.
+    #[arg(
+        long = "mine",
+        value_name = "true|false",
+        num_args = 0..=1,
+        default_missing_value = "true"
+    )]
+    pub mine: Option<bool>,
+    /// Status scope for every section.
+    #[arg(long, value_enum, default_value = "open")]
+    pub scope: ScopeArg,
+    /// Pagination options, applied independently to each section.
+    #[command(flatten)]
+    pub pagination: PaginationArgs,
 }
 
 /// Arguments for `work await`.

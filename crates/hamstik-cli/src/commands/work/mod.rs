@@ -17,6 +17,7 @@ mod bulk_run;
 mod comment;
 pub(crate) mod common;
 mod create;
+mod dashboard;
 mod edit;
 mod handoff;
 mod label;
@@ -50,6 +51,9 @@ pub async fn run(session: &mut Session<'_>, args: &WorkArgs) -> Result<(), CliEr
         WorkCommand::List(list_args) => list::list(session, list_args).await,
         WorkCommand::Mine(mine_args) => list::mine(session, mine_args).await,
         WorkCommand::Triage(triage_args) => triage::triage(session, triage_args).await,
+        WorkCommand::Dashboard(dashboard_args) => {
+            dashboard::dashboard(session, dashboard_args).await
+        }
         WorkCommand::Search {
             query,
             file,

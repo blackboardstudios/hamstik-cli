@@ -191,6 +191,7 @@ hamstik --json --no-input --org <ORG> --project <KEY> work list \
   --status todo --status in_progress
 hamstik --json --no-input --org <ORG> work mine --scope open
 hamstik --json --no-input --org <ORG> --project <KEY> work triage
+hamstik --json --no-input --org <ORG> work dashboard --project <KEY> --project <KEY>
 hamstik --json --no-input --org <ORG> --project <KEY> board view
 hamstik --json --no-input --org <ORG> --project <KEY> board view --sprint <SPRINT_ID> --all
 hamstik --json --no-input --org <ORG> --project <KEY> work tree <ITEM-KEY>
@@ -219,6 +220,22 @@ contains every section plus a `failedSections` array, and a failed section is
 `{"status": "error", "error": …}`. Public API v1 exposes no unread/mention/
 watched-items read, so there is no client-side "seen" state and the activity
 section is simply the Project feed.
+
+`work dashboard` is a read-only multi-project overview: `hamstik [--json] work
+dashboard [--project <KEY>]... [--mine true|false] [--scope open|all|closed]`.
+It composes the `work mine` read (`GET /my/work`, restricted to the Project
+set) with one `work list` read per Project. The Project set comes from repeated
+`--project` flags, otherwise from a `dashboard_projects` array in
+`.hamstik.toml`, otherwise from the resolved single Project; with none of these
+the command fails as a usage error (exit `2`) before any request. Fetches run
+with bounded concurrency and each section is independent: a Project that fails
+to load is reported (`{"status": "error", "error": …}` plus its `id` in
+`failedSections`) without hiding the other Projects' items, and the exit code
+stays `0` so a partial snapshot remains usable. `--mine false` omits the My Work
+section, `--scope` defaults to `open`, and `--limit`/`--cursor`/`--all` apply
+independently to every section. Human output renders one attributed table per
+section and `--quiet` prints only item keys. Every item is attributed to its
+Project; do not treat the dashboard as a server-side aggregation.
 
 `board view` (CLI-64) is a read-only kanban-style board composed entirely from
 the existing Work Item list read: `hamstik [--json] board view [--project

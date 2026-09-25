@@ -12,6 +12,20 @@ before upgrading.
 
 ### Added
 
+- `work dashboard` (CLI-65): a read-only, multi-project overview that
+  composes the existing `work mine` read (`GET /my/work`, restricted to the
+  Project set) with one `work list` read (`GET
+  .../projects/{key}/work-items`) per configured Project. The Project set
+  comes from repeated `--project` flags, otherwise from a
+  `dashboard_projects` array in `.hamstik.toml`, otherwise from the resolved
+  single Project. Project fetches run with bounded concurrency, and one
+  Project's failure is reported in-band (per-section `status`/`error` and
+  `failedSections` in `--json`, a stderr warning in human output) without
+  hiding the other Projects' results; the exit code stays `0` for a partial
+  snapshot, matching `work triage`. `--mine false` omits the My Work section,
+  `--scope` selects the status scope (default `open`), and the shared
+  pagination flags apply to every section. Human output renders one attributed
+  table per section; `--quiet` prints only item keys.
 - Deterministic color and terminal-profile negotiation (CLI-60): the global
   `--color=auto|always|never` flag (with the existing `--no-color` as the
   `never` alias) makes ANSI output explicit, and `HAMSTIK_NO_COLOR` joins

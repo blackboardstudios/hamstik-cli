@@ -294,6 +294,7 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
             | crate::args::WorkCommand::View(_)
             | crate::args::WorkCommand::Tree(_)
             | crate::args::WorkCommand::Triage(_)
+            | crate::args::WorkCommand::Dashboard(_)
             | crate::args::WorkCommand::Transitions { .. }
             | crate::args::WorkCommand::Watch(_)
             | crate::args::WorkCommand::Export(_)

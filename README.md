@@ -213,6 +213,13 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   degrades independently, and `--json` marks a failed section with its error
   instead of silently omitting it), and Organization-wide SqueakQL search via
   `hamstik work search` / `hamstik squeakql validate`;
+- a read-only multi-project overview via `hamstik work dashboard` that composes
+  `work mine` with one Work Item list per configured Project (`--project`
+  flags, or `dashboard_projects` in `.hamstik.toml`). Fetches run with bounded
+  concurrency, every item is attributed to its Project, and one failing
+  Project is reported in-band without hiding the others' results (`--json`
+  carries a stable `dashboardVersion: 1` document with per-section
+  `status`/`error` and `failedSections`);
 - a one-invocation Work Item read bundle via `hamstik work context
   <KEY>` (`--json` for agents, `--format markdown` for readable
   hand-off, `--comments N` / `--activity N` / `--compact` size
@@ -360,6 +367,9 @@ hamstik org work --project HAM --priority urgent --overdue true
 hamstik work mine --scope open --project HAM --project WEB --all
 hamstik work triage --org acme --project HAM
 hamstik work triage --org acme --project HAM --since 7d --activity 20 --json
+
+# Read-only multi-project overview (My Work plus one section per Project)
+hamstik work dashboard --org acme --project HAM --project WEB --json
 
 # Read-only kanban board (Sprint or Project scope)
 hamstik board view --org acme --project HAM

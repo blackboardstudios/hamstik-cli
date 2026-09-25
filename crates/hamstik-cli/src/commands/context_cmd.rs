@@ -415,6 +415,7 @@ async fn set(
             host: None,
             organization: None,
             project: None,
+            dashboard_projects: None,
         }
     };
     if org.is_some() {
@@ -464,6 +465,7 @@ fn clear(session: &mut Session<'_>) -> Result<(), CliError> {
         host: None,
         organization: None,
         project: None,
+        dashboard_projects: None,
     };
     context::save(&path, &document)?;
     let display = path.display().to_string();
@@ -501,6 +503,7 @@ fn init(session: &mut Session<'_>) -> Result<(), CliError> {
         host: None,
         organization: selection.organization.value.clone(),
         project: selection.project.value.clone(),
+        dashboard_projects: None,
     };
     context::save(&path, &document)?;
     let display = path.display().to_string();

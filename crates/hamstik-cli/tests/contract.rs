@@ -297,6 +297,7 @@ fn subcommand_groups_match_documented_surface() {
                 "comment",
                 "context",
                 "create",
+                "dashboard",
                 "delete",
                 "edit",
                 "export",
