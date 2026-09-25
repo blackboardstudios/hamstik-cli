@@ -12,7 +12,7 @@
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 use std::error::Error as _;
 
@@ -229,6 +229,42 @@ pub struct MultipartFile {
     pub bytes: Vec<u8>,
 }
 
+/// Request-shape facts about one failed request, reported to a
+/// [`RequestObserver`].
+///
+/// The observation deliberately carries no header values, request/response
+/// bodies, query strings, or credentials: only the method, the
+/// percent-encoded path under `/api/v1`, the *names* of the headers the
+/// request intended to send, the response status, the server request id, and
+/// how long the attempt(s) took.
+#[derive(Debug, Clone)]
+pub struct RequestObservation {
+    /// HTTP method (for example `GET`).
+    pub method: String,
+    /// Percent-encoded path under `/api/v1`, without the query string.
+    pub path: String,
+    /// Lowercase names of the headers the request intended to send.
+    pub header_names: Vec<String>,
+    /// HTTP status, when a response was received.
+    pub status: Option<u16>,
+    /// Server correlation id, when the response carried one.
+    pub request_id: Option<String>,
+    /// Elapsed wall-clock time for the attempt(s), including retries.
+    pub duration: Duration,
+    /// True when the failure was transport/protocol-level rather than HTTP.
+    pub transport: bool,
+}
+
+/// Receives one [`RequestObservation`] for each failed request.
+///
+/// Observers run synchronously on the request path and must not block; the
+/// client treats them as best-effort diagnostics and never depends on their
+/// result for the request outcome.
+pub trait RequestObserver: Send + Sync {
+    /// Records one failed request.
+    fn observe(&self, observation: &RequestObservation);
+}
+
 /// Construction options for [`HamstikClient`].
 #[derive(Debug, Clone)]
 pub struct ClientConfig {
@@ -269,6 +305,7 @@ pub struct HamstikClient {
     policy: RetryPolicy,
     sleeper: SharedSleeper,
     wait_on_depleted_rate_limit: bool,
+    request_observer: Option<Arc<dyn RequestObserver>>,
 }
 
 impl HamstikClient {
@@ -291,6 +328,16 @@ impl HamstikClient {
         sleeper: SharedSleeper,
     ) -> Result<Self, ClientError> {
         Self::build_client(host, Some(token), config, sleeper)
+    }
+
+    /// Attaches an observer invoked once for every failed request.
+    ///
+    /// The observer is best-effort diagnostics: it never changes the request
+    /// outcome and is not consulted for successful responses.
+    #[must_use]
+    pub fn with_request_observer(mut self, observer: Arc<dyn RequestObserver>) -> Self {
+        self.request_observer = Some(observer);
+        self
     }
 
     fn build_client(
@@ -327,6 +374,7 @@ impl HamstikClient {
             policy: config.retry,
             sleeper,
             wait_on_depleted_rate_limit: config.wait_on_depleted_rate_limit,
+            request_observer: None,
         })
     }
 
@@ -345,10 +393,24 @@ impl HamstikClient {
     where
         T: DeserializeOwned,
     {
-        let (response, _) = self
+        let started = Instant::now();
+        let (response, _) = match self
             .send_with_retry(spec.retryable, || self.build(&spec, authenticated))
-            .await?;
-        let finalized = self.finalize(response).await?;
+            .await
+        {
+            Ok(value) => value,
+            Err(error) => {
+                self.observe_failure(&spec, authenticated, started.elapsed(), &error);
+                return Err(error);
+            }
+        };
+        let finalized = match self.finalize(response).await {
+            Ok(value) => value,
+            Err(error) => {
+                self.observe_failure(&spec, authenticated, started.elapsed(), &error);
+                return Err(error);
+            }
+        };
         if self.wait_on_depleted_rate_limit {
             self.absorb_depleted_window(finalized.rate_limit).await;
         }
@@ -484,14 +546,80 @@ impl HamstikClient {
         Ok(builder)
     }
 
+    /// Reports one failed request to the attached observer, if any.
+    ///
+    /// Best-effort by construction: it derives only request-shape facts
+    /// (method, path, header names, status, request id, elapsed time) and
+    /// never inspects header values, bodies, or query strings. A missing
+    /// observer is a no-op.
+    fn observe_failure(
+        &self,
+        spec: &RequestSpec<'_>,
+        authenticated: bool,
+        duration: Duration,
+        error: &ClientError,
+    ) {
+        let Some(observer) = &self.request_observer else {
+            return;
+        };
+        let (status, request_id, transport) = match error {
+            ClientError::Api(api) => (Some(api.status), api.request_id.clone(), false),
+            ClientError::Network { .. } | ClientError::Protocol(_) | ClientError::Host(_) => {
+                (None, None, true)
+            }
+        };
+        let segments: Vec<&str> = spec.segments.iter().map(String::as_str).collect();
+        let path = self
+            .host
+            .resource_url(&segments)
+            .map(|url| url.path().to_string())
+            .unwrap_or_else(|_| format!("/api/v1/{}", spec.segments.join("/")));
+        let mut header_names: Vec<String> = spec
+            .headers
+            .iter()
+            .map(|(name, _)| name.as_str().to_ascii_lowercase())
+            .collect();
+        if authenticated {
+            header_names.push("authorization".to_string());
+        }
+        if !spec.headers.iter().any(|(name, _)| name == ACCEPT) {
+            header_names.push("accept".to_string());
+        }
+        header_names.sort();
+        header_names.dedup();
+        observer.observe(&RequestObservation {
+            method: spec.method.as_str().to_string(),
+            path,
+            header_names,
+            status,
+            request_id,
+            duration,
+            transport,
+        });
+    }
+
     /// Sends a request expecting a structured error or `204 No Content`.
     async fn send_void(&self, spec: RequestSpec<'_>) -> Result<ApiResponse<()>, ClientError> {
-        let (response, retried) = self
+        let started = Instant::now();
+        let (response, retried) = match self
             .send_with_retry(spec.retryable, || self.build(&spec, true))
-            .await?;
+            .await
+        {
+            Ok(value) => value,
+            Err(error) => {
+                self.observe_failure(&spec, true, started.elapsed(), &error);
+                return Err(error);
+            }
+        };
         let status = response.status().as_u16();
         if (200..300).contains(&status) {
-            return self.finalize(response).await;
+            return match self.finalize(response).await {
+                Ok(value) => Ok(value),
+                Err(error) => {
+                    self.observe_failure(&spec, true, started.elapsed(), &error);
+                    Err(error)
+                }
+            };
         }
         if retried && status == 404 {
             // Every `send_void` caller is a DELETE. A 404 observed on a retry
@@ -510,21 +638,39 @@ impl HamstikClient {
                 rate_limit: None,
             });
         }
-        Err(self.to_api_error(response).await)
+        let error = self.to_api_error(response).await;
+        self.observe_failure(&spec, true, started.elapsed(), &error);
+        Err(error)
     }
 
     /// Sends a request expecting binary bytes (attachment download), capping
     /// the body at [`MAX_BODY_BYTES`].
     async fn send_bytes(&self, spec: RequestSpec<'_>) -> Result<DownloadedAttachment, ClientError> {
-        let (response, _) = self
+        let started = Instant::now();
+        let (response, _) = match self
             .send_with_retry(spec.retryable, || self.build(&spec, true))
-            .await?;
+            .await
+        {
+            Ok(value) => value,
+            Err(error) => {
+                self.observe_failure(&spec, true, started.elapsed(), &error);
+                return Err(error);
+            }
+        };
         let status = response.status().as_u16();
         if !(200..300).contains(&status) {
-            return Err(self.to_api_error(response).await);
+            let error = self.to_api_error(response).await;
+            self.observe_failure(&spec, true, started.elapsed(), &error);
+            return Err(error);
         }
         let headers = response.headers().clone();
-        let bytes = read_body_capped(response).await?;
+        let bytes = match read_body_capped(response).await {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                self.observe_failure(&spec, true, started.elapsed(), &error);
+                return Err(error);
+            }
+        };
         let content_disposition =
             header_str(&headers, &header_content_disposition()).map(str::to_string);
         Ok(DownloadedAttachment {
@@ -549,7 +695,8 @@ impl HamstikClient {
         content_type: Option<&str>,
         bytes: Vec<u8>,
     ) -> Result<ApiResponse<Attachment>, ClientError> {
-        let (response, _) = self
+        let started = Instant::now();
+        let (response, _) = match self
             .send_with_retry(spec.retryable, || {
                 let form = reqwest::multipart::Form::new().part(
                     "file",
@@ -562,8 +709,21 @@ impl HamstikClient {
                 );
                 self.build_multipart(spec, form)
             })
-            .await?;
-        self.finalize(response).await
+            .await
+        {
+            Ok(value) => value,
+            Err(error) => {
+                self.observe_failure(spec, true, started.elapsed(), &error);
+                return Err(error);
+            }
+        };
+        match self.finalize(response).await {
+            Ok(value) => Ok(value),
+            Err(error) => {
+                self.observe_failure(spec, true, started.elapsed(), &error);
+                Err(error)
+            }
+        }
     }
 
     fn build_multipart(
@@ -2013,10 +2173,24 @@ impl HamstikApi for HamstikClient {
             body: None,
             retryable: true,
         };
-        let (response, _) = self
+        let started = Instant::now();
+        let (response, _) = match self
             .send_with_retry(spec.retryable, || self.build(&spec, true))
-            .await?;
-        let finalized: ApiResponse<Value> = self.finalize(response).await?;
+            .await
+        {
+            Ok(value) => value,
+            Err(error) => {
+                self.observe_failure(&spec, true, started.elapsed(), &error);
+                return Err(error);
+            }
+        };
+        let finalized: ApiResponse<Value> = match self.finalize(response).await {
+            Ok(value) => value,
+            Err(error) => {
+                self.observe_failure(&spec, true, started.elapsed(), &error);
+                return Err(error);
+            }
+        };
         Ok(RateLimitProbe {
             snapshot: finalized.rate_limit,
             request_id: finalized.request_id,
@@ -5114,6 +5288,59 @@ mod tests {
             sleeper,
         )
         .unwrap()
+    }
+
+    #[tokio::test]
+    async fn failed_request_reports_observation_to_observer() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v1/me"))
+            .respond_with(
+                ResponseTemplate::new(500)
+                    .insert_header("X-Request-Id", "req-obs")
+                    .set_body_json(serde_json::json!({
+                        "error": {"code": "INTERNAL_ERROR", "message": "boom"}
+                    })),
+            )
+            .mount(&server)
+            .await;
+
+        #[derive(Default)]
+        struct RecordingObserver {
+            seen: std::sync::Mutex<Vec<RequestObservation>>,
+        }
+        impl RequestObserver for RecordingObserver {
+            fn observe(&self, observation: &RequestObservation) {
+                self.seen.lock().unwrap().push(observation.clone());
+            }
+        }
+
+        let observer = Arc::new(RecordingObserver::default());
+        let client = test_client(&server.uri()).with_request_observer(observer.clone());
+        let err = client.whoami().await.unwrap_err();
+        assert!(matches!(err, ClientError::Api(ref api) if api.status == 500));
+
+        let seen = observer.seen.lock().unwrap();
+        assert_eq!(seen.len(), 1, "exactly one observation per failed request");
+        let observation = &seen[0];
+        assert_eq!(observation.method, "GET");
+        assert_eq!(observation.path, "/api/v1/me");
+        assert_eq!(observation.status, Some(500));
+        assert_eq!(observation.request_id.as_deref(), Some("req-obs"));
+        assert!(!observation.transport);
+        assert!(
+            observation
+                .header_names
+                .iter()
+                .any(|name| name == "authorization"),
+            "header intent records auth: {:?}",
+            observation.header_names
+        );
+        assert!(
+            observation.header_names.iter().any(|name| name == "accept"),
+            "header intent records accept: {:?}",
+            observation.header_names
+        );
     }
 
     #[tokio::test]

@@ -12,6 +12,18 @@ before upgrading.
 
 ### Added
 
+- Failed-request journal and `replay` (CLI-72): when a Public API request
+  fails, the CLI appends one redacted JSON line to a local
+  `request-journal.log` capturing the method, path, intended header names, HTTP
+  status, server request id, and timing. `hamstik replay [--last N]` prints the
+  most recent entries as a human table or `--json` without making any network
+  request, so a 5xx can be correlated with server-side diagnostics by request
+  id. The journal never contains tokens, `Authorization` values,
+  request/response bodies, or query strings; entries older than 7 days are
+  dropped and at most 500 are retained, with compaction once the file exceeds
+  256 KiB or its oldest entry passes 7 days. `hamstik doctor` reports the
+  effective journal path.
+
 - Support-bundle comparison (CLI-71): `doctor --diff <bundle-file>` diffs a
   freshly generated local-only support bundle against a previously saved
   `doctor --bundle` ZIP and reports only what changed. Differences are named

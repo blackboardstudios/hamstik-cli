@@ -8504,6 +8504,28 @@
    "positionals": []
   },
   {
+   "about": "Show recent failed-request journal entries for support correlation",
+   "aliases": [],
+   "arguments": [
+    {
+     "default": "20",
+     "help": "Number of most recent failed-request journal entries to show. The journal is local-only and is never sent automatically; `replay` reads it and prints it without making any network request",
+     "kind": "option",
+     "long": "--last"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik replay",
+   "hasSubcommands": false,
+   "options": [
+    "--last"
+   ],
+   "positionals": []
+  },
+  {
    "about": "Generate a shell completion script",
    "aliases": [],
    "arguments": [

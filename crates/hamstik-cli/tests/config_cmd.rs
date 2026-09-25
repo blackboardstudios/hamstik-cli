@@ -27,6 +27,10 @@ fn base(dir: &TempDir) -> Command {
     let mut cmd = Command::cargo_bin("hamstik").expect("hamstik binary");
     cmd.env("HAMSTIK_CONFIG", config_path(dir));
     cmd.env("HAMSTIK_AUDIT_LOG", dir.path().join("audit.log"));
+    cmd.env(
+        "HAMSTIK_REQUEST_JOURNAL",
+        dir.path().join("request-journal.log"),
+    );
     cmd.env("HAMSTIK_HOST", "http://127.0.0.1:9");
     cmd.env_remove("HAMSTIK_TOKEN");
     cmd.env_remove("HAMSTIK_PROFILE");

@@ -815,6 +815,7 @@ hamstik --no-input doctor --bundle bundle.zip          # write a redacted suppor
 hamstik --json --no-input doctor --diff bundle.zip     # compare against a saved bundle (offline)
 hamstik --json --no-input api openapi    # live Public API contract
 hamstik --json --no-input api rate-limit # current rate-limit snapshot
+hamstik --json --no-input replay --last 5   # recent failed requests (local-only)
 hamstik --no-input agent validate --offline   # offline agent-harness check
 hamstik --json --no-input agent validate      # + live snapshot freshness
 ```
@@ -850,6 +851,13 @@ hamstik --json --no-input agent validate      # + live snapshot freshness
   never a token, header, or request body. It is a local convenience, not the
   authoritative record; `hamstik config set audit_log false` opts out, and an
   unwritable log only warns.
+- The `local.request_journal` check reports the effective failed-request
+  journal. When a request fails, one redacted line records the method, path,
+  intended header names, status, server request id, and timing — never a token,
+  header value, body, or query string. `hamstik replay --last N` prints recent
+  entries locally (human table or `--json`) and never re-sends a request. Entries
+  older than 7 days are dropped and at most 500 are retained (compaction above
+  256 KiB or when the oldest entry passes 7 days).
 
 On failure, use `--verbose` when additional safe diagnostics are needed. Report the
 stable API error code, HTTP status when present, and request ID; never include a token,

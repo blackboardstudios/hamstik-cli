@@ -669,6 +669,37 @@ fn diagnose_local_state(session: &Session<'_>, report: &mut Report) -> LocalStat
         )),
     }
 
+    match crate::journal::path() {
+        Some(path) => {
+            let detail = match std::fs::metadata(&path) {
+                Ok(metadata) => format!(
+                    "{} holds failed-request journal entries ({} bytes so far)",
+                    path.display(),
+                    metadata.len()
+                ),
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => format!(
+                    "{} holds failed-request journal entries (created on the first failure)",
+                    path.display()
+                ),
+                Err(err) => format!(
+                    "{} could not be inspected ({err}); journal entries are written best-effort",
+                    path.display()
+                ),
+            };
+            report.push(Check::pass(
+                "local.request_journal",
+                "request journal",
+                false,
+                detail,
+            ));
+        }
+        None => report.push(Check::skipped(
+            "local.request_journal",
+            "request journal",
+            "no per-user state directory could be determined on this platform",
+        )),
+    }
+
     match Host::parse(&resolution.host) {
         Ok(host) => {
             report.push(Check::pass(

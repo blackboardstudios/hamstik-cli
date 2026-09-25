@@ -42,6 +42,7 @@ fn base(server: &MockServer, dir: &TempDir) -> Command {
     let mut cmd = Command::cargo_bin("hamstik").expect("hamstik binary");
     cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
     cmd.env("HAMSTIK_AUDIT_LOG", audit_log(dir));
+    cmd.env("HAMSTIK_REQUEST_JOURNAL", request_journal(dir));
     cmd.env("HAMSTIK_HOST", server.uri());
     cmd.env("HAMSTIK_TOKEN", TOKEN);
     cmd.env_remove("HAMSTIK_PROFILE");
@@ -54,6 +55,10 @@ fn base(server: &MockServer, dir: &TempDir) -> Command {
 
 fn audit_log(dir: &TempDir) -> std::path::PathBuf {
     dir.path().join("state").join("audit.log")
+}
+
+fn request_journal(dir: &TempDir) -> std::path::PathBuf {
+    dir.path().join("state").join("request-journal.log")
 }
 
 fn write_config(dir: &TempDir, contents: &str) {

@@ -277,6 +277,8 @@ pub enum Command {
     /// Verify configuration, credentials, connectivity, API compatibility,
     /// and selected Organization/Project context.
     Doctor(DoctorArgs),
+    /// Show recent failed-request journal entries for support correlation.
+    Replay(ReplayArgs),
     /// Generate a shell completion script.
     Completion(CompletionArgs),
     /// Internal: dynamic shell completion for live values.
@@ -515,6 +517,16 @@ pub struct DoctorArgs {
     /// Combine with `--bundle <PATH>` to also write the fresh bundle.
     #[arg(long, value_name = "PATH")]
     pub diff: Option<PathBuf>,
+}
+
+/// Arguments for the `replay` command.
+#[derive(Args, Debug)]
+pub struct ReplayArgs {
+    /// Number of most recent failed-request journal entries to show. The
+    /// journal is local-only and is never sent automatically; `replay` reads
+    /// it and prints it without making any network request.
+    #[arg(long, value_name = "N", default_value_t = 20)]
+    pub last: usize,
 }
 
 /// Agent automation subcommands.

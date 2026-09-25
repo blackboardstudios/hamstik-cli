@@ -16,6 +16,10 @@ fn local(dir: &TempDir) -> Command {
     cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
     // Keep test mutations out of the developer's real audit log.
     cmd.env("HAMSTIK_AUDIT_LOG", dir.path().join("audit.log"));
+    cmd.env(
+        "HAMSTIK_REQUEST_JOURNAL",
+        dir.path().join("request-journal.log"),
+    );
     cmd.env_remove("HAMSTIK_PROFILE");
     cmd.env_remove("HAMSTIK_ORG");
     cmd.env_remove("HAMSTIK_PROJECT");
@@ -174,6 +178,10 @@ fn explain_reports_context_found_through_linked_worktree() {
         .unwrap()
         .env("HAMSTIK_CONFIG", main.join("config.toml"))
         .env("HAMSTIK_AUDIT_LOG", dir.path().join("audit.log"))
+        .env(
+            "HAMSTIK_REQUEST_JOURNAL",
+            dir.path().join("request-journal.log"),
+        )
         .env_remove("HAMSTIK_PROFILE")
         .env_remove("HAMSTIK_ORG")
         .env_remove("HAMSTIK_PROJECT")

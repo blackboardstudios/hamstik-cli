@@ -1,0 +1,12 @@
+.TH HAMSTIK 1 "HAMSTIK REPLAY"
+.SH NAME
+hamstik replay \- Show recent failed\-request journal entries for support correlation
+.SH SYNOPSIS
+.B hamstik replay [OPTIONS]
+.SH DESCRIPTION
+Show recent failed\-request journal entries for support correlation
+.SH OPTIONS
+.TP
+.B --last
+Number of most recent failed-request journal entries to show. The journal is local-only and is never sent automatically; `replay` reads it and prints it without making any network request
+Default: 20

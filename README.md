@@ -252,6 +252,8 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   diagnostics (`hamstik doctor`) covering local configuration, credential
   sources, network/TLS, Public API compatibility, authentication, selected
   Organization/Project validity, and terminal rendering;
+- a local failed-request journal and `hamstik replay` to review recent server
+  errors and network failures by request id, entirely offline;
 - agent automation — `hamstik agent skill install` writes the canonical
   bundled Agent Skill ([`skills/hamstik/SKILL.md`](skills/hamstik/SKILL.md))
   into an Agent Skills discovery location (the current project's portable
@@ -1031,7 +1033,8 @@ separately from the global configuration file.
 
 1. global configuration readability;
 2. local context discovery, parsing, and source resolution;
-3. the local mutation audit log (effective path, size, or opt-out);
+3. the local mutation audit log and the failed-request journal (effective
+   paths, size, or opt-out);
 4. profile and credential-source resolution;
 5. credential-store configuration and accessibility when used;
 6. host validation and proxy-environment detection;
@@ -1143,6 +1146,68 @@ mutation itself still completes with its normal exit code. A missing audit line
 therefore means the request never succeeded (or logging is off) — the tradeoff
 is intentional, and it is why the server-side audit record remains the record of
 reference.
+
+## Failed-request journal
+
+When a Public API request fails, the CLI appends one redacted JSON line to a
+local, append-only journal so a failure can be correlated with the
+authoritative server-side diagnostics by request id:
+
+```json
+{"when":"2026-01-02T09:12:44Z","method":"GET","path":"/api/v1/organizations/acme/projects/HAM/work-items/HAM-1","headerIntent":["accept","authorization"],"requestId":"0f2c9b1e","status":500,"durationMs":184,"transport":false}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `when` | RFC 3339 timestamp taken when the record was written |
+| `method` | HTTP method (`GET`, `PATCH`, …) |
+| `path` | Percent-encoded path under `/api/v1`; never the query string |
+| `headerIntent` | Names of the headers the request intended to send (never values) |
+| `requestId` | Server request id, for correlating with server-side diagnostics |
+| `status` | HTTP status, `null` for a transport failure |
+| `durationMs` | Elapsed time for the attempt(s), including retries |
+| `transport` | `true` when the failure was transport/protocol-level, not HTTP |
+
+Both server errors (4xx/5xx) and network failures are recorded. Review the
+most recent entries with:
+
+```bash
+hamstik replay --last 20
+hamstik --json replay --last 5
+```
+
+`replay` is strictly local: it reads the journal and prints it, never
+re-sending a request and never contacting the network. It needs no host,
+token, or context.
+
+Location (the state directory, not the config directory):
+
+- Linux: `$XDG_STATE_HOME/hamstik/request-journal.log`, default `~/.local/state/hamstik/request-journal.log`
+- macOS: `~/Library/Application Support/hamstik/request-journal.log`
+- Windows: `%LOCALAPPDATA%\hamstik\request-journal.log`
+
+`HAMSTIK_REQUEST_JOURNAL` pins the path (tests, containers, automation), and
+`hamstik doctor` reports the effective location. On Unix the file is created
+owner-only (`0600`).
+
+### What is never recorded
+
+Tokens, `Authorization` values, credential-bearing proxy URLs, request or
+response bodies, query strings, and work content such as titles and
+descriptions. Records carry request shape and identifiers only. The server
+remains authoritative; the journal only answers "what did this CLI ask for,
+from this machine, and what did it get back".
+
+### Retention and rollover
+
+The journal is bounded by a documented policy: entries older than 7 days are
+dropped, at most the 500 most recent entries are retained, and compaction runs
+when the file grows beyond 256 KiB or its oldest entry passes 7 days. A healthy
+journal is therefore append-only in the common case. Deleting or truncating it
+at any time is safe and affects nothing else.
+
+Writing is best-effort: a journal I/O failure never changes a command's
+outcome, and a missing entry simply means the record could not be written.
 
 ## Bulk operations and preflight
 

@@ -16,6 +16,10 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 fn base(server: &MockServer, dir: &TempDir) -> Command {
     let mut cmd = Command::cargo_bin("hamstik").expect("hamstik binary");
     cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
+    cmd.env(
+        "HAMSTIK_REQUEST_JOURNAL",
+        dir.path().join("request-journal.log"),
+    );
     cmd.env("HAMSTIK_HOST", server.uri());
     cmd.env("HAMSTIK_TOKEN", "secret-token-value");
     cmd.env_remove("HAMSTIK_PROFILE");

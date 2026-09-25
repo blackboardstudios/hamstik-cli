@@ -23,7 +23,7 @@ pub const API_PREFIX: &str = "/api/v1";
 
 pub use client::{
     ApiResponse, ClientConfig, HamstikApi, HamstikClient, RateLimitProbe, RateLimitSnapshot,
-    sanitize_server_text,
+    RequestObservation, RequestObserver, sanitize_server_text,
 };
 pub use error::{ApiError, ClientError, HostError, NetworkStage};
 pub use host::Host;

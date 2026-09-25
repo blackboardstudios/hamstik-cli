@@ -15,7 +15,7 @@ use std::time::Duration;
 
 use secrecy::SecretString;
 
-use hamstik_api_client::{ClientConfig, HamstikApi, HamstikClient, Host};
+use hamstik_api_client::{ClientConfig, HamstikApi, HamstikClient, Host, RequestObserver};
 
 use crate::args::{Cli, GlobalOptions};
 use crate::commands;
@@ -94,7 +94,26 @@ pub struct PublicClientRequest<'a> {
 }
 
 /// Production factory producing real [`HamstikClient`] instances.
-pub struct ProductionApiFactory;
+pub struct ProductionApiFactory {
+    observer: Arc<dyn RequestObserver>,
+}
+
+impl ProductionApiFactory {
+    /// Builds the production factory with the local failed-request journal
+    /// attached to every client it creates.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            observer: Arc::new(crate::journal::JournalObserver),
+        }
+    }
+}
+
+impl Default for ProductionApiFactory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ApiFactory for ProductionApiFactory {
     fn build(&self, request: &ClientRequest) -> Result<Arc<dyn HamstikApi>, CliError> {
@@ -106,7 +125,8 @@ impl ApiFactory for ProductionApiFactory {
             request.wait_on_depleted_rate_limit,
         )?;
         let client = HamstikClient::new(request.host.clone(), request.token.clone(), config)
-            .map_err(CliError::from_client)?;
+            .map_err(CliError::from_client)?
+            .with_request_observer(self.observer.clone());
         Ok(Arc::new(client))
     }
 
@@ -121,7 +141,8 @@ impl ApiFactory for ProductionApiFactory {
         // Keep the same concrete type and configuration as authenticated
         // clients; only the bearer credential is absent.
         let client = HamstikClient::new_public(request.host.clone(), config)
-            .map_err(CliError::from_client)?;
+            .map_err(CliError::from_client)?
+            .with_request_observer(self.observer.clone());
         Ok(Arc::new(client))
     }
 }

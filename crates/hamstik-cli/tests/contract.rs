@@ -77,6 +77,10 @@ fn base(server: &MockServer, dir: &TempDir) -> Command {
     cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
     // Keep test mutations out of the developer's real audit log.
     cmd.env("HAMSTIK_AUDIT_LOG", dir.path().join("audit.log"));
+    cmd.env(
+        "HAMSTIK_REQUEST_JOURNAL",
+        dir.path().join("request-journal.log"),
+    );
     cmd.env("HAMSTIK_HOST", server.uri());
     cmd.env("HAMSTIK_TOKEN", "secret-token");
     cmd.env_remove("HAMSTIK_PROFILE");
@@ -95,6 +99,10 @@ fn local(dir: &TempDir) -> Command {
     cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
     // Keep test mutations out of the developer's real audit log.
     cmd.env("HAMSTIK_AUDIT_LOG", dir.path().join("audit.log"));
+    cmd.env(
+        "HAMSTIK_REQUEST_JOURNAL",
+        dir.path().join("request-journal.log"),
+    );
     cmd.env_remove("HAMSTIK_PROFILE");
     cmd.env_remove("HAMSTIK_ORG");
     cmd.env_remove("HAMSTIK_PROJECT");
@@ -145,6 +153,7 @@ fn root_command_hierarchy_matches_documented_surface() {
             "api",
             "agent",
             "doctor",
+            "replay",
             "completion",
             "init",
             "commands",
@@ -821,6 +830,10 @@ fn local_error_classes_match_contract() {
     cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
     // Keep test mutations out of the developer's real audit log.
     cmd.env("HAMSTIK_AUDIT_LOG", dir.path().join("audit.log"));
+    cmd.env(
+        "HAMSTIK_REQUEST_JOURNAL",
+        dir.path().join("request-journal.log"),
+    );
     cmd.env("HAMSTIK_HOST", "http://127.0.0.1:1");
     cmd.env("HAMSTIK_TOKEN", "secret-token");
     cmd.env("HAMSTIK_ORG", "acme");

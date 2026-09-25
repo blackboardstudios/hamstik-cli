@@ -40,6 +40,7 @@ pub mod milestone;
 pub mod org;
 pub mod project;
 pub mod release;
+pub mod replay;
 pub mod report;
 pub mod schedule;
 pub mod sprint;
@@ -282,6 +283,7 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
             )
             .await
         }
+        Command::Replay(args) => replay::run(session, args.last),
         Command::Completion(args) => completion::run(session, args),
         Command::Complete(args) => complete::run(session, args).await,
         Command::Commands(_) => commands_manifest::run(session),

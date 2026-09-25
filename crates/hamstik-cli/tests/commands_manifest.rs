@@ -12,6 +12,10 @@ use tempfile::TempDir;
 fn plain(dir: &TempDir) -> Command {
     let mut cmd = Command::cargo_bin("hamstik").expect("hamstik binary");
     cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
+    cmd.env(
+        "HAMSTIK_REQUEST_JOURNAL",
+        dir.path().join("request-journal.log"),
+    );
     cmd.current_dir(dir.path());
     cmd
 }

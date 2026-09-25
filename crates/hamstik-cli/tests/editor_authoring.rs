@@ -27,6 +27,10 @@ fn base(server: &MockServer, dir: &TempDir) -> Command {
     cmd.env("HAMSTIK_CONFIG", dir.path().join("config.toml"));
     // Keep test mutations out of the developer's real audit log.
     cmd.env("HAMSTIK_AUDIT_LOG", dir.path().join("audit.log"));
+    cmd.env(
+        "HAMSTIK_REQUEST_JOURNAL",
+        dir.path().join("request-journal.log"),
+    );
     cmd.env("HAMSTIK_HOST", server.uri());
     cmd.env("HAMSTIK_TOKEN", "secret-token");
     cmd.env_remove("HAMSTIK_PROFILE");

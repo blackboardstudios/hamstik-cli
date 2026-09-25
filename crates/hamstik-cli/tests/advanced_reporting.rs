@@ -28,6 +28,10 @@ fn base(server: &MockServer, dir: &TempDir) -> Command {
     let mut command = Command::cargo_bin("hamstik").expect("hamstik binary");
     command
         .env("HAMSTIK_CONFIG", dir.path().join("config.toml"))
+        .env(
+            "HAMSTIK_REQUEST_JOURNAL",
+            dir.path().join("request-journal.log"),
+        )
         .env("HAMSTIK_HOST", server.uri())
         .env("HAMSTIK_TOKEN", "test-token")
         .env_remove("HAMSTIK_PROFILE")

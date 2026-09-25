@@ -20,6 +20,10 @@ fn base(server: &MockServer, dir: &TempDir) -> Command {
     let mut command = Command::cargo_bin("hamstik").expect("hamstik binary");
     command
         .env("HAMSTIK_CONFIG", dir.path().join("config.toml"))
+        .env(
+            "HAMSTIK_REQUEST_JOURNAL",
+            dir.path().join("request-journal.log"),
+        )
         .env("HAMSTIK_HOST", server.uri())
         .env("HAMSTIK_TOKEN", "completion-test-token")
         .env_remove("HAMSTIK_PROFILE")
@@ -284,6 +288,10 @@ fn static_completion_never_needs_context_or_network() {
         let mut command = Command::cargo_bin("hamstik").unwrap();
         command
             .env("HAMSTIK_CONFIG", dir.path().join("config.toml"))
+            .env(
+                "HAMSTIK_REQUEST_JOURNAL",
+                dir.path().join("request-journal.log"),
+            )
             .env_remove("HAMSTIK_TOKEN")
             .current_dir(dir.path());
         let output = command
@@ -302,6 +310,10 @@ async fn missing_credential_and_context_are_silent_successes() {
     let mut missing_credential = Command::cargo_bin("hamstik").unwrap();
     missing_credential
         .env("HAMSTIK_CONFIG", dir.path().join("config.toml"))
+        .env(
+            "HAMSTIK_REQUEST_JOURNAL",
+            dir.path().join("request-journal.log"),
+        )
         .env_remove("HAMSTIK_TOKEN")
         .current_dir(dir.path());
     assert_silent_success(
@@ -315,6 +327,10 @@ async fn missing_credential_and_context_are_silent_successes() {
     let mut missing_context = Command::cargo_bin("hamstik").unwrap();
     missing_context
         .env("HAMSTIK_CONFIG", dir.path().join("context-config.toml"))
+        .env(
+            "HAMSTIK_REQUEST_JOURNAL",
+            dir.path().join("context-request-journal.log"),
+        )
         .env("HAMSTIK_HOST", server.uri())
         .env("HAMSTIK_TOKEN", "completion-test-token")
         .env_remove("HAMSTIK_ORG")
@@ -359,6 +375,10 @@ fn generated_scripts_rename_bash_static_function_and_hide_internal_candidates() 
         let mut command = Command::cargo_bin("hamstik").unwrap();
         command
             .env("HAMSTIK_CONFIG", dir.path().join("config.toml"))
+            .env(
+                "HAMSTIK_REQUEST_JOURNAL",
+                dir.path().join("request-journal.log"),
+            )
             .current_dir(dir.path());
         String::from_utf8(command.args(["completion", shell]).output().unwrap().stdout).unwrap()
     };

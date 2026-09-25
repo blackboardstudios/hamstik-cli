@@ -21,6 +21,7 @@ pub mod error;
 pub mod exit;
 pub mod fsutil;
 pub mod input;
+pub mod journal;
 pub mod output;
 pub mod palette;
 pub mod terminal;

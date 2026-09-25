@@ -78,7 +78,7 @@ async fn entry() -> Result<i32, String> {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
     let store = KeyringCredentialStore;
-    let factory = ProductionApiFactory;
+    let factory = ProductionApiFactory::new();
     let mut prompt = TerminalInput;
 
     let services = Services {
