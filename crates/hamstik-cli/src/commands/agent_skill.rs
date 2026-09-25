@@ -319,7 +319,7 @@ fn check(session: &mut Session<'_>, path: Option<&Path>) -> Result<(), CliError>
     } else if !session.out.is_quiet() {
         let color = color_probe(
             session.env,
-            session.global.no_color,
+            session.global.color_mode(),
             session.env.stdout_is_terminal(),
         )
         .ok;

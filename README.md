@@ -746,6 +746,35 @@ override their environment equivalents. `HAMSTIK_IMAGE_PROTOCOL`
 (`kitty`, `iterm2`, `sixel`, or `none`) overrides the inline-image
 protocol used by `work attachment view`.
 
+### Color and terminal profile
+
+Color output resolves with the precedence `flag > environment > auto`:
+
+```text
+--color=always | --color=never   (explicit flag; highest precedence)
+--no-color                       (alias for --color=never)
+HAMSTIK_NO_COLOR                 (non-empty disables color)
+CLICOLOR_FORCE                   (non-empty and not "0" forces color)
+NO_COLOR                         (non-empty disables color)
+CLICOLOR=0                       (disables color)
+terminal detection               (auto: non-TTY stdout, unset/dumb TERM)
+```
+
+`--color=auto` (the default, and equivalent to setting no flag) honors the
+environment variables and then falls back to terminal detection. `--color`
+and `--no-color` are mutually exclusive. `--json`, `--jsonl`, and `--tsv` are
+always ANSI-free regardless of `--color`, so `NO_COLOR=1` and `--color=never`
+produce identical ANSI-free output.
+
+`HAMSTIK_TERM=auto|unicode|ascii` selects the decoration profile. `auto` (the
+default, also unset/empty) preserves existing detection; `unicode` (aliases
+`utf8`, `utf-8`) forces Unicode decoration and emoji on; `ascii` (alias
+`plain`) replaces CLI decoration with ASCII stand-ins (`[##]` swatches,
+`-`/`|`/`->` separators), suppresses emoji, and pins width-sensitive layout
+(e.g. `board view`) to a fixed width. This keeps captured CI logs byte-stable
+independent of the host terminal. The profile never rewrites server-provided
+content, which is rendered verbatim.
+
 For automation:
 
 - `--json` writes a single valid JSON success document to stdout; structured

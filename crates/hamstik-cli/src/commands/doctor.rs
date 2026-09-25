@@ -1406,7 +1406,7 @@ fn context_skipped(id: &'static str, name: &'static str, detail: impl Into<Strin
 fn color_check(session: &Session<'_>) -> Check {
     let probe = color_probe(
         session.env,
-        session.global.no_color,
+        session.global.color_mode(),
         session.env.stdout_is_terminal(),
     );
     if probe.ok {
@@ -1418,7 +1418,11 @@ fn color_check(session: &Session<'_>) -> Check {
 
 /// Probes emoji support for this invocation's stdout.
 fn emoji_check(session: &Session<'_>) -> Check {
-    let probe = emoji_probe(session.env, session.env.stdout_is_terminal());
+    let probe = emoji_probe(
+        session.env,
+        session.env.stdout_is_terminal(),
+        session.terminal_profile(),
+    );
     if probe.ok {
         Check::pass("terminal.emoji", "terminal emoji", false, probe.detail)
     } else {
@@ -1480,7 +1484,7 @@ fn render(session: &mut Session<'_>, report: Report) -> Result<(), CliError> {
     } else if !session.out.is_quiet() {
         let color = color_probe(
             session.env,
-            session.global.no_color,
+            session.global.color_mode(),
             session.env.stdout_is_terminal(),
         )
         .ok;
@@ -1534,8 +1538,9 @@ fn render(session: &mut Session<'_>, report: Report) -> Result<(), CliError> {
             .line(if overall_ok { "ready." } else { "not ready." })
             .map_err(CliError::general)?;
 
-        // Visual samples are useful only when a person is looking at a TTY.
-        if session.env.stdout_is_terminal() {
+        // Visual samples are useful only when a person is looking at a TTY
+        // and the profile has not pinned the output to plain ASCII.
+        if session.env.stdout_is_terminal() && session.unicode() {
             let emoji_ok = report
                 .checks
                 .iter()
@@ -2094,6 +2099,7 @@ mod tests {
                 no_header: false,
                 verbose: false,
                 no_color: false,
+                color: None,
                 no_input: true,
                 confirm_destructive: false,
                 yes: false,
@@ -2163,6 +2169,7 @@ mod tests {
                 no_header: false,
                 verbose: false,
                 no_color: false,
+                color: None,
                 no_input: true,
                 confirm_destructive: false,
                 yes: false,

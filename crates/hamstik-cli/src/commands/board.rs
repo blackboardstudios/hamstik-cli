@@ -29,6 +29,7 @@ use crate::app::Session;
 use crate::args::{BoardArgs, BoardCommand, BoardViewArgs};
 use crate::error::CliError;
 use crate::output::{sanitize_for_terminal, visible_width};
+use crate::terminal::{Glyphs, TerminalProfile};
 
 use super::{emit_json, follow_policy, validate_work_item_fields};
 
@@ -242,7 +243,13 @@ fn story_points(items: &[Value]) -> i64 {
 }
 
 /// The board's available display width.
+///
+/// `HAMSTIK_TERM=ascii` pins the natural (piped) width so captured logs do not
+/// depend on `$COLUMNS` or on whether stdout is a terminal.
 fn board_width(session: &Session<'_>) -> usize {
+    if session.terminal_profile() == TerminalProfile::Ascii {
+        return PIPED_WIDTH;
+    }
     if let Some(columns) = session
         .env
         .var("COLUMNS")
@@ -274,9 +281,14 @@ fn render_board(
         return Ok(());
     }
 
+    let glyphs = session.glyphs();
     let scope = match sprint {
-        Some(sprint) => format!("Board — Sprint {sprint} · Project {project}"),
-        None => format!("Board — Project {project}"),
+        Some(sprint) => format!(
+            "Board {} Sprint {sprint} {} Project {project}",
+            glyphs.em_dash(),
+            glyphs.middle_dot()
+        ),
+        None => format!("Board {} Project {project}", glyphs.em_dash()),
     };
     session.out.line(&scope).map_err(CliError::general)?;
 
@@ -290,11 +302,11 @@ fn render_board(
 
     // Size columns to their content when the board fits, otherwise share the
     // available width so the layout stays within the terminal.
-    let widths: Vec<usize> = column_widths(columns, width);
+    let widths: Vec<usize> = column_widths(columns, width, glyphs);
     let rendered: Vec<Vec<String>> = columns
         .iter()
         .zip(&widths)
-        .map(|(column, column_width)| column_lines(column, *column_width))
+        .map(|(column, column_width)| column_lines(column, *column_width, glyphs))
         .collect();
     let height = rendered.iter().map(Vec::len).max().unwrap_or(0);
     for row in 0..height {
@@ -319,8 +331,11 @@ fn render_board(
 }
 
 /// Content-derived or width-clamped column widths.
-fn column_widths(columns: &[Column], width: usize) -> Vec<usize> {
-    let natural: Vec<usize> = columns.iter().map(natural_width).collect();
+fn column_widths(columns: &[Column], width: usize, glyphs: Glyphs) -> Vec<usize> {
+    let natural: Vec<usize> = columns
+        .iter()
+        .map(|column| natural_width(column, glyphs))
+        .collect();
     let gaps = COLUMN_GAP * columns.len().saturating_sub(1);
     let budget = width.saturating_sub(gaps);
     if natural.iter().sum::<usize>() <= budget {
@@ -331,23 +346,29 @@ fn column_widths(columns: &[Column], width: usize) -> Vec<usize> {
 }
 
 /// The width a column would need to render unwrapped.
-fn natural_width(column: &Column) -> usize {
+fn natural_width(column: &Column, glyphs: Glyphs) -> usize {
     let mut width =
-        visible_width(&sanitize_for_terminal(&column_header(column))).max(MIN_COLUMN_WIDTH);
+        visible_width(&sanitize_for_terminal(&column_header(column, glyphs))).max(MIN_COLUMN_WIDTH);
     for item in &column.items {
         width = width.max(visible_width(&key_of(item)));
         width = width.max(visible_width(&sanitize_for_terminal(&title_of(item))));
-        width = width.max(visible_width(&sanitize_for_terminal(&card_meta(item))));
+        width = width.max(visible_width(&sanitize_for_terminal(&card_meta(
+            item, glyphs,
+        ))));
     }
     width
 }
 
 /// The header label and item/point totals for a column.
-fn column_header(column: &Column) -> String {
+fn column_header(column: &Column, glyphs: Glyphs) -> String {
     let label = status_label(column.status.as_deref());
     let points = story_points(&column.items);
     if points > 0 {
-        format!("{label} ({}) · {points}pt", column.items.len())
+        format!(
+            "{label} ({}) {} {points}pt",
+            column.items.len(),
+            glyphs.middle_dot()
+        )
     } else {
         format!("{label} ({})", column.items.len())
     }
@@ -360,14 +381,14 @@ fn status_label(status: Option<&str>) -> String {
 
 /// The rendered lines of one column: header, rule, then cards separated by
 /// blank lines, each wrapped to the column width.
-fn column_lines(column: &Column, width: usize) -> Vec<String> {
-    let mut lines = wrap_text(&column_header(column), width);
+fn column_lines(column: &Column, width: usize, glyphs: Glyphs) -> Vec<String> {
+    let mut lines = wrap_text(&column_header(column, glyphs), width);
     lines.push("-".repeat(width));
     for item in &column.items {
         lines.push(String::new());
         lines.extend(wrap_text(&key_of(item), width));
         lines.extend(wrap_text(&title_of(item), width));
-        let meta = card_meta(item);
+        let meta = card_meta(item, glyphs);
         if !meta.is_empty() {
             lines.extend(wrap_text(&meta, width));
         }
@@ -393,7 +414,7 @@ fn title_of(item: &Value) -> String {
 
 /// A compact card meta line (`priority · @assignee · Npt`), omitting absent
 /// fields.
-fn card_meta(item: &Value) -> String {
+fn card_meta(item: &Value, glyphs: Glyphs) -> String {
     let mut parts = Vec::new();
     if let Some(priority) = item
         .get("priority")
@@ -413,7 +434,7 @@ fn card_meta(item: &Value) -> String {
     if let Some(points) = item.get("storyPoints").and_then(Value::as_i64) {
         parts.push(format!("{points}pt"));
     }
-    parts.join(" · ")
+    parts.join(&format!(" {} ", glyphs.middle_dot()))
 }
 
 /// Word-wraps sanitized text to `width` columns, hard-breaking over-long

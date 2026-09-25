@@ -96,6 +96,7 @@ async fn list(
     };
     let color = session.color_enabled();
     let truecolor = session.truecolor_enabled();
+    let glyphs = session.glyphs();
     let rows: Vec<Vec<String>> = json_value
         .get("items")
         .and_then(Value::as_array)
@@ -123,6 +124,7 @@ async fn list(
                                 .and_then(Value::as_str)
                                 .unwrap_or_default(),
                             truecolor,
+                            glyphs,
                         ),
                         state.to_string(),
                     ]
@@ -148,7 +150,7 @@ async fn list(
 pub(crate) fn color_detail(session: &Session<'_>, color: &str) -> String {
     let enabled = session.color_enabled();
     let truecolor = session.truecolor_enabled();
-    crate::palette::color_cell(enabled, color, truecolor)
+    crate::palette::color_cell(enabled, color, truecolor, session.glyphs())
 }
 
 fn render_project(session: &mut Session<'_>, project: &Project) -> Result<(), CliError> {

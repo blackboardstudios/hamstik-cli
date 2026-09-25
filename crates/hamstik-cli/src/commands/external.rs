@@ -165,13 +165,20 @@ fn build_env(
         ("HAMSTIK_QUIET", session.global.quiet),
         ("HAMSTIK_VERBOSE", session.global.verbose),
         ("HAMSTIK_DRY_RUN", session.global.dry_run),
-        ("HAMSTIK_NO_COLOR", session.global.no_color),
         ("HAMSTIK_NO_INPUT", session.global.no_input),
         ("HAMSTIK_NO_RETRY", session.global.no_retry),
     ] {
         if flag {
             env.push((key.to_string(), "1".to_string()));
         }
+    }
+
+    // `--no-color` and `--color=never` are documented as the same decision,
+    // so the plugin sees the Hamstik opt-out variable either way. The plugin
+    // also inherits the ambient `HAMSTIK_TERM` profile through the parent
+    // environment (nothing is stripped below).
+    if session.global.color_mode() == crate::terminal::ColorMode::Never {
+        env.push(("HAMSTIK_NO_COLOR".to_string(), "1".to_string()));
     }
 
     // Plugin identity, so the invocation site always knows which plugin runs.

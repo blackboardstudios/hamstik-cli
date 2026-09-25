@@ -14,7 +14,11 @@
 //! The block glyph U+2588 is drawn in the *foreground* color, so the swatch
 //! sets the foreground to the resource color. The background is set to the
 //! same color so terminals that render block glyphs with font seams render a
-//! solid rectangle.
+//! solid rectangle. Under the ASCII terminal profile
+//! (`HAMSTIK_TERM=ascii`) the fill is `##` instead, so captured logs stay free
+//! of non-ASCII bytes.
+
+use crate::terminal::Glyphs;
 
 /// Parses `#RRGGBB` / `RRGGBB` into RGB components.
 #[must_use]
@@ -64,8 +68,8 @@ pub fn nearest_256_index(color: &str) -> Option<u8> {
 /// visible width is identical to the colored variant, keeping table columns
 /// aligned across environments.
 #[must_use]
-pub fn swatch(color_enabled: bool, color: &str) -> String {
-    let fill = "\u{2588}\u{2588}"; // █ two full blocks
+pub fn swatch(color_enabled: bool, color: &str, glyphs: Glyphs) -> String {
+    let fill = glyphs.swatch_fill();
     if !color_enabled || parse_hex(color).is_none() {
         return format!("[{fill}]");
     }
@@ -81,8 +85,8 @@ fn render_truecolor(color: &str, fill: &str) -> String {
 /// Renders a bracketed swatch using the 256-color palette (same foreground +
 /// background pairing as the truecolor variant).
 #[must_use]
-pub fn swatch_256(color_enabled: bool, color: &str) -> String {
-    let fill = "\u{2588}\u{2588}";
+pub fn swatch_256(color_enabled: bool, color: &str, glyphs: Glyphs) -> String {
+    let fill = glyphs.swatch_fill();
     if !color_enabled {
         return format!("[{fill}]");
     }
@@ -94,11 +98,16 @@ pub fn swatch_256(color_enabled: bool, color: &str) -> String {
 
 /// The display cell for a color value: swatch followed by the plain hex text.
 #[must_use]
-pub fn color_cell(color_enabled: bool, color: &str, supports_truecolor: bool) -> String {
+pub fn color_cell(
+    color_enabled: bool,
+    color: &str,
+    supports_truecolor: bool,
+    glyphs: Glyphs,
+) -> String {
     let swatch = if supports_truecolor {
-        swatch(color_enabled, color)
+        swatch(color_enabled, color, glyphs)
     } else {
-        swatch_256(color_enabled, color)
+        swatch_256(color_enabled, color, glyphs)
     };
     format!("{swatch} {color}")
 }
@@ -107,6 +116,17 @@ pub fn color_cell(color_enabled: bool, color: &str, supports_truecolor: bool) ->
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
+    use crate::terminal::TerminalProfile;
+
+    /// Unicode glyphs (the default/auto profile).
+    fn uni() -> Glyphs {
+        Glyphs::for_profile(TerminalProfile::Unicode)
+    }
+
+    /// ASCII glyphs (`HAMSTIK_TERM=ascii`).
+    fn ascii() -> Glyphs {
+        Glyphs::for_profile(TerminalProfile::Ascii)
+    }
 
     #[test]
     fn parses_six_digit_hex_with_optional_hash() {
@@ -142,14 +162,14 @@ mod tests {
 
     #[test]
     fn swatch_without_color_shows_plain_frame() {
-        let cell = swatch(false, "#6366f1");
+        let cell = swatch(false, "#6366f1", uni());
         assert_eq!(cell, "[██]");
         assert!(!cell.contains('\u{1b}'));
     }
 
     #[test]
     fn swatch_with_color_wraps_fill_in_foreground_and_background() {
-        let cell = swatch(true, "#6366f1");
+        let cell = swatch(true, "#6366f1", uni());
         assert!(cell.starts_with("[\x1b[38;2;99;102;241;48;2;99;102;241m"));
         assert!(cell.ends_with("\x1b[0m]"));
         assert!(cell.contains('\u{2588}'));
@@ -157,13 +177,13 @@ mod tests {
 
     #[test]
     fn swatch_256_uses_palette_foreground_and_background() {
-        let cell = swatch_256(true, "#ff0000");
+        let cell = swatch_256(true, "#ff0000", uni());
         assert_eq!(cell, "[\x1b[38;5;196;48;5;196m██\x1b[0m]");
     }
 
     #[test]
     fn swatch_256_falls_back_to_plain_frame_on_bad_color() {
-        let cell = swatch_256(true, "notacolor");
+        let cell = swatch_256(true, "notacolor", uni());
         assert_eq!(cell, "[██]");
     }
 
@@ -171,18 +191,27 @@ mod tests {
     fn black_swatch_keeps_extent_via_frame() {
         // The whole point of the frame: fill may be invisible but the cell
         // width and brackets stay legible.
-        let cell = swatch(true, "#000000");
+        let cell = swatch(true, "#000000", uni());
         assert!(cell.starts_with('['));
         assert!(cell.ends_with(']'));
         assert_eq!(cell.chars().filter(|c| *c == '\u{2588}').count(), 2);
     }
 
     #[test]
+    fn ascii_profile_uses_hash_fill() {
+        let cell = swatch(false, "#6366f1", ascii());
+        assert_eq!(cell, "[##]");
+        assert!(cell.is_ascii());
+        let colored = swatch_256(true, "#ff0000", ascii());
+        assert_eq!(colored, "[\x1b[38;5;196;48;5;196m##\x1b[0m]");
+    }
+
+    #[test]
     fn color_cell_pairs_swatch_with_hex() {
-        let cell = color_cell(true, "#f97316", true);
+        let cell = color_cell(true, "#f97316", true, uni());
         assert!(cell.contains("#f97316"));
         assert!(cell.contains('\u{2588}'));
-        let plain = color_cell(false, "#f97316", true);
+        let plain = color_cell(false, "#f97316", true, uni());
         assert!(!plain.contains('\u{1b}'));
         assert_eq!(plain, "[██] #f97316");
     }
@@ -191,9 +220,18 @@ mod tests {
     fn swatch_width_is_stable_across_modes() {
         // Alignment depends on the visible width being identical: 4 cells
         // (bracket, 2 blocks, bracket) plus the hex text in both modes.
-        let colored = color_cell(true, "#6366f1", true);
-        let plain = color_cell(false, "#6366f1", true);
+        let colored = color_cell(true, "#6366f1", true, uni());
+        let plain = color_cell(false, "#6366f1", true, uni());
         assert_eq!(strip_ansi_len(&colored), strip_ansi_len(&plain));
+    }
+
+    #[test]
+    fn ascii_swatch_width_matches_unicode_swatch_width() {
+        // The ASCII stand-in must keep the same two-cell fill width so table
+        // alignment does not shift when the profile changes.
+        let unicode = color_cell(false, "#6366f1", true, uni());
+        let ascii = color_cell(false, "#6366f1", true, ascii());
+        assert_eq!(strip_ansi_len(&unicode), strip_ansi_len(&ascii));
     }
 
     /// Counts characters outside SGR sequences (approximate visible width).

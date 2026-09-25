@@ -378,6 +378,7 @@ fn global_options_match_documented_surface() {
         "--no-header",
         "--verbose",
         "--no-color",
+        "--color",
         "--no-input",
         "--confirm-destructive",
         "--yes",

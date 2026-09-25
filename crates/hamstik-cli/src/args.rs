@@ -109,9 +109,21 @@ pub struct GlobalOptions {
     #[arg(long, global = true)]
     pub verbose: bool,
 
-    /// Disable colored output.
-    #[arg(long, global = true)]
+    /// Disable colored output. Equivalent to `--color=never`.
+    #[arg(long, global = true, conflicts_with = "color")]
     pub no_color: bool,
+
+    /// Control colored output. `auto` (the default) honors `NO_COLOR`,
+    /// `HAMSTIK_NO_COLOR`, `CLICOLOR_FORCE`, and terminal detection; `always`
+    /// forces ANSI color; `never` disables it. Conflicts with `--no-color`.
+    #[arg(
+        long = "color",
+        global = true,
+        value_name = "WHEN",
+        value_enum,
+        conflicts_with = "no_color"
+    )]
+    pub color: Option<ColorChoice>,
 
     /// Never prompt interactively; fail instead.
     #[arg(long, global = true)]
@@ -177,6 +189,43 @@ impl OutputFormatArg {
             Self::Tsv => crate::output::Mode::Tsv,
             Self::Csv => crate::output::Mode::Csv,
             Self::Markdown => crate::output::Mode::Markdown,
+        }
+    }
+}
+
+/// `--color` values mapped onto the terminal color mode (SPEC §40).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum ColorChoice {
+    /// Honor the environment and terminal detection (the default).
+    Auto,
+    /// Force ANSI color on, even when stdout is not a terminal.
+    Always,
+    /// Disable ANSI color, even on a capable terminal.
+    Never,
+}
+
+impl From<ColorChoice> for crate::terminal::ColorMode {
+    fn from(value: ColorChoice) -> Self {
+        match value {
+            ColorChoice::Auto => Self::Auto,
+            ColorChoice::Always => Self::Always,
+            ColorChoice::Never => Self::Never,
+        }
+    }
+}
+
+impl GlobalOptions {
+    /// The effective color mode after folding in the legacy `--no-color` flag.
+    ///
+    /// `--no-color` and `--color` are mutually exclusive at the parser, so at
+    /// most one of the two is set.
+    #[must_use]
+    pub fn color_mode(&self) -> crate::terminal::ColorMode {
+        if self.no_color {
+            crate::terminal::ColorMode::Never
+        } else {
+            self.color
+                .map_or(crate::terminal::ColorMode::Auto, Into::into)
         }
     }
 }

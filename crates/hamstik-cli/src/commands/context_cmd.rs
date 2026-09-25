@@ -172,7 +172,7 @@ fn explain(session: &mut Session<'_>) -> Result<(), CliError> {
 
     let color_probe = crate::terminal::color_probe(
         session.env,
-        session.global.no_color,
+        session.global.color_mode(),
         session.env.stdout_is_terminal(),
     );
     let input_mode = if session.global.no_input {

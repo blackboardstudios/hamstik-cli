@@ -182,9 +182,9 @@ fn list(session: &mut Session<'_>) -> Result<(), CliError> {
     for (name, entry) in &file.queries {
         let preview = entry.query.lines().next().unwrap_or("").to_string();
         let ellipsis = if entry.query.contains('\n') {
-            " …"
+            format!(" {}", session.glyphs().ellipsis())
         } else {
-            ""
+            String::new()
         };
         session
             .out

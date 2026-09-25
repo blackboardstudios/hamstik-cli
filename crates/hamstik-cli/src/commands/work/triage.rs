@@ -278,10 +278,15 @@ fn render_work_section(
     quiet: bool,
 ) -> Result<(), CliError> {
     if !quiet {
+        let glyphs = session.glyphs();
         let heading = match section {
-            Section::Ok(_) => format!("\n{label} — {} item(s)", section.items().len()),
-            Section::Failed(_) => format!("\n{label} — unavailable"),
-            Section::Skipped(_) => format!("\n{label} — skipped"),
+            Section::Ok(_) => format!(
+                "\n{label} {} {} item(s)",
+                glyphs.em_dash(),
+                section.items().len()
+            ),
+            Section::Failed(_) => format!("\n{label} {} unavailable", glyphs.em_dash()),
+            Section::Skipped(_) => format!("\n{label} {} skipped", glyphs.em_dash()),
         };
         session.out.line(&heading).map_err(CliError::general)?;
     }
@@ -326,7 +331,8 @@ fn render_activity_section(
                 session
                     .out
                     .line(&format!(
-                        "\nRecent project activity — {} event(s)",
+                        "\nRecent project activity {} {} event(s)",
+                        session.glyphs().em_dash(),
                         section.items().len()
                     ))
                     .map_err(CliError::general)?;
@@ -360,7 +366,10 @@ fn render_activity_section(
             if !quiet {
                 session
                     .out
-                    .line(&format!("\nRecent project activity — skipped ({reason})"))
+                    .line(&format!(
+                        "\nRecent project activity {} skipped ({reason})",
+                        session.glyphs().em_dash()
+                    ))
                     .map_err(CliError::general)?;
             }
             Ok(())

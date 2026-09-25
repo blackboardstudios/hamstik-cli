@@ -430,7 +430,7 @@ impl Session<'_> {
     pub fn color_enabled(&self) -> bool {
         crate::terminal::color_probe(
             self.env,
-            self.global.no_color,
+            self.global.color_mode(),
             self.env.stdout_is_terminal(),
         )
         .ok
@@ -447,6 +447,26 @@ impl Session<'_> {
                 self.env.var("COLORTERM").as_deref(),
                 Some("truecolor") | Some("24bit")
             )
+    }
+
+    /// The decoration profile selected by `HAMSTIK_TERM` (default `auto`).
+    #[must_use]
+    pub fn terminal_profile(&self) -> crate::terminal::TerminalProfile {
+        crate::terminal::TerminalProfile::from_env(self.env)
+    }
+
+    /// Whether Unicode decoration may be emitted under the active profile.
+    ///
+    /// `auto` and `unicode` use Unicode; `ascii` falls back to ASCII stand-ins.
+    #[must_use]
+    pub fn unicode(&self) -> bool {
+        crate::terminal::unicode_enabled(self.terminal_profile())
+    }
+
+    /// The decoration glyph set for the active profile.
+    #[must_use]
+    pub fn glyphs(&self) -> crate::terminal::Glyphs {
+        crate::terminal::Glyphs::for_profile(self.terminal_profile())
     }
 
     /// Whether a machine-readable document is expected on stdout.
@@ -738,6 +758,7 @@ mod tests {
             no_header: false,
             verbose: false,
             no_color: false,
+            color: None,
             no_input: false,
             confirm_destructive: false,
             yes: false,

@@ -516,7 +516,7 @@ fn version(session: &mut Session<'_>) -> Result<(), CliError> {
     } else {
         let details = format!(
             "{}\n\ncommit    {}\ntarget    {}",
-            crate::banner::banner(),
+            crate::banner::banner_for(session.unicode()),
             build_info::short_commit(),
             build_info::TARGET,
         );

@@ -45,7 +45,12 @@ fn main() {
 }
 
 async fn entry() -> Result<i32, String> {
-    let mut command = Cli::command().help_template(banner::root_help_template());
+    let environment = SystemEnvironment;
+    // Root help/version renders before a `Session` exists, so negotiate the
+    // decoration profile directly from the process environment.
+    let profile = hamstik_cli::terminal::TerminalProfile::from_env(&environment);
+    let unicode = hamstik_cli::terminal::unicode_enabled(profile);
+    let mut command = Cli::command().help_template(banner::root_help_template_for(unicode));
 
     // Announce discovered external plugins in the root help. They are
     // labeled as external (not built-in) and never executed during
@@ -72,7 +77,6 @@ async fn entry() -> Result<i32, String> {
     let config = ConfigStore::new(config_path);
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
-    let environment = SystemEnvironment;
     let store = KeyringCredentialStore;
     let factory = ProductionApiFactory;
     let mut prompt = TerminalInput;

@@ -65,6 +65,8 @@ fn base(server: &MockServer, dir: &TempDir) -> Command {
     cmd.env_remove("HAMSTIK_PROFILE");
     cmd.env_remove("HAMSTIK_ORG");
     cmd.env_remove("HAMSTIK_PROJECT");
+    cmd.env_remove("HAMSTIK_TERM");
+    cmd.env_remove("HAMSTIK_NO_COLOR");
     cmd.current_dir(dir.path());
     cmd.arg("--no-retry");
     cmd
@@ -606,6 +608,228 @@ async fn doctor_reports_disabled_color_when_no_color_flag() {
     assert_eq!(color["critical"], false);
     let detail = color["detail"].as_str().unwrap();
     assert!(detail.contains("--no-color"), "{detail}");
+}
+
+/// Mounts a one-project list response used by the color/profile tests.
+async fn mount_single_project(server: &MockServer) {
+    Mock::given(method("GET"))
+        .and(path("/api/v1/organizations/acme/projects"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(page(json!([
+            {"id": "p1", "key": "P01", "name": "Project 01", "color": "#6366f1",
+             "revision": 1, "archivedAt": null, "description": null,
+             "organizationId": "o1",
+             "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z"}
+        ]))))
+        .mount(server)
+        .await;
+}
+
+/// Acceptance criterion: `NO_COLOR=1` and `--color=never` render byte-identical
+/// ANSI-free output.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn no_color_and_color_never_are_identical_and_ansi_free() {
+    let server = MockServer::start().await;
+    mount_single_project(&server).await;
+
+    let dir = TempDir::new().unwrap();
+    let with_env = base(&server, &dir)
+        .args(["--org", "acme", "project", "list"])
+        .env("NO_COLOR", "1")
+        .env("TERM", "xterm-256color")
+        .env("COLORTERM", "truecolor")
+        .env_remove("CLICOLOR_FORCE")
+        .env_remove("HAMSTIK_NO_COLOR")
+        .output()
+        .unwrap();
+
+    let dir2 = TempDir::new().unwrap();
+    let with_flag = base(&server, &dir2)
+        .args(["--org", "acme", "project", "list", "--color=never"])
+        .env("TERM", "xterm-256color")
+        .env("COLORTERM", "truecolor")
+        .env_remove("NO_COLOR")
+        .env_remove("CLICOLOR_FORCE")
+        .env_remove("HAMSTIK_NO_COLOR")
+        .output()
+        .unwrap();
+
+    assert!(with_env.status.success());
+    assert!(with_flag.status.success());
+    assert_eq!(with_env.stdout, with_flag.stdout);
+    assert!(
+        !with_env.stdout.contains(&0x1b),
+        "NO_COLOR/--color=never output must be ANSI-free"
+    );
+}
+
+/// Flag beats environment: `--color=always` forces ANSI even with both opt-out
+/// variables set and a piped stdout.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn color_always_beats_no_color_and_piping() {
+    let server = MockServer::start().await;
+    mount_single_project(&server).await;
+
+    let dir = TempDir::new().unwrap();
+    let output = base(&server, &dir)
+        .args(["--org", "acme", "project", "list", "--color=always"])
+        .env("NO_COLOR", "1")
+        .env("HAMSTIK_NO_COLOR", "1")
+        .env("COLORTERM", "truecolor")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains('\u{1b}'),
+        "--color=always must emit ANSI even when piped: {stdout}"
+    );
+}
+
+/// Flag beats environment: `--color=never` disables ANSI even when
+/// `CLICOLOR_FORCE` asks for it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn color_never_beats_clicolor_force() {
+    let server = MockServer::start().await;
+    mount_single_project(&server).await;
+
+    let dir = TempDir::new().unwrap();
+    let output = base(&server, &dir)
+        .args(["--org", "acme", "project", "list", "--color=never"])
+        .env("CLICOLOR_FORCE", "1")
+        .env("COLORTERM", "truecolor")
+        .env_remove("NO_COLOR")
+        .env_remove("HAMSTIK_NO_COLOR")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(
+        !output.stdout.contains(&0x1b),
+        "--color=never must beat CLICOLOR_FORCE"
+    );
+}
+
+/// Environment beats auto: `HAMSTIK_NO_COLOR` disables ANSI even when
+/// `CLICOLOR_FORCE` asks for it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn hamstik_no_color_beats_clicolor_force() {
+    let server = MockServer::start().await;
+    mount_single_project(&server).await;
+
+    let dir = TempDir::new().unwrap();
+    let output = base(&server, &dir)
+        .args(["--org", "acme", "project", "list"])
+        .env("HAMSTIK_NO_COLOR", "1")
+        .env("CLICOLOR_FORCE", "1")
+        .env("COLORTERM", "truecolor")
+        .env_remove("NO_COLOR")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(
+        !output.stdout.contains(&0x1b),
+        "HAMSTIK_NO_COLOR must beat CLICOLOR_FORCE"
+    );
+}
+
+/// `--color` and the legacy `--no-color` are mutually exclusive.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn color_and_no_color_flags_conflict() {
+    let server = MockServer::start().await;
+    let dir = TempDir::new().unwrap();
+    base(&server, &dir)
+        .args(["--no-color", "--color=always", "version"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--no-color").or(predicate::str::contains("--color")));
+}
+
+/// `HAMSTIK_TERM=ascii` yields ASCII-only decoration, even with color forced.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn hamstik_term_ascii_produces_ascii_only_decoration() {
+    let server = MockServer::start().await;
+    mount_single_project(&server).await;
+
+    let dir = TempDir::new().unwrap();
+    let output = base(&server, &dir)
+        .args(["--org", "acme", "project", "list"])
+        .env("HAMSTIK_TERM", "ascii")
+        .env("CLICOLOR_FORCE", "1")
+        .env("COLORTERM", "truecolor")
+        .env_remove("NO_COLOR")
+        .env_remove("HAMSTIK_NO_COLOR")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(
+        output.stdout.is_ascii(),
+        "ascii profile must not emit non-ASCII bytes"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("##"), "{stdout}");
+    assert!(!stdout.contains('\u{2588}'), "{stdout}");
+    assert!(stdout.contains("#6366f1"), "{stdout}");
+}
+
+/// `HAMSTIK_TERM=ascii` disables emoji in doctor's terminal check, while
+/// `HAMSTIK_TERM=unicode` forces it on even for a piped stdout.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn hamstik_term_profile_controls_doctor_emoji_check() {
+    let server = MockServer::start().await;
+    mount_doctor_openapi(&server).await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/me"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(me_json()))
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    let ascii: Value = serde_json::from_slice(
+        &base(&server, &dir)
+            .args(["doctor", "--json"])
+            .env("HAMSTIK_TERM", "ascii")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+    let emoji = ascii["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "terminal emoji")
+        .expect("emoji check present");
+    assert_eq!(emoji["ok"], false);
+    assert!(
+        emoji["detail"]
+            .as_str()
+            .unwrap()
+            .contains("HAMSTIK_TERM=ascii"),
+        "{emoji}"
+    );
+
+    let unicode: Value = serde_json::from_slice(
+        &base(&server, &dir)
+            .args(["doctor", "--json"])
+            .env("HAMSTIK_TERM", "unicode")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+    let emoji = unicode["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "terminal emoji")
+        .expect("emoji check present");
+    assert_eq!(emoji["ok"], true);
+    assert!(
+        emoji["detail"]
+            .as_str()
+            .unwrap()
+            .contains("HAMSTIK_TERM=unicode"),
+        "{emoji}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

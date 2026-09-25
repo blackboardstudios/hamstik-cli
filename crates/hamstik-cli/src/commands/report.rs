@@ -15,6 +15,7 @@ use serde_json::Value;
 
 use crate::app::Session;
 use crate::error::CliError;
+use crate::terminal::Glyphs;
 
 use super::org::render_lines;
 
@@ -79,6 +80,7 @@ pub(crate) fn render_sprint_report(
     let sprint = &report.sprint;
     let completion = &report.completion;
     let final_percent = &completion.percentages.final_scope;
+    let glyphs = session.glyphs();
 
     let mut lines: Vec<(&str, String)> = vec![
         ("sprint", format!("{} ({})", sprint.name, sprint.id)),
@@ -86,8 +88,9 @@ pub(crate) fn render_sprint_report(
         (
             "window",
             format!(
-                "{} → {}",
+                "{} {} {}",
                 sprint.start_date.as_deref().unwrap_or("-"),
+                glyphs.arrow(),
                 sprint.end_date.as_deref().unwrap_or("-")
             ),
         ),
@@ -146,7 +149,7 @@ pub(crate) fn render_sprint_report(
                 report.scope_changes.removed.len()
             ),
         ),
-        ("carryover", describe_carryover(report)),
+        ("carryover", describe_carryover(report, glyphs)),
     ];
     if let Some(through) = sprint.report_end_at.clone() {
         lines.push(("reported through", through));
@@ -396,7 +399,7 @@ fn percent(value: Option<i64>) -> String {
 }
 
 /// Summarizes where carried-over work went, grouped by destination name.
-fn describe_carryover(report: &SprintReport) -> String {
+fn describe_carryover(report: &SprintReport, glyphs: Glyphs) -> String {
     if report.carryover.is_empty() {
         return "none".to_string();
     }
@@ -411,7 +414,7 @@ fn describe_carryover(report: &SprintReport) -> String {
     }
     let parts: Vec<String> = destinations
         .iter()
-        .map(|(name, count)| format!("{count} → {name}"))
+        .map(|(name, count)| format!("{count} {} {name}", glyphs.arrow()))
         .collect();
     format!("{} ({})", report.carryover.len(), parts.join(", "))
 }

@@ -41,15 +41,34 @@ const DEFAULT_HELP_TEMPLATE: &str = r#"{before-help}{about-with-newline}
 /// monochrome without depending on an emoji font.
 #[must_use]
 pub fn banner() -> String {
+    banner_for(true)
+}
+
+/// Builds the banner for an explicit terminal profile.
+///
+/// `unicode` is the profile decision from `HAMSTIK_TERM`: `auto` and
+/// `unicode` keep the hamster emoji and the `©` sign (the historical default),
+/// while `ascii` drops both so captured root-help/version output contains no
+/// non-ASCII bytes.
+#[must_use]
+pub fn banner_for(unicode: bool) -> String {
     let version = env!("CARGO_PKG_VERSION");
-    format!("{ART}\n\n🐹 hamstik cli v{version}      © Blackboard Studios LLC")
+    let mark = if unicode { "🐹 " } else { "" };
+    let copyright = if unicode { "©" } else { "(c)" };
+    format!("{ART}\n\n{mark}hamstik cli v{version}      {copyright} Blackboard Studios LLC")
 }
 
 /// The root command's help template: the banner followed by a blank line and
 /// then clap's stock help body. Apply via `Command::help_template`.
 #[must_use]
 pub fn root_help_template() -> String {
-    let banner = banner();
+    root_help_template_for(true)
+}
+
+/// The root command's help template for an explicit terminal profile.
+#[must_use]
+pub fn root_help_template_for(unicode: bool) -> String {
+    let banner = banner_for(unicode);
     format!("{banner}\n\n{DEFAULT_HELP_TEMPLATE}")
 }
 
@@ -92,6 +111,15 @@ mod tests {
     #[test]
     fn copyright_is_plain_sign_without_variation_selector() {
         assert!(!banner().contains('\u{fe0f}'), "must not use VS16");
+    }
+
+    #[test]
+    fn ascii_banner_is_pure_ascii() {
+        let rendered = banner_for(false);
+        assert!(rendered.is_ascii(), "banner must be ASCII: {rendered}");
+        assert!(rendered.contains("(c) Blackboard Studios LLC"));
+        assert!(!rendered.contains('🐹'));
+        assert!(!rendered.contains('©'));
     }
 
     #[test]

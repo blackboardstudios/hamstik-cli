@@ -374,7 +374,7 @@ fn render(session: &mut Session<'_>, checks: Vec<Check>) -> Result<(), CliError>
     } else if !session.out.is_quiet() {
         let color = color_probe(
             session.env,
-            session.global.no_color,
+            session.global.color_mode(),
             session.env.stdout_is_terminal(),
         )
         .ok;

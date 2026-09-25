@@ -284,6 +284,7 @@ async fn work(session: &mut Session<'_>, args: &OrgWorkListArgs) -> Result<(), C
     }
     let color = session.color_enabled();
     let truecolor = session.truecolor_enabled();
+    let glyphs = session.glyphs();
     let rows: Vec<Vec<String>> = json_value
         .get("items")
         .and_then(Value::as_array)
@@ -322,7 +323,7 @@ async fn work(session: &mut Session<'_>, args: &OrgWorkListArgs) -> Result<(), C
                         title.to_string(),
                         status.to_string(),
                         assignee.to_string(),
-                        crate::palette::color_cell(color, project_color, truecolor),
+                        crate::palette::color_cell(color, project_color, truecolor, glyphs),
                     ]
                 })
                 .collect()
@@ -346,6 +347,7 @@ pub(crate) fn context_row(
     item: &hamstik_api_client::WorkItemContextSummary,
     color: bool,
     truecolor: bool,
+    glyphs: crate::terminal::Glyphs,
 ) -> Vec<String> {
     vec![
         item.summary.key.clone(),
@@ -357,7 +359,7 @@ pub(crate) fn context_row(
             .clone()
             .map(|a| a.name().to_string())
             .unwrap_or_else(|| "-".to_string()),
-        crate::palette::color_cell(color, &item.project.color, truecolor),
+        crate::palette::color_cell(color, &item.project.color, truecolor, glyphs),
     ]
 }
 

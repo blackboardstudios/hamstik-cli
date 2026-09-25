@@ -12,6 +12,16 @@ before upgrading.
 
 ### Added
 
+- Deterministic color and terminal-profile negotiation (CLI-60): the global
+  `--color=auto|always|never` flag (with the existing `--no-color` as the
+  `never` alias) makes ANSI output explicit, and `HAMSTIK_NO_COLOR` joins
+  `NO_COLOR`/`CLICOLOR_FORCE`/`CLICOLOR` under the documented precedence
+  `flag > environment > auto`. `HAMSTIK_TERM=auto|unicode|ascii` pins the
+  decoration profile: `ascii` emits ASCII stand-ins instead of Unicode
+  swatches and separators, suppresses emoji, and fixes the `board view` width
+  so captured CI logs are byte-stable. Default auto-detection is unchanged
+  when no flag and neither new environment variable is set, and `--json`,
+  `--jsonl`, and `--tsv` remain ANSI-free in every mode.
 - `work attachment view` (CLI-40): preview an image attachment inline on a
   terminal that advertises the Kitty, iTerm2, or SIXEL image protocol,
   without writing a file. Detection is capability-based (`KITTY_WINDOW_ID`,

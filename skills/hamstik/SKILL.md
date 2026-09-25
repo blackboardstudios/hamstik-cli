@@ -136,6 +136,11 @@ act — so confirm before writing them and verify afterwards with
   with `--columns`.
 - Use `--quiet --no-input` when only a newly created or changed resource identifier is
   needed. `--json`, `--jsonl`, `--tsv`, and `--quiet` are mutually exclusive.
+- `--json`/`--jsonl`/`--tsv` are ANSI-free in every mode. When capturing
+  human output for logs, pin the rendering explicitly: `--color=never` (or
+  `NO_COLOR=1`/`HAMSTIK_NO_COLOR=1`) removes ANSI, and `HAMSTIK_TERM=ascii`
+  uses ASCII decoration without emoji and with a fixed width. Color precedence
+  is flag > environment > auto.
 - Parse stdout only. Normal command diagnostics and structured errors go to stderr.
 - `doctor --json` is the exception: its diagnostic report remains on stdout even when
   the process exits nonzero.

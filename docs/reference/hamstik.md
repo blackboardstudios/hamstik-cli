@@ -76,9 +76,15 @@ Choices: `true`, `false`
 
 ### `--no-color`
 
-Disable colored output
+Disable colored output. Equivalent to `\-\-color=never`
 
 Choices: `true`, `false`
+
+### `--color`
+
+Control colored output. `auto` (the default) honors `NO_COLOR`, `HAMSTIK_NO_COLOR`, `CLICOLOR_FORCE`, and terminal detection; `always` forces ANSI color; `never` disables it. Conflicts with `\-\-no\-color`
+
+Choices: `auto`, `always`, `never`
 
 ### `--no-input`
 

@@ -21,6 +21,7 @@ use crate::app::Session;
 use crate::args::WorkContextArgs;
 use crate::error::CliError;
 use crate::output::Mode;
+use crate::terminal::Glyphs;
 
 use hamstik_api_client::WorkItem;
 
@@ -166,11 +167,11 @@ pub async fn run(session: &mut Session<'_>, args: &WorkContextArgs) -> Result<()
 
     match session.out.mode() {
         Mode::Markdown => {
-            let doc = markdown(&bundle)?;
+            let doc = markdown(&bundle, session.glyphs())?;
             session.out.line(&doc).map_err(CliError::general)
         }
         _ => {
-            let doc = human(&bundle)?;
+            let doc = human(&bundle, session.glyphs())?;
             session.out.line(&doc).map_err(CliError::general)
         }
     }
@@ -237,10 +238,10 @@ fn json_envelope(bundle: &ContextBundle, args: &WorkContextArgs) -> Result<Value
 }
 
 /// Renders the Markdown document with explicit truncation markers.
-fn markdown(bundle: &ContextBundle) -> Result<String, CliError> {
+fn markdown(bundle: &ContextBundle, glyphs: Glyphs) -> Result<String, CliError> {
     let item = &bundle.item;
     let mut out = String::new();
-    let _ = writeln!(out, "# {} — {}", item.key, item.title);
+    let _ = writeln!(out, "# {} {} {}", item.key, glyphs.em_dash(), item.title);
     let _ = writeln!(out);
     let _ = writeln!(out, "- type: {}", item.item_type);
     let _ = writeln!(out, "- status: {}", item.status);
@@ -307,9 +308,10 @@ fn markdown(bundle: &ContextBundle) -> Result<String, CliError> {
             let actor = &event["actor"]["name"];
             let _ = writeln!(
                 out,
-                "- {}: {} — {}",
+                "- {}: {} {} {}",
                 event["createdAt"].as_str().unwrap_or("?"),
                 event["action"].as_str().unwrap_or("?"),
+                glyphs.em_dash(),
                 actor.as_str().unwrap_or("(system)")
             );
         }
@@ -327,10 +329,10 @@ fn markdown(bundle: &ContextBundle) -> Result<String, CliError> {
 }
 
 /// Renders the human (default) view: compact aligned text.
-fn human(bundle: &ContextBundle) -> Result<String, CliError> {
+fn human(bundle: &ContextBundle, glyphs: Glyphs) -> Result<String, CliError> {
     let item = &bundle.item;
     let mut out = String::new();
-    let _ = writeln!(out, "{} — {}", item.key, item.title);
+    let _ = writeln!(out, "{} {} {}", item.key, glyphs.em_dash(), item.title);
     let _ = writeln!(
         out,
         "type {} | status {} | priority {}",

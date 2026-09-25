@@ -114,9 +114,19 @@
       "true",
       "false"
      ],
-     "help": "Disable colored output",
+     "help": "Disable colored output. Equivalent to `--color=never`",
      "kind": "option",
      "long": "--no-color"
+    },
+    {
+     "choices": [
+      "auto",
+      "always",
+      "never"
+     ],
+     "help": "Control colored output. `auto` (the default) honors `NO_COLOR`, `HAMSTIK_NO_COLOR`, `CLICOLOR_FORCE`, and terminal detection; `always` forces ANSI color; `never` disables it. Conflicts with `--no-color`",
+     "kind": "option",
+     "long": "--color"
     },
     {
      "choices": [
@@ -191,6 +201,7 @@
     "--no-header",
     "--verbose",
     "--no-color",
+    "--color",
     "--no-input",
     "--confirm-destructive",
     "--yes",
