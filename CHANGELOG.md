@@ -12,6 +12,17 @@ before upgrading.
 
 ### Added
 
+- `agent validate` (CLI-74, also available as `agent doctor`): offline
+  verification of the local agent harness. It lints the installed Agent
+  Skill's metadata against the running CLI version (and its command
+  references against the live manifest), scans the resolved config directory
+  for credential-shaped content — reporting file, line, and kind while never
+  printing the value — and, when online, compares the bundled OpenAPI
+  snapshot with the live Public API contract. `--offline` skips the network
+  comparison, and an unreachable host is reported as skipped. An outdated
+  skill, credential-shaped config content, or a stale snapshot exits `1`;
+  a clean harness exits `0`. It is distinct from `hamstik doctor`, which
+  reports network/diagnostic health.
 - `work export` / `work import` (CLI-66): Markdown-based handoff and
   migration. `work export <KEY> [--comments] [--output <PATH>]` writes one
   canonical document — YAML frontmatter (`key`, `title`, `type`, `status`,

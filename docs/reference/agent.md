@@ -1,6 +1,6 @@
 # `hamstik agent`
 
-Agent automation: manage and validate the bundled Agent Skill
+Agent automation: manage the bundled Agent Skill and validate the local agent harness
 
 This command has subcommands; see their own pages.
 

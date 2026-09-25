@@ -220,7 +220,8 @@ pub enum Command {
     Squeakql(SqueakQlArgs),
     /// Inspect the Public API contract.
     Api(ApiArgs),
-    /// Agent automation: manage and validate the bundled Agent Skill.
+    /// Agent automation: manage the bundled Agent Skill and validate the
+    /// local agent harness.
     Agent(AgentArgs),
     /// Verify configuration, credentials, connectivity, API compatibility,
     /// and selected Organization/Project context.
@@ -460,6 +461,26 @@ pub struct DoctorArgs {
 pub enum AgentCommand {
     /// Manage the canonical bundled Agent Skill.
     Skill(SkillArgs),
+    /// Validate the local agent harness offline: installed skill metadata
+    /// against the running CLI version, credential-shaped content in the
+    /// config directory (reported without displaying values), and bundled
+    /// OpenAPI snapshot freshness when online. Also available as `agent
+    /// doctor`.
+    #[command(visible_alias = "doctor")]
+    Validate(ValidateArgs),
+}
+
+/// Arguments for `hamstik agent validate`.
+#[derive(Args, Debug)]
+pub struct ValidateArgs {
+    /// Explicit path to a `SKILL.md` to validate instead of the default
+    /// installed-location lookup.
+    #[arg(value_name = "PATH")]
+    pub path: Option<PathBuf>,
+    /// Skip the live OpenAPI snapshot-freshness comparison and make no
+    /// network requests.
+    #[arg(long)]
+    pub offline: bool,
 }
 
 /// Arguments for the `agent skill` command group.

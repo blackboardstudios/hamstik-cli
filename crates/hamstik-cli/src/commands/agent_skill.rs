@@ -149,8 +149,30 @@ fn install(session: &mut Session<'_>, global: bool, force: bool) -> Result<(), C
     Ok(())
 }
 
-/// Validates an Agent Skill against this binary's command surface.
-fn check(session: &mut Session<'_>, path: Option<&Path>) -> Result<(), CliError> {
+/// Structured result of validating one Agent Skill without rendering.
+pub(crate) struct SkillValidation {
+    /// The validated skill file.
+    pub path: PathBuf,
+    /// The skill's declared version (empty when absent).
+    pub version: String,
+    /// The skill's declared minimum CLI version (empty when absent).
+    pub minimum: String,
+    /// Whether the running CLI satisfies the declared minimum.
+    pub compatible: bool,
+    /// Command-surface failures (unknown paths or options).
+    pub failures: Vec<String>,
+    /// Referenced command paths and their flags.
+    pub references: Vec<(Vec<String>, Vec<String>)>,
+    /// True when metadata and every command reference validate.
+    pub ok: bool,
+}
+
+/// Validates a skill file — or the installed skill when `path` is `None` —
+/// against this binary's command surface and compatibility metadata.
+pub(crate) fn validate(
+    session: &Session<'_>,
+    path: Option<&Path>,
+) -> Result<SkillValidation, CliError> {
     // Resolve the skill: an explicit path wins; otherwise the first installed
     // location (project, then global).
     let resolved = match path {
@@ -174,7 +196,7 @@ fn check(session: &mut Session<'_>, path: Option<&Path>) -> Result<(), CliError>
         .get("minimum-cli-version")
         .cloned()
         .unwrap_or_default();
-    let version_ok = minimum.is_empty()
+    let compatible = minimum.is_empty()
         || (minimum.split('.').all(|part| part.parse::<u64>().is_ok())
             && semver_at_least(env!("CARGO_PKG_VERSION"), &minimum));
 
@@ -248,20 +270,35 @@ fn check(session: &mut Session<'_>, path: Option<&Path>) -> Result<(), CliError>
         references.push((current, flags));
     }
 
-    // Report.
-    let overall_ok = failures.is_empty() && version_ok;
+    let ok = failures.is_empty() && compatible;
+    Ok(SkillValidation {
+        path: skill_path,
+        version,
+        minimum,
+        compatible,
+        failures,
+        references,
+        ok,
+    })
+}
+
+/// Validates an Agent Skill against this binary's command surface.
+fn check(session: &mut Session<'_>, path: Option<&Path>) -> Result<(), CliError> {
+    let validation = validate(session, path)?;
+    let overall_ok = validation.ok;
     if session.json() {
         emit_json(
             session,
             &json!({
                 "schemaVersion": 1,
                 "command": "agent skill check",
-                "path": skill_path.display().to_string(),
-                "skillVersion": version,
-                "minimumCliVersion": minimum,
+                "path": validation.path.display().to_string(),
+                "skillVersion": validation.version,
+                "minimumCliVersion": validation.minimum,
                 "cliVersion": env!("CARGO_PKG_VERSION"),
-                "compatible": version_ok,
-                "commandsReferenced": references
+                "compatible": validation.compatible,
+                "commandsReferenced": validation
+                    .references
                     .iter()
                     .map(|(command_path, flags)| {
                         json!({
@@ -274,7 +311,7 @@ fn check(session: &mut Session<'_>, path: Option<&Path>) -> Result<(), CliError>
                         })
                     })
                     .collect::<Vec<_>>(),
-                "failures": failures,
+                "failures": validation.failures,
                 "ok": overall_ok,
                 "exitCode": if overall_ok { exit::SUCCESS } else { exit::GENERAL },
             }),
@@ -287,19 +324,19 @@ fn check(session: &mut Session<'_>, path: Option<&Path>) -> Result<(), CliError>
         )
         .ok;
         for (marker, sgr, message) in report_lines(
-            &skill_path,
-            &version,
-            &minimum,
-            &failures,
-            references.len(),
-            version_ok,
+            &validation.path,
+            &validation.version,
+            &validation.minimum,
+            &validation.failures,
+            validation.references.len(),
+            validation.compatible,
             overall_ok,
         ) {
             let painted = paint(color, sgr, &format!("[{marker}]"));
             session
                 .out
                 .human(&format!("{painted} {message}"))
-                .map_err(|error| io_error(&error, &skill_path))?;
+                .map_err(|error| io_error(&error, &validation.path))?;
         }
     }
     if !overall_ok {

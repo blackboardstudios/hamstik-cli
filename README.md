@@ -248,7 +248,12 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   user-level location); a locally modified installed skill is never silently
   overwritten (`--force` is required), and `hamstik agent skill check`
   validates any skill file — or the installed skill — against this binary's
-  live command manifest and CLI-version metadata;
+  live command manifest and CLI-version metadata. `hamstik agent validate`
+  (also `agent doctor`) verifies the local agent harness: installed skill
+  metadata against the running CLI version, credential-shaped content in the
+  config directory (reported by location and kind, never printed), and
+  bundled OpenAPI snapshot freshness when online (skipped with `--offline` or
+  when the live contract is unreachable);
 - a machine-readable command manifest (`hamstik commands --json`) and
   generated command reference + man pages under [`docs/`](docs/reference) —
   regenerated deterministically with `scripts/generate_docs.py` and

@@ -8064,7 +8064,7 @@
    ]
   },
   {
-   "about": "Agent automation: manage and validate the bundled Agent Skill",
+   "about": "Agent automation: manage the bundled Agent Skill and validate the local agent harness",
    "aliases": [],
    "arguments": [],
    "capabilities": {
@@ -8142,6 +8142,41 @@
    "command": "hamstik agent skill check",
    "hasSubcommands": false,
    "options": [],
+   "positionals": [
+    "path"
+   ]
+  },
+  {
+   "about": "Validate the local agent harness offline: installed skill metadata against the running CLI version, credential-shaped content in the config directory (reported without displaying values), and bundled OpenAPI snapshot freshness when online. Also available as `agent doctor`",
+   "aliases": [
+    "doctor"
+   ],
+   "arguments": [
+    {
+     "help": "Explicit path to a `SKILL.md` to validate instead of the default installed-location lookup",
+     "kind": "positional",
+     "name": "path",
+     "valueName": "PATH"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Skip the live OpenAPI snapshot-freshness comparison and make no network requests",
+     "kind": "option",
+     "long": "--offline"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik agent validate",
+   "hasSubcommands": false,
+   "options": [
+    "--offline"
+   ],
    "positionals": [
     "path"
    ]

@@ -17,6 +17,7 @@ use crate::output::{self, OutputOptions};
 pub mod advanced_dashboard;
 pub mod advanced_report;
 pub mod agent_skill;
+pub mod agent_validate;
 pub mod api;
 pub mod attributes;
 pub mod auth;
@@ -161,6 +162,7 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
         Command::Squeakql(args) => squeakql::run(session, args).await,
         Command::Agent(args) => match &args.command {
             AgentCommand::Skill(skill) => agent_skill::run(session, &skill.command),
+            AgentCommand::Validate(validate) => agent_validate::run(session, validate).await,
         },
         Command::Api(args) => api::run(session, args).await,
         Command::Doctor(args) => {

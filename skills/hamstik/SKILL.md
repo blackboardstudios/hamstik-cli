@@ -751,6 +751,8 @@ hamstik --no-input doctor
 hamstik --no-input doctor --local-only   # offline: no DNS or HTTP traffic
 hamstik --json --no-input doctor         # structured report + summary
 hamstik --json --no-input api openapi    # live Public API contract
+hamstik --no-input agent validate --offline   # offline agent-harness check
+hamstik --json --no-input agent validate      # + live snapshot freshness
 ```
 
 - `doctor --local-only` checks configuration, context, credential-store access,
@@ -763,6 +765,13 @@ hamstik --json --no-input api openapi    # live Public API contract
   or healthy.
 - The final `summary` line (human) / `summary` object (JSON) totals
   pass/warn/fail/skipped checks.
+- `agent validate` (also `agent doctor`) checks the local agent harness rather
+  than network health: the installed skill's metadata against the running CLI
+  version, credential-shaped content in the config directory (reported by file,
+  line, and kind — never printed), and bundled OpenAPI snapshot freshness when
+  online. `--offline` makes no network requests and skips the snapshot
+  comparison. An outdated skill, credential-shaped config content, or a stale
+  snapshot exits `1`; a clean harness exits `0`.
 - The `local.audit_log` check reports the effective local mutation audit log.
   Every successful mutation appends one append-only JSON line there with the
   command, target, revision before/after when known, and the server request id —
