@@ -1,6 +1,6 @@
 ---
 name: hamstik
-description: Use the official Hamstik CLI to inspect and manage Hamstik Organizations, Projects, Organization Attributes, Sprints, Work Items, releases, milestones, reports, dashboards, comments, labels, links, attachments, users, SqueakQL, and Public API v1 resources. Use for Hamstik work-tracking and agent workflows. Prefer typed CLI commands, discover the current command surface from the installed CLI, and never bypass the CLI with private Hamstik routes.
+description: Use the official Hamstik CLI to inspect or change Hamstik Work Items, Organizations, Projects, Sprints, reports, and other Public API v1 resources. Applies to Hamstik work-tracking and agent workflows; discover exact commands from the installed CLI.
 metadata:
   short-description: Manage Hamstik through its official CLI
   skill-version: "0.4.0"
@@ -31,6 +31,31 @@ For a short safe workflow reference, use:
 ```bash
 hamstik commands --cookbook
 ```
+
+The examples below are also bundled as the CLI cookbook. Replace placeholders and
+verify the current server state before running any mutation.
+
+<!-- cookbook:start -->
+```bash
+# Read the Work Item
+hamstik --json --no-input --org <ORG> --project <KEY> work view <ITEM-KEY>
+
+# Search for related work
+hamstik --json --no-input --org <ORG> work search "status = 'backlog'"
+
+# Edit an authorized field
+hamstik --json --no-input --org <ORG> --project <KEY> work edit <ITEM-KEY> --priority high
+
+# Discover allowed transitions
+hamstik --json --no-input --org <ORG> --project <KEY> work transitions <ITEM-KEY>
+
+# Apply an authorized server-supported transition
+hamstik --json --no-input --org <ORG> --project <KEY> work transition <ITEM-KEY> in_progress
+
+# Add an authorized durable comment
+hamstik --json --no-input --org <ORG> --project <KEY> work comment add <ITEM-KEY> --body-file <COMMENT.md>
+```
+<!-- cookbook:end -->
 
 ## Locate and validate the CLI
 
@@ -328,35 +353,9 @@ for a routine Work Item operation.
 
 ## References
 
-- `references/automation.md` — output formats, pagination, sorting, bulk operations,
+- [Automation](references/automation.md) — output formats, pagination, sorting, bulk operations,
   import/export, scheduling, and date expressions.
-- `references/platform-features.md` — Attributes, releases, milestones, reports,
+- [Platform features](references/platform-features.md) — Attributes, releases, milestones, reports,
   dashboards, statistics, and external subcommand plugins.
-- `references/diagnostics.md` — configuration, API passthrough details, rate limits,
+- [Diagnostics](references/diagnostics.md) — configuration, API passthrough details, rate limits,
   doctor/support bundles, replay, and agent validation.
-
-## Diagnostics
-
-Start with:
-
-```bash
-hamstik --no-input doctor
-hamstik --no-input doctor --local-only
-hamstik --json --no-input doctor
-```
-
-For a redacted support bundle or local comparison:
-
-```bash
-hamstik --no-input doctor --bundle bundle.zip
-hamstik --json --no-input doctor --diff bundle.zip
-```
-
-For recent failed request metadata:
-
-```bash
-hamstik --json --no-input replay --last 5
-```
-
-Use `--verbose` only when additional safe diagnostics are needed. Never include tokens,
-Authorization headers, credential-bearing proxy URLs, or other secrets in the response.

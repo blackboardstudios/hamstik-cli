@@ -1777,8 +1777,9 @@ Global installation SHOULD prefer the current portable/harness-supported user-le
 
 Because harness conventions evolve, concrete target support MUST be verified against current harness documentation at implementation time.
 
-Re-running an install whose installed skill is byte-identical is idempotent
-(no-op). Do not silently overwrite a modified local skill.
+Re-running an install whose installed skill files are byte-identical is
+idempotent (no-op). Do not silently overwrite a modified entrypoint or
+reference file.
 
 Support:
 
@@ -1786,8 +1787,8 @@ Support:
 --force
 ```
 
-for explicit replacement. The binary carries the canonical skill and its
-frontmatter metadata (`skill-version`, `minimum-cli-version`) so install and
+for explicit replacement. The binary carries the complete canonical skill
+directory and its frontmatter metadata (`skill-version`, `minimum-cli-version`) so install and
 `hamstik agent skill check` work without network access; `HAMSTIK_SKILL_HOME`
 may override the global root directory (the directory containing the
 portable `skills/` tree).

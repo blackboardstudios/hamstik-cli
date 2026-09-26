@@ -36,6 +36,21 @@ use super::emit_json;
 
 /// The canonical Agent Skill compiled into this binary.
 pub(crate) const CANONICAL_SKILL: &str = include_str!("../../../../skills/hamstik/SKILL.md");
+const AUTOMATION_REFERENCE: &str =
+    include_str!("../../../../skills/hamstik/references/automation.md");
+const DIAGNOSTICS_REFERENCE: &str =
+    include_str!("../../../../skills/hamstik/references/diagnostics.md");
+const PLATFORM_REFERENCE: &str =
+    include_str!("../../../../skills/hamstik/references/platform-features.md");
+
+fn bundled_files() -> [(&'static str, &'static str); 4] {
+    [
+        ("SKILL.md", CANONICAL_SKILL),
+        ("references/automation.md", AUTOMATION_REFERENCE),
+        ("references/diagnostics.md", DIAGNOSTICS_REFERENCE),
+        ("references/platform-features.md", PLATFORM_REFERENCE),
+    ]
+}
 
 /// The user-level Agent Skills root override (the directory that should
 /// contain the portable `skills/hamstik/` location).
@@ -81,7 +96,7 @@ fn global_skill_home(session: &Session<'_>) -> Result<PathBuf, CliError> {
         return Ok(PathBuf::from(home.trim().to_string()));
     }
     match UserDirs::new() {
-        Some(dirs) => Ok(dirs.home_dir().to_path_buf()),
+        Some(dirs) => Ok(dirs.home_dir().join(".agents")),
         None => Err(CliError::config(format!(
             "cannot resolve the user home directory for the global Agent Skills location; set {SKILL_HOME_ENV} to the directory that should contain `skills/hamstik/`",
         ))),
@@ -90,36 +105,50 @@ fn global_skill_home(session: &Session<'_>) -> Result<PathBuf, CliError> {
 
 /// Installs the bundled skill into a discovery location.
 fn install(session: &mut Session<'_>, global: bool, force: bool) -> Result<(), CliError> {
-    let root = if global {
+    let skill_home = if global {
         global_skill_home(session)?
     } else {
-        session.cwd.clone()
+        session.cwd.join(".agents")
     };
-    let destination = root
-        .join(".agents")
-        .join("skills")
-        .join("hamstik")
-        .join("SKILL.md");
+    let destination_dir = skill_home.join("skills").join("hamstik");
+    let destination = destination_dir.join("SKILL.md");
+    let mut created = false;
+    let mut replaced = false;
+    let mut pending = Vec::new();
 
-    let action = if destination.is_file() {
-        let existing = fs::read(&destination).map_err(|error| io_error(&error, &destination))?;
-        if existing == CANONICAL_SKILL.as_bytes() {
-            // Idempotent re-install: identical content needs no replacement.
-            "unchanged".to_string()
-        } else if force {
-            "replaced".to_string()
-        } else {
-            return Err(CliError::general(format!(
-                "refusing to replace locally modified Agent Skill at {} (pass --force to replace it explicitly)",
-                destination.display(),
-            )));
+    // Check every bundled file before writing any of them. A customized
+    // reference deserves the same protection as a customized entrypoint.
+    for (relative, content) in bundled_files() {
+        let path = destination_dir.join(relative);
+        match fs::read(&path) {
+            Ok(existing) if existing == content.as_bytes() => {}
+            Ok(_) if force => {
+                replaced = true;
+                pending.push((path, content));
+            }
+            Ok(_) => {
+                return Err(CliError::general(format!(
+                    "refusing to replace locally modified Agent Skill file at {} (pass --force to replace it explicitly)",
+                    path.display(),
+                )));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                created = true;
+                pending.push((path, content));
+            }
+            Err(error) => return Err(io_error(&error, &path)),
         }
+    }
+    for (path, content) in pending {
+        fsutil::write_atomic(&path, content.as_bytes()).map_err(|error| io_error(&error, &path))?;
+    }
+    let action = if replaced {
+        "replaced"
+    } else if created {
+        "created"
     } else {
-        "created".to_string()
+        "unchanged"
     };
-
-    fsutil::write_atomic(&destination, CANONICAL_SKILL.as_bytes())
-        .map_err(|error| io_error(&error, &destination))?;
 
     let (version, minimum) = bundled_metadata();
     let target = if global { "global" } else { "project" };
@@ -592,12 +621,8 @@ fn io_error(error: &std::io::Error, path: &Path) -> CliError {
 
 /// The first installed skill found (project location, then global).
 fn installed_skill_path(session: &Session<'_>) -> Result<Option<PathBuf>, CliError> {
-    for root in [session.cwd.clone(), global_skill_home(session)?] {
-        let candidate = root
-            .join(".agents")
-            .join("skills")
-            .join("hamstik")
-            .join("SKILL.md");
+    for root in [session.cwd.join(".agents"), global_skill_home(session)?] {
+        let candidate = root.join("skills").join("hamstik").join("SKILL.md");
         if candidate.is_file() {
             return Ok(Some(candidate));
         }

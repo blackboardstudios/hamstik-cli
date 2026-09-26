@@ -255,7 +255,8 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
 - a local failed-request journal and `hamstik replay` to review recent server
   errors and network failures by request id, entirely offline;
 - agent automation — `hamstik agent skill install` writes the canonical
-  bundled Agent Skill ([`skills/hamstik/SKILL.md`](skills/hamstik/SKILL.md))
+  bundled Agent Skill ([`skills/hamstik/`](skills/hamstik/), including its
+  references)
   into an Agent Skills discovery location (the current project's portable
   `.agents/skills/hamstik/` directory by default, `--global` for the
   user-level location); a locally modified installed skill is never silently
@@ -276,7 +277,7 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
 
 OAuth and the MCP server remain future work. The canonical portable Agent
 Skill ships with the CLI (install it with `hamstik agent skill install`; see
-[`skills/hamstik/SKILL.md`](skills/hamstik/SKILL.md)). See the
+[`skills/INSTALL.md`](skills/INSTALL.md)). See the
 [design documents](#design-documents) for where the CLI is headed.
 
 ## Command examples

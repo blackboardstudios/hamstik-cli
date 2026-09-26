@@ -1043,12 +1043,13 @@ Conceptual structure:
 ```text
 skills/
 └── hamstik/
-    └── SKILL.md
+    ├── SKILL.md
+    └── references/
 ```
 
-The canonical entry point is always `SKILL.md`. It MAY grow supporting files
-under `skills/hamstik/references/` when a topic outgrows the main document;
-none exist yet.
+The canonical entry point is always `SKILL.md`. Supporting files under
+`skills/hamstik/references/` cover specialized workflows; installation must
+keep them with the entry point.
 
 The Skill teaches:
 
@@ -1066,16 +1067,17 @@ It should NOT duplicate the REST API specification.
 
 # 35. Skill Installation
 
-The CLI SHOULD eventually support:
+The CLI supports:
 
 ```bash
-hamstik agent skill install --project
+hamstik agent skill install
 hamstik agent skill install --global
 ```
 
-The implementation should favor portable Agent Skills locations where supported, while allowing harness-specific adapters where necessary.
+The default target is the current project's `.agents/skills/hamstik/` directory;
+`--global` targets the user-level `.agents/skills/hamstik/` directory.
 
-The canonical skill content remains one source.
+The canonical skill directory remains one source.
 
 Do not maintain four independently edited copies for Pi, Codex, Kilo, and Copilot.
 

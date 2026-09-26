@@ -10,6 +10,14 @@ before upgrading.
 
 ## [Unreleased]
 
+### Changed
+
+- `hamstik agent skill install` now installs the complete canonical skill,
+  including its three references. Global installs honor `HAMSTIK_SKILL_HOME`
+  as the `.agents` directory; modified reference files are protected from
+  replacement without `--force`. The skill cookbook and installation guides
+  now match the bundled CLI behavior.
+
 ### Added
 
 - Gated design stub for self update with stable/prerelease channels (CLI-79):
