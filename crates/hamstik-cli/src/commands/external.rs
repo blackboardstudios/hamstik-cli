@@ -80,8 +80,9 @@ fn executable_name(name: &str) -> &str {
 
 /// Locates the full path of a plugin executable on `PATH`.
 ///
-/// Windows candidates try the extensionless name followed by `.exe`,
-/// `.com`, `.bat`, and `.cmd`; Unix looks only for the plain name.
+/// Windows candidates are the executable-suffixed names (`.exe`, `.com`,
+/// `.bat`, `.cmd`) — Windows cannot execute an extensionless file. Unix
+/// looks only for the plain name.
 fn which(name: &str) -> Result<PathBuf, std::io::Error> {
     let path = std::env::var_os("PATH")
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "PATH not set"))?;

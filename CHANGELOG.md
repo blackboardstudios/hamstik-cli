@@ -21,6 +21,14 @@ before upgrading.
   platform, making stack depth uniform across Windows/macOS/Linux and across
   debug and release profiles. Release archives were never affected.
 
+### Internal
+
+- Windows CI: the external-plugin integration tests now create
+  platform-appropriate plugin stubs (`.cmd` batch files on Windows instead
+  of extensionless `#!/bin/sh` scripts), so the six plugin invocation tests
+  run and pass on `windows-latest` too. Test-only change; the CLI's plugin
+  discovery and invocation were already correct on every platform.
+
 ## [0.5.0] - 2026-10-18
 
 ### Changed

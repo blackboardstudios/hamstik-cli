@@ -29,12 +29,33 @@ fn base(dir: &TempDir) -> Command {
 }
 
 /// Create a test plugin executable in a temp directory and return its path.
-fn make_plugin(dir: &TempDir, name: &str, script: &str) -> std::path::PathBuf {
-    let plugin_path = dir.path().join(format!("hamstik-{}", name));
-    std::fs::write(&plugin_path, script).unwrap();
+///
+/// Unix plugins are extensionless `#!/bin/sh` executables (the CLI's Unix
+/// discovery only accepts the plain name). Windows plugins are `.cmd` batch
+/// files: Windows cannot execute extensionless files, and the CLI's Windows
+/// discovery only accepts the documented executable suffixes (`.exe`,
+/// `.com`, `.bat`, `.cmd`). Each call therefore passes both payload flavors.
+fn make_plugin(
+    dir: &TempDir,
+    name: &str,
+    unix_script: &str,
+    windows_script: &str,
+) -> std::path::PathBuf {
     #[cfg(unix)]
-    std::fs::set_permissions(&plugin_path, std::fs::Permissions::from_mode(0o755)).unwrap();
-    plugin_path
+    {
+        let _ = windows_script;
+        let plugin_path = dir.path().join(format!("hamstik-{}", name));
+        std::fs::write(&plugin_path, unix_script).unwrap();
+        std::fs::set_permissions(&plugin_path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        plugin_path
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = unix_script;
+        let plugin_path = dir.path().join(format!("hamstik-{}.cmd", name));
+        std::fs::write(&plugin_path, windows_script).unwrap();
+        plugin_path
+    }
 }
 
 /// Test that an unknown subcommand (no matching plugin) returns a clear error.
@@ -59,6 +80,10 @@ fn plugin_on_path_is_invoked() {
         r#"#!/bin/sh
 echo "Hello from plugin"
 echo "PLUGIN=$HAMSTIK_PLUGIN"
+"#,
+        r#"@echo off
+echo Hello from plugin
+echo PLUGIN=%HAMSTIK_PLUGIN%
 "#,
     );
     let mut cmd = base(&dir);
@@ -99,6 +124,25 @@ echo "APIKEY=$HAMSTIK_API_KEY"
 echo "SECRET=$HAMSTIK_SECRET"
 echo "PASSWORD=$HAMSTIK_PASSWORD"
 "#,
+        r#"@echo off
+echo HOST=%HAMSTIK_HOST%
+echo PROFILE=%HAMSTIK_PROFILE%
+echo ORG=%HAMSTIK_ORG%
+echo PROJECT=%HAMSTIK_PROJECT%
+echo FORMAT=%HAMSTIK_FORMAT%
+echo PLUGIN=%HAMSTIK_PLUGIN%
+echo NO_COLOR=%HAMSTIK_NO_COLOR%
+echo NO_INPUT=%HAMSTIK_NO_INPUT%
+echo NO_RETRY=%HAMSTIK_NO_RETRY%
+echo QUIET=%HAMSTIK_QUIET%
+echo VERBOSE=%HAMSTIK_VERBOSE%
+echo DRY_RUN=%HAMSTIK_DRY_RUN%
+echo TOKEN=%HAMSTIK_TOKEN%
+echo AUTH=%Authorization%
+echo APIKEY=%HAMSTIK_API_KEY%
+echo SECRET=%HAMSTIK_SECRET%
+echo PASSWORD=%HAMSTIK_PASSWORD%
+"#,
     );
     let mut cmd = base(&dir);
     // These must not reach the plugin.
@@ -137,6 +181,14 @@ echo "NO_RETRY=$HAMSTIK_NO_RETRY"
 echo "QUIET=$HAMSTIK_QUIET"
 echo "VERBOSE=$HAMSTIK_VERBOSE"
 "#,
+        r#"@echo off
+echo FORMAT=%HAMSTIK_FORMAT%
+echo NO_COLOR=%HAMSTIK_NO_COLOR%
+echo NO_INPUT=%HAMSTIK_NO_INPUT%
+echo NO_RETRY=%HAMSTIK_NO_RETRY%
+echo QUIET=%HAMSTIK_QUIET%
+echo VERBOSE=%HAMSTIK_VERBOSE%
+"#,
     );
     let mut cmd = base(&dir);
     cmd.current_dir(&dir);
@@ -166,6 +218,9 @@ fn plugin_receives_arguments() {
         r#"#!/bin/sh
 echo "ARGS=$@"
 "#,
+        r#"@echo off
+echo ARGS=%*
+"#,
     );
     let mut cmd = base(&dir);
     cmd.current_dir(&dir);
@@ -188,6 +243,9 @@ fn manifest_includes_external_plugins() {
         "testplugin",
         r#"#!/bin/sh
 echo "Test plugin help text"
+"#,
+        r#"@echo off
+echo Test plugin help text
 "#,
     );
     let mut cmd = base(&dir);
@@ -230,6 +288,10 @@ fn help_lists_external_plugins() {
 touch "$PWD/ran"
 echo "This is the helptest plugin"
 "#,
+        r#"@echo off
+type nul > ran
+echo This is the helptest plugin
+"#,
     );
     let mut cmd = base(&dir);
     cmd.current_dir(&dir);
@@ -254,6 +316,9 @@ fn plugin_exit_code_is_propagated() {
         r#"#!/bin/sh
 exit 42
 "#,
+        r#"@echo off
+exit /b 42
+"#,
     );
     let mut cmd = base(&dir);
     cmd.current_dir(&dir);
@@ -274,6 +339,10 @@ fn commands_manifest_does_not_execute_plugins() {
 touch "$PWD/ran"
 echo "hi"
 "#,
+        r#"@echo off
+type nul > ran
+echo hi
+"#,
     );
     let mut cmd = base(&dir);
     cmd.current_dir(&dir);
@@ -293,6 +362,9 @@ fn plugin_success_exit_code() {
         "success",
         r#"#!/bin/sh
 exit 0
+"#,
+        r#"@echo off
+exit /b 0
 "#,
     );
     let mut cmd = base(&dir);
