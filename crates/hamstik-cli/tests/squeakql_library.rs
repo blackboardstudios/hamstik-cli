@@ -40,13 +40,20 @@ fn valid_response() -> Value {
     json!({"valid": true, "languageVersion": 1, "errors": []})
 }
 
-/// Captures one POST body into a temp file and answers `valid`.
-async fn mounting_capture(server: &MockServer, endpoint: &'static str, capture: &'static str) {
+/// Captures one POST body into `capture` and answers `valid`.
+///
+/// The capture path lives inside the test's temp directory so the test is
+/// portable across platforms (a fixed `/tmp` path does not exist on Windows).
+async fn mounting_capture(
+    server: &MockServer,
+    endpoint: &'static str,
+    capture: std::path::PathBuf,
+) {
     Mock::given(method("POST"))
         .and(wiremock::matchers::path(endpoint))
         .respond_with(move |request: &wiremock::Request| {
             let body = String::from_utf8_lossy(&request.body).to_string();
-            std::fs::write(capture, body).ok();
+            std::fs::write(&capture, body).ok();
             ResponseTemplate::new(200).set_body_json(valid_response())
         })
         .mount(server)
@@ -72,12 +79,15 @@ async fn repo_query_runs_from_a_nested_directory() {
         "status = 'backlog'\n",
     );
 
-    // The search endpoint answers with the documented search envelope.
+    // The search endpoint answers with the documented search envelope and
+    // captures the request body inside the test's temp directory.
+    let capture = dir.path().join("search-capture.json");
+    let capture_for_mock = capture.clone();
     Mock::given(method("POST"))
         .and(path(SEARCH))
         .respond_with(move |request: &wiremock::Request| {
             let body = String::from_utf8_lossy(&request.body).to_string();
-            std::fs::write("/tmp/kilo-sq-lib-run.json", body).ok();
+            std::fs::write(&capture_for_mock, body).ok();
             ResponseTemplate::new(200).set_body_json(json!({
                 "items": [],
                 "page": {"limit": 50, "hasMore": false, "nextCursor": null}
@@ -94,8 +104,7 @@ async fn repo_query_runs_from_a_nested_directory() {
         .code(0)
         .stdout(predicate::str::contains("KEY"));
 
-    let captured: Value =
-        serde_json::from_slice(&std::fs::read("/tmp/kilo-sq-lib-run.json").unwrap()).unwrap();
+    let captured: Value = serde_json::from_slice(&std::fs::read(&capture).unwrap()).unwrap();
     assert_eq!(captured["query"], json!("status = 'backlog'"));
 }
 
@@ -204,14 +213,15 @@ async fn validate_resolves_the_library_and_missing_names_fail_clearly() {
         "status = 'backlog'",
     );
 
-    mounting_capture(&server, VALIDATE, "/tmp/kilo-sq-lib-validate.json").await;
+    mounting_capture(&server, VALIDATE, dir.path().join("validate-capture.json")).await;
 
     base(&server, &dir)
         .args(["--org", "acme", "squeakql", "validate", "--saved", "valid"])
         .assert()
         .code(0);
     let captured: Value =
-        serde_json::from_slice(&std::fs::read("/tmp/kilo-sq-lib-validate.json").unwrap()).unwrap();
+        serde_json::from_slice(&std::fs::read(dir.path().join("validate-capture.json")).unwrap())
+            .unwrap();
     assert_eq!(captured["query"], json!("status = 'backlog'"));
 
     base(&server, &dir)
@@ -249,7 +259,7 @@ async fn invalid_stems_are_ignored_and_newline_policy_applies() {
         .collect();
     assert_eq!(names, ["good-name"]);
 
-    mounting_capture(&server, VALIDATE, "/tmp/kilo-sq-lib-policy.json").await;
+    mounting_capture(&server, VALIDATE, dir.path().join("policy-capture.json")).await;
     base(&server, &dir)
         .args([
             "--org",
@@ -262,6 +272,7 @@ async fn invalid_stems_are_ignored_and_newline_policy_applies() {
         .assert()
         .code(0);
     let captured: Value =
-        serde_json::from_slice(&std::fs::read("/tmp/kilo-sq-lib-policy.json").unwrap()).unwrap();
+        serde_json::from_slice(&std::fs::read(dir.path().join("policy-capture.json")).unwrap())
+            .unwrap();
     assert_eq!(captured["query"], json!("status = 'ok'"));
 }
