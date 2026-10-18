@@ -1,0 +1,21 @@
+.TH HAMSTIK 1 "HAMSTIK RULE TOGGLE"
+.SH NAME
+hamstik rule toggle \- Enable or disable a rule through the server\-owned transition
+.SH SYNOPSIS
+.B hamstik rule toggle [OPTIONS]
+.SH DESCRIPTION
+Enable or disable a rule through the server\-owned transition
+.SH ARGUMENTS
+.TP
+.I RULE_ID
+Automation rule id
+.SH OPTIONS
+.TP
+.B --body-file
+Read the JSON request body from this file; `-` reads stdin
+.TP
+.B --field
+Structured JSON field as `key=value`; repeatable
+.TP
+.B --idempotency-key
+Idempotency key override

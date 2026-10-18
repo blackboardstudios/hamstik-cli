@@ -1,0 +1,24 @@
+.TH HAMSTIK 1 "HAMSTIK RULE EDIT"
+.SH NAME
+hamstik rule edit \- Update an automation rule
+.SH SYNOPSIS
+.B hamstik rule edit [OPTIONS]
+.SH DESCRIPTION
+Update an automation rule
+.SH ARGUMENTS
+.TP
+.I RULE_ID
+Automation rule id
+.SH OPTIONS
+.TP
+.B --body-file
+Read the JSON request body from this file; `-` reads stdin
+.TP
+.B --field
+Structured JSON field as `key=value`; repeatable
+.TP
+.B --if-match
+Current rule ETag
+.TP
+.B --idempotency-key
+Idempotency key override

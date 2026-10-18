@@ -2,6 +2,110 @@
   "schemaVersion": 1,
   "operations": [
     {
+      "operationId": "acceptOrganizationAutomationRuleOwner",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/automation-rules/{ruleId}/accept-owner",
+      "client": "invoke_operation",
+      "cli": [
+        "rule accept-owner"
+      ],
+      "tests": [
+        "automation_rule"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "actOnGovernanceApprovalRequest",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/approval-requests",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "actOnWorkItemTemplate",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-item-templates/{templateId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "addAccessTeamMember",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/access-teams/{teamId}/members",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "addDeliveryTeamMember",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/delivery-teams/{teamId}/members",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "addWorkItemCommentReaction",
+      "method": "PUT",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments/{commentId}/reactions/{reactionKey}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "addWorkItemReaction",
+      "method": "PUT",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/reactions/{reactionKey}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "archiveDeliveryTeam",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/delivery-teams/{teamId}/archive",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "archiveProject",
       "method": "POST",
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/archive",
@@ -54,6 +158,19 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "archiveWorkItemTemplate",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-item-templates/{templateId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -114,6 +231,45 @@
       "status": "Complete"
     },
     {
+      "operationId": "cloneWorkItem",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/clone",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "configureSamlIdentity",
+      "method": "PUT",
+      "path": "/api/v1/organizations/{organizationSlug}/identity/saml",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createAccessTeam",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/access-teams",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "createAdvancedReport",
       "method": "POST",
       "path": "/api/v1/organizations/{organizationSlug}/advanced-reports",
@@ -123,6 +279,45 @@
       ],
       "tests": [
         "advanced_reporting"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createDeliveryTeam",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/delivery-teams",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createGovernanceRetentionPolicy",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/retention-policies",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createGovernanceRetentionPreview",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/retention-previews",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -155,6 +350,19 @@
       "status": "Complete"
     },
     {
+      "operationId": "createOrganizationAutomationRule",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/automation-rules",
+      "client": "invoke_operation",
+      "cli": [
+        "rule create"
+      ],
+      "tests": [
+        "automation_rule"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "createOrganizationMilestone",
       "method": "POST",
       "path": "/api/v1/organizations/{organizationSlug}/milestones",
@@ -169,6 +377,19 @@
       "status": "Complete"
     },
     {
+      "operationId": "createOrganizationWebhook",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/webhooks",
+      "client": "invoke_operation",
+      "cli": [
+        "webhook create"
+      ],
+      "tests": [
+        "webhook"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "createProject",
       "method": "POST",
       "path": "/api/v1/organizations/{organizationSlug}/projects",
@@ -179,6 +400,19 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createProjectCalendarFeed",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/calendar-feeds",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -207,6 +441,71 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createQualityResultDefect",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/runs/{runId}/results/{resultId}/defects",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createQualityTestCase",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/cases",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createQualityTestPlan",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/plans",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createQualityTestRun",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/runs",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createQualityTestSuite",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/plans/{planId}/suites",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -295,6 +594,45 @@
       "status": "Complete"
     },
     {
+      "operationId": "createWorkItemTemplate",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-item-templates",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "createWorkItemWorklog",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/worklogs",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteAccessTeam",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/access-teams/{teamId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "deleteAdvancedReport",
       "method": "DELETE",
       "path": "/api/v1/organizations/{organizationSlug}/advanced-reports/{reportId}",
@@ -304,6 +642,84 @@
       ],
       "tests": [
         "advanced_reporting"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteDeliveryTeam",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/delivery-teams/{teamId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteGovernanceStandardsMapping",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/standards-mappings",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteOrganizationAutomationRule",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/automation-rules/{ruleId}",
+      "client": "invoke_operation",
+      "cli": [
+        "rule delete"
+      ],
+      "tests": [
+        "automation_rule"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteOrganizationWebhook",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/webhooks/{webhookId}",
+      "client": "invoke_operation",
+      "cli": [
+        "webhook delete"
+      ],
+      "tests": [
+        "webhook"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteProjectCalendarFeed",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/calendar-feeds/{feedId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "deleteQualityTestSuite",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/plans/{planId}/suites/{suiteId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -378,6 +794,32 @@
       "status": "Complete"
     },
     {
+      "operationId": "deleteWorkItemWorklog",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/worklogs/{worklogId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "downloadGovernanceExport",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/exports/{jobId}/download",
+      "client": "download_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "downloadWorkItemAttachment",
       "method": "GET",
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/attachments/{attachmentId}",
@@ -435,6 +877,19 @@
       "status": "Complete"
     },
     {
+      "operationId": "getAccessTeam",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/access-teams/{teamId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "getAdvancedDashboard",
       "method": "GET",
       "path": "/api/v1/organizations/{organizationSlug}/advanced-dashboards/{dashboardId}",
@@ -475,6 +930,84 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getDeliveryTeam",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/delivery-teams/{teamId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getGovernanceApprovalRequirement",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/approval-requirement",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getGovernanceEvidenceCustody",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/evidence/{sourceId}/{recordId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getGovernanceOps",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/ops",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getGovernancePolicyEvaluation",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/policy-evaluation",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getGovernanceRetentionPreview",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/retention-previews/{previewId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -544,6 +1077,19 @@
       "status": "Complete"
     },
     {
+      "operationId": "getOrganizationAutomationRule",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/automation-rules/{ruleId}",
+      "client": "invoke_operation",
+      "cli": [
+        "rule view"
+      ],
+      "tests": [
+        "automation_rule"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "getOrganizationMilestone",
       "method": "GET",
       "path": "/api/v1/organizations/{organizationSlug}/milestones/{milestoneId}",
@@ -558,6 +1104,19 @@
       "status": "Complete"
     },
     {
+      "operationId": "getOrganizationWebhook",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/webhooks/{webhookId}",
+      "client": "invoke_operation",
+      "cli": [
+        "webhook view"
+      ],
+      "tests": [
+        "webhook"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "getProject",
       "method": "GET",
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}",
@@ -568,6 +1127,19 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getProjectCalendarFeed",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/calendar-feeds/{feedId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -600,6 +1172,32 @@
       "status": "Complete"
     },
     {
+      "operationId": "getProjectSprintAvailability",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}/availability",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getProjectSprintCapacityPlanning",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}/capacity-planning",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "getProjectSprintReport",
       "method": "GET",
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}/report",
@@ -610,6 +1208,71 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getQualityGate",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/gate",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getQualityTestCase",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/cases/{caseId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getQualityTestPlan",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/plans/{planId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getQualityTestRun",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/runs/{runId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getQualityTestSuite",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/plans/{planId}/suites/{suiteId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -684,6 +1347,19 @@
       "status": "Complete"
     },
     {
+      "operationId": "getSamlIdentityStatus",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/identity/saml",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "getUserProfile",
       "method": "GET",
       "path": "/api/v1/users/{publicId}",
@@ -726,6 +1402,58 @@
       "status": "Complete"
     },
     {
+      "operationId": "getWorkItemEffort",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/effort",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getWorkItemTemplate",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-item-templates/{templateId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getWorkItemVerification",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/work-items/{workItemKey}/verification",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "getWorkItemVote",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/vote",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "getWorkItemWatcher",
       "method": "GET",
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/watcher",
@@ -736,6 +1464,58 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "grantGovernanceCapability",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/capability-grants",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "linkQualityCaseWorkItem",
+      "method": "PUT",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/cases/{caseId}/work-items/{workItemKey}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listAccessTeamMembers",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/access-teams/{teamId}/members",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listAccessTeams",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/access-teams",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -779,6 +1559,136 @@
       "status": "Complete"
     },
     {
+      "operationId": "listDeliveryTeamMembers",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/delivery-teams/{teamId}/members",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listDeliveryTeams",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/delivery-teams",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listGovernanceApprovalRequests",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/approval-requests",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listGovernanceCapabilityGrants",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/capability-grants",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listGovernanceEvidence",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/evidence",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listGovernanceExports",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/exports",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listGovernanceHolds",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/holds",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listGovernanceRetentionPolicies",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/retention-policies",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listGovernanceRetentionPreviews",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/retention-previews",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listGovernanceStandardsMappings",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/standards-mappings",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "listMyWork",
       "method": "GET",
       "path": "/api/v1/my/work",
@@ -804,6 +1714,32 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listOrganizationAutomationRuleRuns",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/automation-rules/{ruleId}/runs",
+      "client": "invoke_operation",
+      "cli": [
+        "rule runs"
+      ],
+      "tests": [
+        "automation_rule"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listOrganizationAutomationRules",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/automation-rules",
+      "client": "invoke_operation",
+      "cli": [
+        "rule list"
+      ],
+      "tests": [
+        "automation_rule"
       ],
       "status": "Complete"
     },
@@ -878,6 +1814,32 @@
       "status": "Complete"
     },
     {
+      "operationId": "listOrganizationWebhookDeliveries",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/webhooks/{webhookId}/deliveries",
+      "client": "invoke_operation",
+      "cli": [
+        "webhook deliveries"
+      ],
+      "tests": [
+        "webhook"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listOrganizationWebhooks",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/webhooks",
+      "client": "invoke_operation",
+      "cli": [
+        "webhook list"
+      ],
+      "tests": [
+        "webhook"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "listOrganizationWorkItems",
       "method": "GET",
       "path": "/api/v1/organizations/{organizationSlug}/work-items",
@@ -934,6 +1896,32 @@
       "status": "Complete"
     },
     {
+      "operationId": "listProjectBoards",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/boards",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listProjectCalendarFeeds",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/calendar-feeds",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "listProjectLabels",
       "method": "GET",
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/labels",
@@ -986,6 +1974,97 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listQualityResultDefects",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/runs/{runId}/results/{resultId}/defects",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listQualityResultEvidence",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/runs/{runId}/results/{resultId}/evidence",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listQualityTestCases",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/cases",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listQualityTestPlans",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/plans",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listQualityTestResults",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/runs/{runId}/results",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listQualityTestRuns",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/runs",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listQualityTestSuites",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/plans/{planId}/suites",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -1130,6 +2209,19 @@
       "status": "Complete"
     },
     {
+      "operationId": "listWorkItemTemplates",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-item-templates",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "listWorkItemTransitions",
       "method": "GET",
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/transitions",
@@ -1140,6 +2232,19 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "listWorkItemWorklogs",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/worklogs",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -1189,6 +2294,45 @@
       "status": "Complete"
     },
     {
+      "operationId": "placeGovernanceHold",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/holds",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "previewOrganizationAutomationRule",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/automation-rules/{ruleId}/preview",
+      "client": "invoke_operation",
+      "cli": [
+        "rule preview"
+      ],
+      "tests": [
+        "automation_rule"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "previewWorkItemClone",
+      "method": "GET",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/clone",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "publishReleaseAnnouncement",
       "method": "POST",
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/releases/{releaseId}/announcements/publish",
@@ -1199,6 +2343,123 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "putProjectSprintAvailability",
+      "method": "PUT",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/sprints/{sprintId}/availability",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "recordQualityTestResult",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/runs/{runId}/results",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "recordWorkItemSignoff",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/work-items/{workItemKey}/verification/signoff",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "redeliverOrganizationWebhookDelivery",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/webhooks/{webhookId}/deliveries/{deliveryId}/redeliver",
+      "client": "invoke_operation",
+      "cli": [
+        "webhook redeliver"
+      ],
+      "tests": [
+        "webhook"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "releaseGovernanceHold",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/holds/{holdId}/release",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "removeAccessTeamMember",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/access-teams/{teamId}/members/{userId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "removeDeliveryTeamMember",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/delivery-teams/{teamId}/members/{userId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "removeWorkItemCommentReaction",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments/{commentId}/reactions/{reactionKey}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "removeWorkItemReaction",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/reactions/{reactionKey}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -1245,6 +2506,19 @@
       "status": "Complete"
     },
     {
+      "operationId": "requestGovernanceExport",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/exports",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "restoreReleaseVersion",
       "method": "POST",
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/releases/{releaseId}/restore",
@@ -1269,6 +2543,58 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "retireQualityTestCase",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/cases/{caseId}/retire",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "revokeGovernanceCapability",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/capability-grants/{grantId}/revoke",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "rotateOrganizationWebhookSecret",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/webhooks/{webhookId}/rotate",
+      "client": "invoke_operation",
+      "cli": [
+        "webhook rotate"
+      ],
+      "tests": [
+        "webhook"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "rotateProjectCalendarFeedSecret",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/calendar-feeds/{feedId}/rotate",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -1299,6 +2625,19 @@
       "status": "Complete"
     },
     {
+      "operationId": "saveQualityGate",
+      "method": "PUT",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/gate",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "searchOrganizationWorkItemsWithSqueakQL",
       "method": "POST",
       "path": "/api/v1/organizations/{organizationSlug}/work-items/search",
@@ -1309,6 +2648,19 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "setGovernanceApprovalRequirement",
+      "method": "PUT",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/approval-requirement",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -1324,6 +2676,58 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "setWorkItemCommentPrivacy",
+      "method": "PUT",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/comments/{commentId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "setWorkItemVote",
+      "method": "PUT",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/vote",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "testOrganizationWebhook",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/webhooks/{webhookId}/test",
+      "client": "invoke_operation",
+      "cli": [
+        "webhook test"
+      ],
+      "tests": [
+        "webhook"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "toggleOrganizationAutomationRule",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/automation-rules/{ruleId}/toggle",
+      "client": "invoke_operation",
+      "cli": [
+        "rule toggle"
+      ],
+      "tests": [
+        "automation_rule"
       ],
       "status": "Complete"
     },
@@ -1370,6 +2774,32 @@
       "status": "Complete"
     },
     {
+      "operationId": "transitionQualityTestPlan",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/plans/{planId}/transitions",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "transitionQualityTestRun",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/runs/{runId}/transitions",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "transitionReleaseVersion",
       "method": "POST",
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/releases/{releaseId}/transitions",
@@ -1396,6 +2826,19 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "unarchiveDeliveryTeam",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/delivery-teams/{teamId}/unarchive",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -1428,6 +2871,45 @@
       "status": "Complete"
     },
     {
+      "operationId": "unlinkQualityCaseWorkItem",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/cases/{caseId}/work-items/{workItemKey}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "unlinkQualityResultDefect",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/runs/{runId}/results/{resultId}/defects/{workItemKey}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "updateAccessTeam",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/access-teams/{teamId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "updateAdvancedReport",
       "method": "PATCH",
       "path": "/api/v1/organizations/{organizationSlug}/advanced-reports/{reportId}",
@@ -1437,6 +2919,32 @@
       ],
       "tests": [
         "advanced_reporting"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "updateDeliveryTeam",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/delivery-teams/{teamId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "updateOrganizationAutomationRule",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/automation-rules/{ruleId}",
+      "client": "invoke_operation",
+      "cli": [
+        "rule edit"
+      ],
+      "tests": [
+        "automation_rule"
       ],
       "status": "Complete"
     },
@@ -1455,6 +2963,19 @@
       "status": "Complete"
     },
     {
+      "operationId": "updateOrganizationWebhook",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/webhooks/{webhookId}",
+      "client": "invoke_operation",
+      "cli": [
+        "webhook edit"
+      ],
+      "tests": [
+        "webhook"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "updateProject",
       "method": "PATCH",
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}",
@@ -1465,6 +2986,58 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "updateProjectCalendarFeed",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/calendar-feeds/{feedId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "updateQualityTestCase",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/cases/{caseId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "updateQualityTestPlan",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/plans/{planId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "updateQualityTestSuite",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/plans/{planId}/suites/{suiteId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },
@@ -1511,6 +3084,19 @@
       "status": "Complete"
     },
     {
+      "operationId": "updateWorkItemTemplate",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-item-templates/{templateId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
       "operationId": "updateWorkItemWatcher",
       "method": "POST",
       "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/watcher",
@@ -1524,6 +3110,45 @@
       "tests": [
         "client",
         "cli"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "updateWorkItemWorklog",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/work-items/{workItemKey}/worklogs/{worklogId}",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "uploadQualityResultEvidence",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/projects/{projectKey}/quality/runs/{runId}/results/{resultId}/evidence",
+      "client": "upload_operation_file",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
+      ],
+      "status": "Complete"
+    },
+    {
+      "operationId": "upsertGovernanceStandardsMapping",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationSlug}/governance/standards-mappings",
+      "client": "invoke_operation",
+      "cli": [
+        "api invoke"
+      ],
+      "tests": [
+        "api_invoke"
       ],
       "status": "Complete"
     },

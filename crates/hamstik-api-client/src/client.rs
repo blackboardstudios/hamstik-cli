@@ -72,6 +72,20 @@ fn header_content_type() -> HeaderName {
     HeaderName::from_static("content-type")
 }
 
+fn parse_raw_headers(
+    headers: Vec<(String, String)>,
+) -> Result<Vec<(HeaderName, String)>, ClientError> {
+    headers
+        .into_iter()
+        .map(|(name, value)| {
+            let parsed = HeaderName::from_lowercase(name.to_ascii_lowercase().as_bytes()).map_err(
+                |err| ClientError::Protocol(format!("invalid header name {name:?}: {err}")),
+            )?;
+            Ok((parsed, value))
+        })
+        .collect()
+}
+
 fn unsupported_attribute_operation() -> ClientError {
     ClientError::Protocol("this API client does not support Attribute operations".to_string())
 }
@@ -688,13 +702,16 @@ impl HamstikClient {
     }
 
     /// Uploads a file as `multipart/form-data` with a single `file` part.
-    async fn send_multipart(
+    async fn send_multipart<T>(
         &self,
         spec: &RequestSpec<'_>,
         file_name: &str,
         content_type: Option<&str>,
         bytes: Vec<u8>,
-    ) -> Result<ApiResponse<Attachment>, ClientError> {
+    ) -> Result<ApiResponse<T>, ClientError>
+    where
+        T: DeserializeOwned,
+    {
         let started = Instant::now();
         let (response, _) = match self
             .send_with_retry(spec.retryable, || {
@@ -1153,10 +1170,13 @@ fn advanced_query(opts: &ListAdvancedOptions) -> Vec<(String, String)> {
     out
 }
 
-/// The complete, typed surface of the Hamstik Public API used by the CLI.
+/// The typed and contract-aware surface of the Hamstik Public API used by the
+/// CLI.
 ///
-/// Every method maps to exactly one endpoint; transport concerns (auth,
-/// retries, idempotency, error mapping) are shared in [`HamstikClient`].
+/// Dedicated resource methods map to exactly one endpoint. The operation
+/// invoker covers additional frozen v1 operations while transport concerns
+/// (auth, retries, idempotency, error mapping) remain shared in
+/// [`HamstikClient`].
 #[async_trait]
 pub trait HamstikApi: Send + Sync {
     /// `GET /me`: the authenticated identity and credential context.
@@ -1185,6 +1205,51 @@ pub trait HamstikApi: Send + Sync {
         body: Option<&Value>,
         idempotency_key: Option<&str>,
     ) -> Result<ApiResponse<Value>, ClientError>;
+    /// Invokes one operation resolved from the frozen Public API contract.
+    ///
+    /// The CLI owns operation discovery and validation; the client keeps the
+    /// authenticated transport, retry, error, and redaction behavior shared
+    /// with the hand-written resource methods.
+    async fn invoke_operation(
+        &self,
+        method: &str,
+        segments: &[String],
+        query: Vec<(String, String)>,
+        headers: Vec<(String, String)>,
+        body: Option<&Value>,
+        idempotency_key: Option<&str>,
+    ) -> Result<ApiResponse<Value>, ClientError> {
+        self.raw_request(method, segments, query, headers, body, idempotency_key)
+            .await
+    }
+    /// Invokes an operation whose request body is a single multipart `file`
+    /// part. Implementations that do not provide transport support return a
+    /// protocol error; the production client implements it below.
+    async fn upload_operation_file(
+        &self,
+        _method: &str,
+        _segments: &[String],
+        _query: Vec<(String, String)>,
+        _headers: Vec<(String, String)>,
+        _file: MultipartFile,
+        _idempotency_key: Option<&str>,
+    ) -> Result<ApiResponse<Value>, ClientError> {
+        Err(ClientError::Protocol(
+            "multipart operation invocation is not supported by this client".to_string(),
+        ))
+    }
+    /// Invokes an operation whose successful response is binary data.
+    async fn download_operation(
+        &self,
+        _method: &str,
+        _segments: &[String],
+        _query: Vec<(String, String)>,
+        _headers: Vec<(String, String)>,
+    ) -> Result<DownloadedAttachment, ClientError> {
+        Err(ClientError::Protocol(
+            "binary operation invocation is not supported by this client".to_string(),
+        ))
+    }
     /// `GET /organizations`: the organizations the user belongs to.
     async fn list_organizations(
         &self,
@@ -2209,13 +2274,7 @@ impl HamstikApi for HamstikClient {
         let http_method = Method::from_bytes(method.as_bytes()).map_err(|err| {
             ClientError::Protocol(format!("unsupported method {method:?}: {err}"))
         })?;
-        let mut spec_headers: Vec<(HeaderName, String)> = Vec::new();
-        for (name, value) in headers {
-            let parsed = HeaderName::from_lowercase(name.to_ascii_lowercase().as_bytes()).map_err(
-                |err| ClientError::Protocol(format!("invalid header name {name:?}: {err}")),
-            )?;
-            spec_headers.push((parsed, value));
-        }
+        let mut spec_headers = parse_raw_headers(headers)?;
         if let Some(key) = idempotency_key {
             spec_headers.push((header_idempotency_key(), key.to_string()));
         }
@@ -2228,6 +2287,59 @@ impl HamstikApi for HamstikClient {
             // POST/DELETE carry the idempotency key, making retries safe;
             // GET/PATCH/PUT are either read-only or revision-guarded. The
             // transport's retry policy applies to all of them.
+            retryable: true,
+        })
+        .await
+    }
+
+    async fn upload_operation_file(
+        &self,
+        method: &str,
+        segments: &[String],
+        query: Vec<(String, String)>,
+        headers: Vec<(String, String)>,
+        file: MultipartFile,
+        idempotency_key: Option<&str>,
+    ) -> Result<ApiResponse<Value>, ClientError> {
+        let http_method = Method::from_bytes(method.as_bytes()).map_err(|err| {
+            ClientError::Protocol(format!("unsupported method {method:?}: {err}"))
+        })?;
+        let mut spec_headers = parse_raw_headers(headers)?;
+        if let Some(key) = idempotency_key {
+            spec_headers.push((header_idempotency_key(), key.to_string()));
+        }
+        self.send_multipart(
+            &RequestSpec {
+                method: http_method,
+                segments: segments.to_vec(),
+                query,
+                headers: spec_headers,
+                body: None,
+                retryable: true,
+            },
+            &file.file_name,
+            file.content_type.as_deref(),
+            file.bytes,
+        )
+        .await
+    }
+
+    async fn download_operation(
+        &self,
+        method: &str,
+        segments: &[String],
+        query: Vec<(String, String)>,
+        headers: Vec<(String, String)>,
+    ) -> Result<DownloadedAttachment, ClientError> {
+        let http_method = Method::from_bytes(method.as_bytes()).map_err(|err| {
+            ClientError::Protocol(format!("unsupported method {method:?}: {err}"))
+        })?;
+        self.send_bytes(RequestSpec {
+            method: http_method,
+            segments: segments.to_vec(),
+            query,
+            headers: parse_raw_headers(headers)?,
+            body: None,
             retryable: true,
         })
         .await
@@ -3085,6 +3197,7 @@ impl HamstikApi for HamstikClient {
         push_opt(&mut query, "assignee", opts.assignee);
         push_opt(&mut query, "label", opts.label);
         push_opt(&mut query, "buckets", opts.buckets);
+        push_opt(&mut query, "boardScope", opts.board_scope);
         self.send_json(RequestSpec {
             method: Method::GET,
             segments: vec![

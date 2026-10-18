@@ -407,18 +407,15 @@ pub async fn run(
                         .with_request_id(response.request_id),
                     );
                     match check_api_compatibility(&response.value) {
-                        Ok(compatibility) if compatibility.additive_operations == 0 => {
+                        Ok(compatibility) => {
+                            // Public API v1 is additive: operations newer than this CLI's
+                            // required inventory do not make the server less compatible.
+                            // Keep the count visible for diagnostics without turning a
+                            // healthy forward-compatible server into a warning.
                             report.push(Check::pass(
                                 "api.compatibility",
                                 "API compatibility",
                                 true,
-                                compatibility.detail,
-                            ));
-                        }
-                        Ok(compatibility) => {
-                            report.push(Check::warn(
-                                "api.compatibility",
-                                "API compatibility",
                                 compatibility.detail,
                             ));
                         }
@@ -700,7 +697,7 @@ fn diagnose_local_state(session: &Session<'_>, report: &mut Report) -> LocalStat
         )),
     }
 
-    match Host::parse(&resolution.host) {
+    let local_state = match Host::parse(&resolution.host) {
         Ok(host) => {
             report.push(Check::pass(
                 "local.host",
@@ -708,7 +705,6 @@ fn diagnose_local_state(session: &Session<'_>, report: &mut Report) -> LocalStat
                 true,
                 format!("{host} (from {})", resolution.host_source.label()),
             ));
-            report.push(proxy_check(session));
             LocalState {
                 selection: Some(Selection {
                     host,
@@ -729,14 +725,15 @@ fn diagnose_local_state(session: &Session<'_>, report: &mut Report) -> LocalStat
                 CliError::config(format!("invalid host: {error}")),
                 "Pass a bare HTTPS origin with --host, or correct HAMSTIK_HOST/context/profile configuration.",
             );
-            report.push(Check::skipped(
-                "network.proxy",
-                "proxy",
-                "host validation failed",
-            ));
             LocalState { selection: None }
         }
+    };
+
+    if let Some(check) = proxy_check(session) {
+        report.push(check);
     }
+
+    local_state
 }
 
 fn resolve_profile(
@@ -910,28 +907,27 @@ fn resolve_credentials(
     None
 }
 
-fn proxy_check(session: &Session<'_>) -> Check {
-    let names: Vec<_> = [
+fn proxy_check(session: &Session<'_>) -> Option<Check> {
+    let mut names: Vec<_> = [
         "HTTPS_PROXY",
         "https_proxy",
         "HTTP_PROXY",
         "http_proxy",
         "ALL_PROXY",
         "all_proxy",
-        "NO_PROXY",
-        "no_proxy",
     ]
     .into_iter()
     .filter(|name| session.env.var(name).is_some_and(|value| !value.is_empty()))
     .collect();
     if names.is_empty() {
-        Check::skipped(
-            "network.proxy",
-            "proxy",
-            "no proxy environment variables are set",
-        )
+        None
     } else {
-        Check::pass(
+        names.extend(
+            ["NO_PROXY", "no_proxy"]
+                .into_iter()
+                .filter(|name| session.env.var(name).is_some_and(|value| !value.is_empty())),
+        );
+        Some(Check::pass(
             "network.proxy",
             "proxy",
             false,
@@ -939,7 +935,7 @@ fn proxy_check(session: &Session<'_>) -> Check {
                 "configured by {} (values hidden because they may contain credentials)",
                 names.join(", ")
             ),
-        )
+        ))
     }
 }
 
@@ -1805,10 +1801,13 @@ fn read_bundle(path: &std::path::Path) -> Result<Vec<(String, Value)>, CliError>
         let mut entry = archive
             .by_index(index)
             .map_err(|err| CliError::general(format!("bundle read error: {err}")))?;
-        if !entry.name().ends_with(".json") {
+        let name = entry
+            .name()
+            .map_err(|err| CliError::general(format!("bundle entry name error: {err}")))?
+            .into_owned();
+        if !name.ends_with(".json") {
             continue;
         }
-        let name = entry.name().to_string();
         let mut text = String::new();
         entry.read_to_string(&mut text).map_err(|err| {
             CliError::general(format!("bundle file {name} could not be read: {err}"))
@@ -2482,11 +2481,11 @@ mod tests {
             serde_json::from_str(include_str!("../../../../openapi/hamstik-v1.json")).unwrap();
         let compatibility = check_api_compatibility(&document).unwrap();
         assert_eq!(compatibility.additive_operations, 0);
-        assert!(compatibility.detail.contains("109 required operations"));
+        assert!(compatibility.detail.contains("234 required operations"));
     }
 
     #[test]
-    fn additive_operations_are_compatible_but_reported() {
+    fn additive_operations_remain_compatible_and_are_reported() {
         let mut document: Value =
             serde_json::from_str(include_str!("../../../../openapi/hamstik-v1.json")).unwrap();
         document["paths"]["/api/v1/future"] = json!({

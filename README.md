@@ -242,6 +242,14 @@ The Dogfooding Alpha command surface is implemented. Today the CLI provides:
   rate-limit` — one cheap authenticated read that reports the server's
   `RateLimit-*` headroom without the proactive depleted-window wait that
   typed reads apply;
+- complete frozen Public API v1.0.0 operation coverage through `hamstik api
+  invoke <operationId>`: path and query parameters, required JSON or multipart
+  bodies, ETags, idempotency, and binary downloads are validated from the
+  checked-in contract before network access;
+- first-class Organization webhook management (`hamstik webhook`) and
+  server-side automation rules (`hamstik rule`), including delivery/run
+  history, server previews/tests, secret rotation, ownership acceptance, and
+  optimistic concurrency;
 - a `gh api`-style Public API v1 passthrough (`hamstik api /api/v1/...` /
   `hamstik api request /api/v1/... --method POST`) so any documented v1
   route is callable — including server routes newer than the installed CLI
@@ -742,9 +750,8 @@ template is persisted server-side.
 - `--from` and `--template` are mutually exclusive and fail locally (exit 2)
   before any request.
 - `--dry-run` resolves the source and previews the exact create payload.
-  Labels are not part of the create body (the Public API v1 contract forbids
-  unknown properties), so the preview names them and a real invocation attaches
-  each copied label through the documented label endpoint after create.
+  The preview names convenience labels; a real invocation resolves both
+  name- and id-based labels through the documented label endpoint after create.
 
 ```markdown
 ---
@@ -1069,12 +1076,17 @@ separately from the global configuration file.
 Human output uses `ok`, `WARN`, `FAIL`, and `skip` markers and includes
 concrete remediation hints, a final `summary: N passed, N warned, N failed,
 N skipped` line, and a pass/warn/fail/skipped summary object in JSON mode.
+The proxy check is emitted only when at least one supported proxy environment
+variable (`HTTP_PROXY`, `HTTPS_PROXY`, or `ALL_PROXY`, including lowercase
+forms) is configured; an unconfigured proxy does not produce a `skip` row and
+`NO_PROXY` alone does not count as a configured proxy.
 Network failures are classified by the earliest failing stage — DNS, TCP
 connection, proxy, timeout, TLS — with stage-specific remediation and
 per-check latency (`durationMs`). Independent checks continue after a failure;
 dependent checks are marked `skip`. The first blocking root cause determines
-the stable process exit code. Additive Public API operations produce a warning,
-while a missing or moved operation required by this CLI is an API compatibility
+the stable process exit code. Additive Public API v1 operations remain a
+passing compatibility check and their count stays visible in the detail;
+a missing or moved operation required by this CLI is an API compatibility
 failure.
 
 A selected profile with no stored credential is an intentional logged-out
@@ -1377,6 +1389,32 @@ hamstik work import --file HAM-42.md --dry-run --json
 
 ## Public API passthrough
 
+For an operation in the frozen v1.0.0 contract, prefer `api invoke`. It resolves
+the HTTP method and path from `operationId`, fills `organizationSlug` and
+`projectKey` from normal context, validates `--param`/`--query` names, generates
+an idempotency key only when the operation requires one, and enforces required
+ETags and body content types:
+
+```bash
+hamstik --org acme api invoke listOrganizationWebhooks
+
+hamstik --org acme --project HAM api invoke addWorkItemReaction \
+  --param workItemKey=HAM-42 --param reactionKey=thumbsup
+
+hamstik --org acme --project HAM api invoke uploadQualityResultEvidence \
+  --param runId=RUN_ID --param resultId=RESULT_ID --upload evidence.png \
+  --content-type image/png
+
+hamstik --org acme api invoke downloadGovernanceExport \
+  --param jobId=JOB_ID --output governance.zip
+```
+
+JSON mutations accept `--body-file <path|->` or repeated `--field key=value`.
+Revision-sensitive operations require `--if-match <etag>`. Multipart operations
+require `--upload`, and binary responses require `--output`, so binary bytes are
+never written to the terminal. `--dry-run` previews mutations after the same
+local contract validation.
+
 `hamstik api request` (and the shorthand `hamstik api /api/v1/...`) calls any
 Public API v1 route through the official CLI — in the spirit of `gh api` —
 so scripts and agents can reach documented routes even when the installed
@@ -1532,13 +1570,11 @@ The detailed product and technical direction lives in:
 - [design/INSTALL.md](design/INSTALL.md) — installation channels,
   upgrade/uninstall/rollback procedures, broken-release handling, and
   credential-safe troubleshooting
-- [design/AUTOMATION_RULES.md](design/AUTOMATION_RULES.md) — gated design stub
-  for CLI-owned workflow automation rules (no command or network behavior ships
-  until the Public API exposes a documented event/subscription surface)
-- [design/WEBHOOKS.md](design/WEBHOOKS.md) — gated design stub for the
-  `hamstik webhook` management family (no command or network behavior ships
-  until the Public API exposes documented webhook/subscription operations;
-  `hamstik api request` remains the manual escape hatch)
+- [design/AUTOMATION_RULES.md](design/AUTOMATION_RULES.md) — implemented
+  server-side Organization automation-rule command family and ownership
+  boundary
+- [design/WEBHOOKS.md](design/WEBHOOKS.md) — implemented outbound webhook
+  endpoint, secret, test, delivery, and redelivery command family
 - [design/SELF_UPDATE.md](design/SELF_UPDATE.md) — gated design stub for
   `hamstik self update` with stable/prerelease channels (no command or network
   behavior ships until the packaging/release milestone; explicit

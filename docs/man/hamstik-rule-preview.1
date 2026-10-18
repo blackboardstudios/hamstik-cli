@@ -1,0 +1,18 @@
+.TH HAMSTIK 1 "HAMSTIK RULE PREVIEW"
+.SH NAME
+hamstik rule preview \- Preview a rule without executing its actions
+.SH SYNOPSIS
+.B hamstik rule preview [OPTIONS]
+.SH DESCRIPTION
+Preview a rule without executing its actions
+.SH ARGUMENTS
+.TP
+.I RULE_ID
+Automation rule id
+.SH OPTIONS
+.TP
+.B --body-file
+Read the JSON request body from this file; `-` reads stdin
+.TP
+.B --field
+Structured JSON field as `key=value`; repeatable

@@ -340,6 +340,19 @@ fn contract_still_documents_protected_wire_behaviors() {
                 .contains("Required when the request body includes attributes"))
     );
 
+    let project_report = operations
+        .get("getProjectReport")
+        .copied()
+        .expect("getProjectReport operation");
+    assert!(
+        project_report["parameters"]
+            .as_array()
+            .expect("getProjectReport parameters")
+            .iter()
+            .any(|parameter| parameter["name"] == "boardScope" && parameter["in"] == "query"),
+        "getProjectReport must retain the v1.0.0 boardScope query"
+    );
+
     // Idempotency headers on retriable mutations.
     for operation_id in [
         "createWorkItem",
@@ -472,9 +485,35 @@ fn contract_still_documents_protected_wire_behaviors() {
     assert_eq!(bulk_create["additionalProperties"], false);
     assert_eq!(
         bulk_create["required"],
-        json_array(&["projectKey", "title"]),
+        json_array(&["projectKey"]),
         "bulk create required fields drifted"
     );
+    for property in [
+        "templateId",
+        "templateRevision",
+        "isPrivate",
+        "originalEstimateMinutes",
+        "remainingEstimateMinutes",
+        "effortRisk",
+        "effortRiskReason",
+    ] {
+        assert!(
+            bulk_create["properties"].get(property).is_some(),
+            "BulkCreateWorkItemOperation lost {property}"
+        );
+    }
+
+    for schema_name in ["WorkItem", "PublicWorkItem"] {
+        let required = schemas[schema_name]["required"]
+            .as_array()
+            .expect("Work Item required fields");
+        for property in ["reactions", "voteCount", "hasVoted"] {
+            assert!(
+                required.contains(&Value::String(property.to_string())),
+                "{schema_name} must require {property}"
+            );
+        }
+    }
     let bulk_update = &schemas["BulkUpdateWorkItemOperation"];
     assert_eq!(bulk_update["additionalProperties"], false);
     assert_eq!(
@@ -568,7 +607,7 @@ fn operation_schemas_stay_compatible_with_typed_models() {
     let frozen = [
         (
             "BulkCreateWorkItemOperation",
-            vec![("required", json_array(&["projectKey", "title"]))],
+            vec![("required", json_array(&["projectKey"]))],
         ),
         (
             "BulkUpdateWorkItemOperation",
@@ -695,7 +734,7 @@ fn drift_detector_classifies_changes() {
     // Newly required property: breaking.
     let mut required_drift = identical.clone();
     required_drift["properties"]["color"] = json!({"type": "string"});
-    required_drift["required"] = json_array(&["projectKey", "title", "color"]);
+    required_drift["required"] = json_array(&["projectKey", "color"]);
     findings.clear();
     let drift = schema_drift(
         document,

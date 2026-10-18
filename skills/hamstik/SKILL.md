@@ -272,8 +272,34 @@ the user explicitly asks to delete the resolved item.
 
 Use a typed CLI command whenever one exists.
 
-When the server exposes a Public API v1 route that has no typed command, use the CLI
-passthrough rather than hand-building HTTP requests:
+For any operation in the CLI's frozen Public API v1 contract, prefer the
+contract-aware operation entry point. It resolves Organization/Project context,
+validates documented parameters and bodies, and applies operation-specific ETag,
+idempotency, multipart, and binary-download rules:
+
+```bash
+hamstik --org acme api invoke listOrganizationWebhooks
+hamstik --org acme --project HAM api invoke getWorkItemEffort \
+  --param workItemKey=HAM-42
+hamstik --org acme api invoke downloadGovernanceExport \
+  --param jobId=JOB_ID --output governance.zip
+```
+
+Use `--body-file` or repeated `--field` for a documented JSON body, `--param`
+for non-context path parameters, `--query` for documented query parameters,
+`--if-match` for required revisions, `--upload` for multipart input, and
+`--output` for binary responses.
+
+Webhook endpoints and server automation rules have first-class families:
+
+```bash
+hamstik --org acme webhook list --json --no-input
+hamstik --org acme rule list --json --no-input
+```
+
+When the server exposes a newer Public API v1 route that is not yet in the
+frozen contract, use the raw CLI passthrough rather than hand-building HTTP
+requests:
 
 ```bash
 hamstik api /api/v1/organizations
@@ -345,6 +371,9 @@ Major areas include:
 - Project/Sprint reports and client-side stats
 - Advanced Reports and Dashboards
 - Public API v1 passthrough and rate-limit inspection
+- contract-aware Public API operation invocation
+- outbound webhook endpoint/delivery management
+- server-side Organization automation rules and run history
 - external `hamstik-<name>` subcommand plugins
 - diagnostics, support bundles, failed-request replay, and agent validation
 

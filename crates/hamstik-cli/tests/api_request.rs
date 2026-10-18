@@ -11,7 +11,7 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 use serde_json::{Value, json};
 use tempfile::TempDir;
-use wiremock::matchers::{body_json, method, path};
+use wiremock::matchers::{body_json, header, header_exists, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn base(server: &MockServer, dir: &TempDir) -> Command {
@@ -33,6 +33,151 @@ fn base(server: &MockServer, dir: &TempDir) -> Command {
 
 fn page(items: Value) -> Value {
     json!({ "items": items, "page": { "limit": 50, "hasMore": false, "nextCursor": null } })
+}
+
+// ---------------------------------------------------------------------------
+// Contract-aware invocation: every frozen operationId shares one validated
+// entry point, while method/path/header/content behavior comes from OpenAPI.
+// ---------------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn invoke_resolves_context_path_and_put_idempotency_from_the_contract() {
+    let server = MockServer::start().await;
+    let dir = TempDir::new().unwrap();
+    Mock::given(method("PUT"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/work-items/HAM-1/reactions/thumbsup",
+        ))
+        .and(header_exists("Idempotency-Key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"reaction": "thumbsup"})))
+        .mount(&server)
+        .await;
+
+    base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "api",
+            "invoke",
+            "addWorkItemReaction",
+            "--param",
+            "workItemKey=HAM-1",
+            "--param",
+            "reactionKey=thumbsup",
+        ])
+        .assert()
+        .success();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn invoke_enforces_required_etag_before_network_access() {
+    let server = MockServer::start().await;
+    let dir = TempDir::new().unwrap();
+    base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "api",
+            "invoke",
+            "updateOrganizationWebhook",
+            "--param",
+            "webhookId=wh_1",
+            "--field",
+            "name=Renamed",
+        ])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("requires --if-match"));
+    assert!(server.received_requests().await.unwrap().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn invoke_uploads_multipart_evidence() {
+    let server = MockServer::start().await;
+    let dir = TempDir::new().unwrap();
+    let upload = dir.path().join("evidence.txt");
+    std::fs::write(&upload, b"evidence-bytes").unwrap();
+    Mock::given(method("POST"))
+        .and(path(
+            "/api/v1/organizations/acme/projects/HAM/quality/runs/run-1/results/result-1/evidence",
+        ))
+        .and(header_exists("Idempotency-Key"))
+        .respond_with(ResponseTemplate::new(201).set_body_json(json!({"id": "ev-1"})))
+        .mount(&server)
+        .await;
+
+    base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "--project",
+            "HAM",
+            "api",
+            "invoke",
+            "uploadQualityResultEvidence",
+            "--param",
+            "runId=run-1",
+            "--param",
+            "resultId=result-1",
+            "--upload",
+            upload.to_str().unwrap(),
+            "--content-type",
+            "text/plain",
+        ])
+        .assert()
+        .success();
+
+    let requests = server.received_requests().await.unwrap();
+    let content_type = requests[0]
+        .headers
+        .get("Content-Type")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    assert!(content_type.starts_with("multipart/form-data"));
+    assert!(
+        requests[0]
+            .body
+            .windows(b"evidence-bytes".len())
+            .any(|window| window == b"evidence-bytes")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn invoke_writes_binary_download_without_printing_bytes() {
+    let server = MockServer::start().await;
+    let dir = TempDir::new().unwrap();
+    let output = dir.path().join("governance.zip");
+    Mock::given(method("GET"))
+        .and(path(
+            "/api/v1/organizations/acme/governance/exports/job-1/download",
+        ))
+        .and(header("Accept", "application/zip"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Content-Type", "application/zip")
+                .set_body_bytes(b"PK-test-zip"),
+        )
+        .mount(&server)
+        .await;
+
+    base(&server, &dir)
+        .args([
+            "--org",
+            "acme",
+            "api",
+            "invoke",
+            "downloadGovernanceExport",
+            "--param",
+            "jobId=job-1",
+            "--output",
+            output.to_str().unwrap(),
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("downloaded 11 bytes"));
+    assert_eq!(std::fs::read(output).unwrap(), b"PK-test-zip");
 }
 
 // ---------------------------------------------------------------------------

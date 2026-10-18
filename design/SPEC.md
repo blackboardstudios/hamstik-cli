@@ -967,8 +967,8 @@ Potential later:
 api
 agent
 config
-rule        # gated; only after a documented event/subscription API
-webhook     # gated; only after documented webhook/subscription operations
+rule        # server-side Organization automation rules
+webhook     # server-side outbound webhook endpoints and deliveries
 self        # gated; only after the packaging/release milestone
 ```
 
@@ -2374,51 +2374,37 @@ for coding agents.
 
 ---
 
-# 92. Gated Future Feature — Workflow Automation Rules
+# 92. Server-Side Workflow Automation Rules
 
-CLI-77 adds CLI-owned workflow automation rules (`rule list/create/delete`)
-whose execution requires a Hamstik Public API event/subscription surface or an
-explicit manual trigger. The feature is **gated**: it MUST NOT ship any command
-or network behavior until `/api/v1` exposes a documented event or subscription
-contract in the frozen OpenAPI snapshot.
+CLI-77 exposes the Organization automation-rule operations added in Public API
+v1.0.0 through `hamstik rule`. The prior local-rule proposal is superseded by
+the server-owned resource model described in
+[`design/AUTOMATION_RULES.md`](AUTOMATION_RULES.md).
 
-The full gated design stub (scope, triggers, non-goals, and the activation
-checklist) lives in [`design/AUTOMATION_RULES.md`](AUTOMATION_RULES.md).
-
-In particular:
-
-- no `hamstik rule` command and no background daemon exist before the gate
-  opens;
-- polling existing activity/comment endpoints (`work watch`, `work await`) is
-  observation only and MUST NOT be used to synthesize an event stream;
-- when the gate opens, authorization, validation, transitions, ETags,
-  idempotency, and Organization isolation remain server-authoritative, exactly
-  as for every other command.
+The CLI MUST NOT implement a second evaluator, background daemon, local rule
+database, or synthetic event stream. It validates request shape against the
+frozen operation definition and leaves authorization, triggers, actions,
+ownership, execution, ETags, idempotency, and Organization isolation to the
+server.
 
 ---
 
-# 93. Gated Future Feature — Webhook Management
+# 93. Webhook Management
 
-CLI-78 adds a typed `hamstik webhook` command family for outbound webhook
-subscriptions. The feature is **gated**: it MUST NOT ship any command or network
-behavior until `/api/v1` exposes documented webhook or subscription-management
-operations in the frozen OpenAPI snapshot.
-
-The full gated design stub (scope, proposed surface, non-goals, and the
-activation checklist) lives in [`design/WEBHOOKS.md`](WEBHOOKS.md).
+CLI-78 exposes the outbound Organization webhook operations added in Public API
+v1.0.0 through the typed `hamstik webhook` family documented in
+[`design/WEBHOOKS.md`](WEBHOOKS.md).
 
 In particular:
 
-- no `hamstik webhook` command exists before the gate opens, and no
-  passthrough-only command over `api request` is shipped as a typed command;
+- `hamstik webhook` resolves documented operation IDs and resource identifiers;
+  it is not a raw-path alias over `api request`;
 - there is no client-side webhook receiver, delivery/retry logic, or
   signature-verification implementation; delivery semantics are server-owned;
 - `work watch` / `work await` remain polling observation only and MUST NOT be
   used to fake a webhook subscription;
-- `hamstik api request` remains the manual escape hatch until the gate opens;
-- when the gate opens, authorization, validation, Organization isolation,
-  capability checks, ETags, and idempotency remain server-authoritative, exactly
-  as for every other command.
+- authorization, validation, Organization isolation, capability checks, ETags,
+  idempotency, signing, and delivery behavior remain server-authoritative.
 
 ---
 

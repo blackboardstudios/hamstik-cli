@@ -1,0 +1,39 @@
+.TH HAMSTIK 1 "HAMSTIK API INVOKE"
+.SH NAME
+hamstik api invoke \- Invoke an operation by its Public API v1 `operationId`
+.SH SYNOPSIS
+.B hamstik api invoke [OPTIONS]
+.SH DESCRIPTION
+Invoke an operation by its Public API v1 `operationId`
+.SH ARGUMENTS
+.TP
+.I OPERATION_ID
+OpenAPI operationId (for example `listOrganizationWebhooks`)
+.SH OPTIONS
+.TP
+.B --param
+Path parameter as `name=value`; organizationSlug and projectKey default from the resolved CLI context
+.TP
+.B --query
+Query parameter as `name=value`; repeat array parameters as needed
+.TP
+.B --body-file
+Read the JSON request body from this file; `-` reads stdin
+.TP
+.B --field
+Structured JSON field as `key=value`; repeatable
+.TP
+.B --upload
+File for an operation whose request body is `multipart/form-data`
+.TP
+.B --content-type
+MIME type for `--upload` (defaults to application/octet-stream)
+.TP
+.B --output
+Write a binary response to this path. Required for binary operations
+.TP
+.B --if-match
+Revision precondition for operations that document `If-Match`
+.TP
+.B --idempotency-key
+Idempotency key override. A strong key is generated when the operation contract requires one

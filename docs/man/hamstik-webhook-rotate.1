@@ -1,0 +1,15 @@
+.TH HAMSTIK 1 "HAMSTIK WEBHOOK ROTATE"
+.SH NAME
+hamstik webhook rotate \- Rotate a webhook signing secret; the new secret is returned once
+.SH SYNOPSIS
+.B hamstik webhook rotate [OPTIONS]
+.SH DESCRIPTION
+Rotate a webhook signing secret; the new secret is returned once
+.SH ARGUMENTS
+.TP
+.I WEBHOOK_ID
+Webhook endpoint id
+.SH OPTIONS
+.TP
+.B --idempotency-key
+Idempotency key override

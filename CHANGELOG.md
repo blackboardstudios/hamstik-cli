@@ -12,6 +12,15 @@ before upgrading.
 
 ### Changed
 
+- Refreshed the frozen contract to Hamstik Public API v1.0.0: the parity ledger
+  now classifies all 234 operations (125 newly exposed). `hamstik api invoke
+  <operationId>` provides contract-aware coverage for method/path resolution,
+  context-backed path parameters, documented query parameters, JSON and
+  multipart bodies, operation-specific ETags/idempotency, binary downloads,
+  dry-run previews, audit records, and structured output. The typed bulk-create
+  model also accepts the expanded v1.0.0 request fields and template-backed
+  creates whose title is supplied by the server template.
+
 - `hamstik agent skill install` now installs the complete canonical skill,
   including its three references. Global installs honor `HAMSTIK_SKILL_HOME`
   as the `.agents` directory; modified reference files are protected from
@@ -31,22 +40,17 @@ before upgrading.
   existing channel upgrade steps in [`design/INSTALL.md`](design/INSTALL.md)
   remain the only supported upgrade path.
 
-- Gated design stub for webhook management (CLI-78):
-  [`design/WEBHOOKS.md`](design/WEBHOOKS.md) documents the intended typed
-  `hamstik webhook list/view/create/edit/enable/disable/delete` family for
-  outbound webhook subscriptions, and the non-goals (no receiver, no client-side
-  delivery logic, no passthrough-only command). No command or network behavior
-  ships, because the Public API v1 exposes no documented webhook/subscription
-  surface yet; the design names the exact gate and activation checklist for
-  when it does, and `hamstik api request` remains the manual escape hatch.
+- Webhook management (CLI-78): `hamstik webhook` now manages the Public API
+  v1.0.0 Organization webhook surface with list/view/create/edit/delete,
+  signing-secret rotation, server-owned test delivery, delivery history, and
+  redelivery. The command validates required bodies, ETags, and idempotency
+  from the frozen operation contract and never stores returned secrets.
 
-- Gated design stub for workflow automation rules (CLI-77):
-  [`design/AUTOMATION_RULES.md`](design/AUTOMATION_RULES.md) documents the
-  intended local `rule list/create/delete` surface, its event-subscription and
-  explicit-manual triggers, and the non-goals (no daemon, no polling loop, no
-  arbitrary code execution). No command or network behavior ships, because the
-  Public API v1 exposes no documented event/subscription surface yet; the
-  design names the exact gate and activation checklist for when it does.
+- Server-side workflow automation rules (CLI-77): `hamstik rule` now manages
+  Public API v1.0.0 Organization automation rules with
+  list/view/create/edit/delete, run history, server preview, enablement toggle,
+  and owner acceptance. The former local-rule proposal is superseded; no local
+  evaluator, daemon, or polling event stream is introduced.
 
 - SqueakQL query-plan passthrough and offline cache management (CLI-76):
   `work search --explain` forwards server-provided query-plan data under the
@@ -90,7 +94,24 @@ before upgrading.
   `--bundle` can be combined to also write the fresh bundle; a missing or
   corrupt baseline fails clearly instead of reporting no differences.
 
+### Security
+
+- Updated `rustls` to 0.23.46 and `zip` to 9.0.5 to resolve the current RustSec
+  advisories. Linux/BSD credential storage now uses the maintained synchronous
+  Secret Service backend instead of the unmaintained pre-zbus-6 wire stack;
+  secrets remain in the operating system credential store.
+
 ### Fixed
+
+- `hamstik doctor` now omits the proxy check when no proxy environment
+  variable is configured instead of showing a confusing skipped row. A
+  configured proxy is still reported by variable name with its value hidden;
+  `NO_PROXY` alone does not count as a configured proxy.
+
+- `hamstik doctor` now reports additive Public API v1 operations as a passing
+  compatibility check instead of a warning. The additive operation count
+  remains visible, while missing or moved operations required by this CLI
+  continue to fail compatibility.
 
 - `doctor --bundle` no longer prints its "support bundle written to ..."
   confirmation in `--json` mode, so `doctor --json --bundle <PATH>` output is

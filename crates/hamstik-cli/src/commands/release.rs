@@ -916,6 +916,7 @@ async fn transition(
         target_state: target.to_string(),
         confirm_incomplete_scope: confirm_incomplete_scope.then_some(true),
         reason: reason.map(str::to_string),
+        quality_gate_override_reason: None,
     };
     let idempotency = idem_key(idempotency_key)?;
 

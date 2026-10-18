@@ -3,26 +3,596 @@
 
 //! `hamstik api` — Public API metadata and the v1 passthrough.
 
-use hamstik_api_client::RateLimitSnapshot;
+use hamstik_api_client::{MultipartFile, RateLimitSnapshot};
 use serde_json::{Value, json};
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read as _;
+use std::path::Path;
 use uuid::Uuid;
 
 use crate::app::Session;
-use crate::args::{ApiArgs, ApiCommand, RequestArgs};
+use crate::args::{ApiArgs, ApiCommand, InvokeArgs, RequestArgs};
 use crate::error::CliError;
 
 use super::dryrun;
 use super::emit_json;
 
+const BUNDLED_OPENAPI: &str = include_str!("../../../../openapi/hamstik-v1.json");
+
 /// Runs a Public API command.
 pub async fn run(session: &mut Session<'_>, args: &ApiArgs) -> Result<(), CliError> {
     match args.command {
         ApiCommand::Openapi => openapi(session).await,
+        ApiCommand::Invoke(ref invoke_args) => run_invoke(session, invoke_args).await,
         ApiCommand::Request(ref request_args) => run_request(session, request_args).await,
         ApiCommand::RateLimit => rate_limit(session).await,
         ApiCommand::Passthrough(ref parts) => passthrough(session, parts).await,
     }
+}
+
+#[derive(Debug)]
+struct OperationParameter {
+    name: String,
+    location: String,
+    required: bool,
+}
+
+#[derive(Debug)]
+struct OperationDefinition {
+    id: String,
+    method: String,
+    path: String,
+    parameters: Vec<OperationParameter>,
+    request_required: bool,
+    request_content_types: BTreeSet<String>,
+    response_content_types: BTreeSet<String>,
+}
+
+impl OperationDefinition {
+    fn has_header(&self, name: &str) -> bool {
+        self.parameters.iter().any(|parameter| {
+            parameter.location == "header" && parameter.name.eq_ignore_ascii_case(name)
+        })
+    }
+
+    fn requires_header(&self, name: &str) -> bool {
+        self.parameters.iter().any(|parameter| {
+            parameter.location == "header"
+                && parameter.name.eq_ignore_ascii_case(name)
+                && parameter.required
+        })
+    }
+
+    fn is_multipart(&self) -> bool {
+        self.request_content_types
+            .iter()
+            .any(|content_type| content_type.starts_with("multipart/form-data"))
+    }
+
+    fn has_json_body(&self) -> bool {
+        self.request_content_types.contains("application/json")
+    }
+
+    fn has_binary_response(&self) -> bool {
+        self.response_content_types.iter().any(|content_type| {
+            content_type != "application/json"
+                && !content_type.ends_with("+json")
+                && content_type != "text/plain"
+        })
+    }
+}
+
+fn resolve_contract_ref<'a>(contract: &'a Value, value: &'a Value) -> Result<&'a Value, CliError> {
+    let Some(reference) = value.get("$ref").and_then(Value::as_str) else {
+        return Ok(value);
+    };
+    let pointer = reference.strip_prefix('#').ok_or_else(|| {
+        CliError::general(format!(
+            "unsupported non-local OpenAPI reference {reference:?}"
+        ))
+    })?;
+    contract.pointer(pointer).ok_or_else(|| {
+        CliError::general(format!(
+            "bundled OpenAPI reference {reference:?} does not resolve"
+        ))
+    })
+}
+
+fn operation_definition(operation_id: &str) -> Result<OperationDefinition, CliError> {
+    let contract: Value = serde_json::from_str(BUNDLED_OPENAPI)
+        .map_err(|err| CliError::general(format!("bundled OpenAPI contract is invalid: {err}")))?;
+    let paths = contract["paths"]
+        .as_object()
+        .ok_or_else(|| CliError::general("bundled OpenAPI contract has no paths object"))?;
+
+    for (path, item) in paths {
+        for method in ["get", "put", "post", "delete", "patch"] {
+            let Some(operation) = item.get(method) else {
+                continue;
+            };
+            if operation.get("operationId").and_then(Value::as_str) != Some(operation_id) {
+                continue;
+            }
+
+            let mut parameters = BTreeMap::<(String, String), OperationParameter>::new();
+            let path_parameters = item
+                .get("parameters")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten();
+            let operation_parameters = operation
+                .get("parameters")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten();
+            for raw in path_parameters.chain(operation_parameters) {
+                let parameter = resolve_contract_ref(&contract, raw)?;
+                let name = parameter["name"]
+                    .as_str()
+                    .ok_or_else(|| CliError::general("OpenAPI parameter has no name"))?
+                    .to_string();
+                let location = parameter["in"]
+                    .as_str()
+                    .ok_or_else(|| CliError::general("OpenAPI parameter has no location"))?
+                    .to_string();
+                parameters.insert(
+                    (location.clone(), name.clone()),
+                    OperationParameter {
+                        name,
+                        location,
+                        required: parameter["required"].as_bool().unwrap_or(false),
+                    },
+                );
+            }
+
+            let request_body = operation
+                .get("requestBody")
+                .map(|body| resolve_contract_ref(&contract, body))
+                .transpose()?;
+            let request_content_types = request_body
+                .and_then(|body| body.get("content"))
+                .and_then(Value::as_object)
+                .map(|content| content.keys().cloned().collect())
+                .unwrap_or_default();
+            let request_required = request_body
+                .and_then(|body| body.get("required"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+
+            let mut response_content_types = BTreeSet::new();
+            if let Some(responses) = operation.get("responses").and_then(Value::as_object) {
+                for (status, response) in responses {
+                    if !status.starts_with('2') {
+                        continue;
+                    }
+                    let response = resolve_contract_ref(&contract, response)?;
+                    if let Some(content) = response.get("content").and_then(Value::as_object) {
+                        response_content_types.extend(content.keys().cloned());
+                    }
+                }
+            }
+
+            return Ok(OperationDefinition {
+                id: operation_id.to_string(),
+                method: method.to_ascii_uppercase(),
+                path: path.to_string(),
+                parameters: parameters.into_values().collect(),
+                request_required,
+                request_content_types,
+                response_content_types,
+            });
+        }
+    }
+
+    Err(CliError::usage(format!(
+        "unknown Public API v1 operationId {operation_id:?}; inspect the bundled contract with `hamstik api openapi`"
+    )))
+}
+
+fn parse_assignment(spec: &str, flag: &str) -> Result<(String, String), CliError> {
+    let (name, value) = spec
+        .split_once('=')
+        .ok_or_else(|| CliError::usage(format!("{flag} expects NAME=VALUE, got {spec:?}")))?;
+    if name.is_empty() || value.is_empty() {
+        return Err(CliError::usage(format!(
+            "{flag} expects non-empty NAME=VALUE, got {spec:?}"
+        )));
+    }
+    Ok((name.to_string(), value.to_string()))
+}
+
+fn read_json_body(args: &InvokeArgs) -> Result<Option<Value>, CliError> {
+    if let Some(file) = &args.body_file {
+        let text = if file == "-" {
+            let mut buffer = String::new();
+            std::io::stdin()
+                .read_to_string(&mut buffer)
+                .map_err(|err| CliError::general(format!("cannot read stdin: {err}")))?;
+            buffer
+        } else {
+            std::fs::read_to_string(file).map_err(|err| {
+                CliError::usage(format!("cannot read --body-file {file:?}: {err}"))
+            })?
+        };
+        if text.trim().is_empty() {
+            return Err(CliError::usage(format!("--body-file {file:?} is empty")));
+        }
+        return serde_json::from_str(&text).map(Some).map_err(|err| {
+            CliError::usage(format!("--body-file {file:?} is not valid JSON: {err}"))
+        });
+    }
+    if args.field.is_empty() {
+        return Ok(None);
+    }
+    let mut object = serde_json::Map::new();
+    for spec in &args.field {
+        let (key, value) = parse_field(spec)?;
+        if object.insert(key.clone(), value).is_some() {
+            return Err(CliError::usage(format!("--field {key:?} was given twice")));
+        }
+    }
+    Ok(Some(Value::Object(object)))
+}
+
+fn read_upload(path: &Path, content_type: Option<&str>) -> Result<MultipartFile, CliError> {
+    let file = std::fs::File::open(path).map_err(|err| {
+        CliError::usage(format!("cannot read --upload {}: {err}", path.display()))
+    })?;
+    let bytes = crate::input::read_bytes_capped(file, hamstik_api_client::client::MAX_BODY_BYTES)
+        .map_err(|err| {
+        CliError::usage(format!("cannot read --upload {}: {err}", path.display()))
+    })?;
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .ok_or_else(|| CliError::usage("--upload path has no valid UTF-8 file name"))?
+        .to_string();
+    Ok(MultipartFile {
+        file_name,
+        content_type: content_type.map(str::to_string),
+        bytes,
+    })
+}
+
+/// Invokes one operation from the frozen v1 contract.
+pub(crate) async fn run_invoke(
+    session: &mut Session<'_>,
+    args: &InvokeArgs,
+) -> Result<(), CliError> {
+    let operation = operation_definition(&args.operation_id)?;
+    let selection = session.selection()?;
+
+    let mut supplied_path = BTreeMap::new();
+    for spec in &args.param {
+        let (name, value) = parse_assignment(spec, "--param")?;
+        if supplied_path.insert(name.clone(), value).is_some() {
+            return Err(CliError::usage(format!("--param {name:?} was given twice")));
+        }
+    }
+    let allowed_path: BTreeSet<_> = operation
+        .parameters
+        .iter()
+        .filter(|parameter| parameter.location == "path")
+        .map(|parameter| parameter.name.as_str())
+        .collect();
+    for name in supplied_path.keys() {
+        if !allowed_path.contains(name.as_str()) {
+            return Err(CliError::usage(format!(
+                "operation {} has no path parameter {name:?}; expected: {}",
+                operation.id,
+                allowed_path.iter().copied().collect::<Vec<_>>().join(", ")
+            )));
+        }
+    }
+    for parameter in operation
+        .parameters
+        .iter()
+        .filter(|parameter| parameter.location == "path")
+    {
+        if supplied_path.contains_key(&parameter.name) {
+            continue;
+        }
+        let value = match parameter.name.as_str() {
+            "organizationSlug" => session.require_org(&selection)?,
+            "projectKey" => session.require_project(&selection)?,
+            _ => {
+                return Err(CliError::usage(format!(
+                    "operation {} requires --param {}=VALUE",
+                    operation.id, parameter.name
+                )));
+            }
+        };
+        supplied_path.insert(parameter.name.clone(), value);
+    }
+
+    let route = operation
+        .path
+        .strip_prefix("/api/v1/")
+        .ok_or_else(|| CliError::general("bundled operation is outside /api/v1"))?;
+    let mut segments = Vec::new();
+    for segment in route.split('/') {
+        if let Some(name) = segment
+            .strip_prefix('{')
+            .and_then(|value| value.strip_suffix('}'))
+        {
+            segments.push(
+                supplied_path.get(name).cloned().ok_or_else(|| {
+                    CliError::general(format!("unresolved path parameter {name}"))
+                })?,
+            );
+        } else {
+            segments.push(segment.to_string());
+        }
+    }
+
+    let allowed_query: BTreeMap<_, _> = operation
+        .parameters
+        .iter()
+        .filter(|parameter| parameter.location == "query")
+        .map(|parameter| (parameter.name.as_str(), parameter.required))
+        .collect();
+    let mut query = Vec::new();
+    for spec in &args.query {
+        let (name, value) = parse_assignment(spec, "--query")?;
+        if !allowed_query.contains_key(name.as_str()) {
+            return Err(CliError::usage(format!(
+                "operation {} has no query parameter {name:?}; expected: {}",
+                operation.id,
+                allowed_query.keys().copied().collect::<Vec<_>>().join(", ")
+            )));
+        }
+        query.push((name, value));
+    }
+    for (name, required) in &allowed_query {
+        if *required && !query.iter().any(|(provided, _)| provided == name) {
+            return Err(CliError::usage(format!(
+                "operation {} requires --query {name}=VALUE",
+                operation.id
+            )));
+        }
+    }
+
+    let has_if_match = operation.has_header("If-Match");
+    if args.if_match.is_some() && !has_if_match {
+        return Err(CliError::usage(format!(
+            "operation {} does not document an If-Match header",
+            operation.id
+        )));
+    }
+    if operation.requires_header("If-Match") && args.if_match.is_none() {
+        return Err(CliError::usage(format!(
+            "operation {} requires --if-match ETAG",
+            operation.id
+        )));
+    }
+    let mut headers = Vec::new();
+    if let Some(if_match) = &args.if_match {
+        headers.push(("If-Match".to_string(), if_match.clone()));
+    }
+
+    let has_idempotency = operation.has_header("Idempotency-Key");
+    if args.idempotency_key.is_some() && !has_idempotency {
+        return Err(CliError::usage(format!(
+            "operation {} does not document an Idempotency-Key header",
+            operation.id
+        )));
+    }
+    let idempotency_key = if has_idempotency {
+        match &args.idempotency_key {
+            Some(key) => {
+                hamstik_api_client::validate_key(key)
+                    .map_err(|err| CliError::usage(err.to_string()))?;
+                Some(key.clone())
+            }
+            None if operation.requires_header("Idempotency-Key") => {
+                Some(Uuid::new_v4().to_string())
+            }
+            None => None,
+        }
+    } else {
+        None
+    };
+
+    for required in operation
+        .parameters
+        .iter()
+        .filter(|parameter| parameter.location == "header" && parameter.required)
+    {
+        if !required.name.eq_ignore_ascii_case("If-Match")
+            && !required.name.eq_ignore_ascii_case("Idempotency-Key")
+        {
+            return Err(CliError::general(format!(
+                "operation {} requires unsupported header {}",
+                operation.id, required.name
+            )));
+        }
+    }
+
+    let body = read_json_body(args)?;
+    if operation.is_multipart() {
+        if args.upload.is_none() {
+            return Err(CliError::usage(format!(
+                "operation {} requires --upload FILE",
+                operation.id
+            )));
+        }
+    } else if args.upload.is_some() {
+        return Err(CliError::usage(format!(
+            "operation {} does not accept multipart upload",
+            operation.id
+        )));
+    }
+    if operation.has_json_body() {
+        if operation.request_required && body.is_none() {
+            return Err(CliError::usage(format!(
+                "operation {} requires --body-file FILE or --field KEY=VALUE",
+                operation.id
+            )));
+        }
+    } else if body.is_some() {
+        return Err(CliError::usage(format!(
+            "operation {} does not accept a JSON request body",
+            operation.id
+        )));
+    }
+
+    let binary = operation.has_binary_response();
+    if binary && args.output.is_none() {
+        return Err(CliError::usage(format!(
+            "operation {} returns binary data; --output FILE is required",
+            operation.id
+        )));
+    }
+    if !binary && args.output.is_some() {
+        return Err(CliError::usage(format!(
+            "operation {} returns JSON; --output applies only to binary responses",
+            operation.id
+        )));
+    }
+    if binary
+        && let Some(content_type) = operation
+            .response_content_types
+            .iter()
+            .find(|content_type| {
+                content_type.as_str() != "application/json"
+                    && !content_type.ends_with("+json")
+                    && content_type.as_str() != "text/plain"
+            })
+    {
+        headers.push(("Accept".to_string(), content_type.clone()));
+    }
+
+    if session.global.dry_run {
+        if operation.method == "GET" {
+            return Err(CliError::usage(
+                "--dry-run previews mutations only; this operation is a GET".to_string(),
+            ));
+        }
+        let preview_body = if let Some(path) = &args.upload {
+            let upload = read_upload(path, args.content_type.as_deref())?;
+            Some(json!({
+                "multipart": "form-data",
+                "part": "file",
+                "fileName": upload.file_name,
+                "contentType": upload.content_type.as_deref().unwrap_or("application/octet-stream"),
+                "size": upload.bytes.len(),
+            }))
+        } else {
+            body.clone()
+        };
+        return dryrun::emit_preview(
+            session,
+            dryrun::PreviewRequest {
+                operation: &operation.id,
+                method: &operation.method,
+                path_template: &operation.path,
+                path: format!("/api/v1/{}", segments.join("/")),
+                resolved: json!({"pathParameters": supplied_path, "query": query}),
+                if_match: args.if_match.as_deref(),
+                idempotency_key: idempotency_key.as_deref(),
+                body: preview_body,
+                notes: vec!["request shape resolved from the bundled Public API v1 contract"],
+            },
+        );
+    }
+
+    let api = session.api(&selection)?;
+    if binary {
+        let download = api
+            .download_operation(&operation.method, &segments, query, headers)
+            .await
+            .map_err(CliError::from_client)?;
+        let output = args.output.as_deref().ok_or_else(|| {
+            CliError::general("binary operation passed validation without an output path")
+        })?;
+        crate::fsutil::write_atomic(output, &download.bytes).map_err(|err| {
+            CliError::general(format!(
+                "cannot write download to {}: {err}",
+                output.display()
+            ))
+        })?;
+        if session.json() {
+            return emit_json(
+                session,
+                &json!({
+                    "operationId": operation.id,
+                    "path": format!("/api/v1/{}", segments.join("/")),
+                    "output": output,
+                    "size": download.bytes.len(),
+                    "contentType": download.content_type,
+                    "requestId": download.request_id,
+                }),
+            );
+        }
+        return session
+            .out
+            .line(&format!(
+                "downloaded {} bytes to {}",
+                download.bytes.len(),
+                output.display()
+            ))
+            .map_err(CliError::general);
+    }
+
+    let response = if operation.is_multipart() {
+        let upload_path = args.upload.as_deref().ok_or_else(|| {
+            CliError::general("multipart operation passed validation without an upload path")
+        })?;
+        let upload = read_upload(upload_path, args.content_type.as_deref())?;
+        api.upload_operation_file(
+            &operation.method,
+            &segments,
+            query,
+            headers,
+            upload,
+            idempotency_key.as_deref(),
+        )
+        .await
+    } else {
+        api.invoke_operation(
+            &operation.method,
+            &segments,
+            query,
+            headers,
+            body.as_ref(),
+            idempotency_key.as_deref(),
+        )
+        .await
+    }
+    .map_err(CliError::from_client)?;
+
+    if response.idempotency_replayed {
+        session
+            .out
+            .warn("note: request replayed (idempotent duplicate)");
+    }
+    if operation.method != "GET" {
+        crate::audit::record(
+            &session.config,
+            &mut session.out,
+            &format!("api.invoke.{}", operation.id),
+            &format!("{} /api/v1/{}", operation.method, segments.join("/")),
+            response.request_id.as_deref(),
+        );
+    }
+
+    if session.json() {
+        let mut envelope = json!({
+            "operationId": operation.id,
+            "method": operation.method,
+            "path": format!("/api/v1/{}", segments.join("/")),
+            "data": response.raw,
+        });
+        if let Some(meta) = response_meta(&response) {
+            envelope["meta"] = meta;
+        }
+        return emit_json(session, &envelope);
+    }
+    session
+        .out
+        .line(&serde_json::to_string_pretty(&response.raw).map_err(CliError::general)?)
+        .map_err(CliError::general)
 }
 
 /// `hamstik api rate-limit`: one cheap authenticated read that reports the
@@ -196,10 +766,11 @@ pub(crate) fn validate_api_path(path: &str) -> Result<Vec<String>, String> {
     Ok(segments)
 }
 
-/// True when the method's documented contract is idempotency-key protected
-/// (POST creates, DELETE removes). PATCH/PUT are revision-guarded via
-/// `If-Match`, which the API does not protect with replay keys.
-fn method_wants_idempotency_key(method: &str) -> bool {
+/// True when the raw passthrough generates a replay key by convention.
+/// Contract-aware `api invoke` instead follows the operation definition,
+/// because Public API v1.0.0 also has selected PUT/PATCH operations that
+/// require idempotency and selected POST operations that do not.
+fn method_generates_idempotency_key(method: &str) -> bool {
     matches!(method, "POST" | "DELETE")
 }
 
@@ -312,7 +883,7 @@ async fn run_request(session: &mut Session<'_>, args: &RequestArgs) -> Result<()
         headers.push((name, value));
     }
 
-    let idempotency_key = if method_wants_idempotency_key(&method) {
+    let idempotency_key = if method_generates_idempotency_key(&method) {
         Some(match &args.idempotency_key {
             Some(key) => {
                 hamstik_api_client::validate_key(key)
@@ -321,11 +892,19 @@ async fn run_request(session: &mut Session<'_>, args: &RequestArgs) -> Result<()
             }
             None => Uuid::new_v4().to_string(),
         })
+    } else if matches!(method.as_str(), "PATCH" | "PUT") {
+        match &args.idempotency_key {
+            Some(key) => {
+                hamstik_api_client::validate_key(key)
+                    .map_err(|err| CliError::usage(err.to_string()))?;
+                Some(key.clone())
+            }
+            None => None,
+        }
     } else {
         if args.idempotency_key.is_some() {
             return Err(CliError::usage(format!(
-                "--idempotency-key applies to POST/DELETE only; {method} requests are \
-                 revision-guarded, not idempotency-protected"
+                "--idempotency-key applies to mutations only; {method} is read-only"
             )));
         }
         None
@@ -446,5 +1025,58 @@ fn response_meta(response: &hamstik_api_client::ApiResponse<Value>) -> Option<Va
         None
     } else {
         Some(Value::Object(meta))
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_bundled_operation_is_resolvable() {
+        let manifest: Value =
+            serde_json::from_str(include_str!("../../../../openapi/api-parity.json")).unwrap();
+        let operations = manifest["operations"].as_array().unwrap();
+        assert_eq!(operations.len(), 234);
+        for entry in operations {
+            let id = entry["operationId"].as_str().unwrap();
+            let operation = operation_definition(id).unwrap();
+            assert_eq!(operation.id, id);
+            assert!(operation.path.starts_with("/api/v1/"));
+        }
+    }
+
+    #[test]
+    fn contract_backed_transports_cover_all_content_types_and_headers() {
+        let contract: Value = serde_json::from_str(BUNDLED_OPENAPI).unwrap();
+        for item in contract["paths"].as_object().unwrap().values() {
+            for method in ["get", "put", "post", "delete", "patch"] {
+                let Some(raw) = item.get(method) else {
+                    continue;
+                };
+                let id = raw["operationId"].as_str().unwrap();
+                let operation = operation_definition(id).unwrap();
+                for parameter in operation
+                    .parameters
+                    .iter()
+                    .filter(|parameter| parameter.location == "header" && parameter.required)
+                {
+                    assert!(
+                        parameter.name.eq_ignore_ascii_case("If-Match")
+                            || parameter.name.eq_ignore_ascii_case("Idempotency-Key"),
+                        "{id} requires unsupported header {}",
+                        parameter.name
+                    );
+                }
+                assert!(
+                    operation.request_content_types.is_empty()
+                        || operation.has_json_body()
+                        || operation.is_multipart(),
+                    "{id} has unsupported request content types {:?}",
+                    operation.request_content_types
+                );
+            }
+        }
     }
 }

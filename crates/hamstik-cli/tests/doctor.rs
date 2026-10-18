@@ -43,6 +43,18 @@ fn base(server: &MockServer, dir: &TempDir) -> Command {
     cmd.env_remove("HAMSTIK_ORG");
     cmd.env_remove("HAMSTIK_PROJECT");
     cmd.env_remove("NO_COLOR");
+    for name in [
+        "HTTPS_PROXY",
+        "https_proxy",
+        "HTTP_PROXY",
+        "http_proxy",
+        "ALL_PROXY",
+        "all_proxy",
+        "NO_PROXY",
+        "no_proxy",
+    ] {
+        cmd.env_remove(name);
+    }
     cmd.current_dir(dir.path());
     cmd.arg("--no-retry");
     cmd
@@ -61,6 +73,18 @@ fn local(dir: &TempDir) -> Command {
     cmd.env_remove("HAMSTIK_PROFILE");
     cmd.env_remove("HAMSTIK_ORG");
     cmd.env_remove("HAMSTIK_PROJECT");
+    for name in [
+        "HTTPS_PROXY",
+        "https_proxy",
+        "HTTP_PROXY",
+        "http_proxy",
+        "ALL_PROXY",
+        "all_proxy",
+        "NO_PROXY",
+        "no_proxy",
+    ] {
+        cmd.env_remove(name);
+    }
     cmd.current_dir(dir.path());
     cmd.arg("--no-retry");
     cmd
@@ -73,6 +97,49 @@ fn check<'a>(body: &'a Value, id: &str) -> &'a Value {
         .iter()
         .find(|check| check["id"] == id)
         .unwrap_or_else(|| panic!("missing check {id} in {:?}", body["checks"]))
+}
+
+/// Public API v1 may add operations independently of a CLI release. Doctor
+/// keeps that inventory visible, but a server that retains every required
+/// operation is compatible and must not produce a warning.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn additive_api_operations_are_a_passing_compatibility_check() {
+    let server = MockServer::start().await;
+    let mut contract: Value =
+        serde_json::from_str(include_str!("../../../openapi/hamstik-v1.json")).unwrap();
+    contract["paths"]["/api/v1/future"] = json!({
+        "get": {"operationId": "futureOperation"}
+    });
+    wiremock::Mock::given(wiremock::matchers::method("GET"))
+        .and(wiremock::matchers::path("/api/v1/openapi.json"))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(contract))
+        .mount(&server)
+        .await;
+    wiremock::Mock::given(wiremock::matchers::method("GET"))
+        .and(wiremock::matchers::path("/api/v1/me"))
+        .respond_with(
+            wiremock::ResponseTemplate::new(200)
+                .set_body_json(me_json(&["read"], "2099-01-01T00:00:00Z")),
+        )
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    let output = base(&server, &dir)
+        .args(["--no-input", "--json", "doctor"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{:?}", output.stderr);
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let compatibility = check(&body, "api.compatibility");
+    assert_eq!(compatibility["status"], "pass", "{compatibility}");
+    assert!(
+        compatibility["detail"]
+            .as_str()
+            .unwrap()
+            .contains("1 additive operation(s)"),
+        "{compatibility}"
+    );
 }
 
 /// Local-only mode emits no DNS or HTTP traffic (the host is unreachable)
@@ -120,7 +187,7 @@ fn local_only_mode_makes_no_traffic_and_skips_remote_checks() {
     assert_eq!(check(&body, "local.config")["status"], "pass");
     assert_eq!(
         body["summary"]["skipped"].as_u64().unwrap(),
-        11,
+        10,
         "summary must total the skipped remote checks: {body}"
     );
     assert_eq!(
@@ -130,6 +197,46 @@ fn local_only_mode_makes_no_traffic_and_skips_remote_checks() {
             + body["summary"]["skipped"].as_u64().unwrap(),
         body["checks"].as_array().unwrap().len() as u64,
         "summary must cover every check"
+    );
+}
+
+#[test]
+fn absent_proxy_configuration_is_omitted() {
+    let dir = TempDir::new().unwrap();
+    let output = local(&dir)
+        .env("NO_PROXY", "localhost,127.0.0.1")
+        .args(["--no-input", "--json", "doctor", "--local-only"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{:?}", output.stderr);
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        body["checks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|check| check["id"] != "network.proxy"),
+        "a bypass list without a configured proxy should not produce a doctor row: {body}"
+    );
+}
+
+#[test]
+fn configured_proxy_is_reported_without_its_value() {
+    let dir = TempDir::new().unwrap();
+    let proxy_value = "http://user:private-value@proxy.example.test:8080";
+    let output = local(&dir)
+        .env("HTTPS_PROXY", proxy_value)
+        .args(["--no-input", "--json", "doctor", "--local-only"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{:?}", output.stderr);
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let proxy = check(&body, "network.proxy");
+    assert_eq!(proxy["status"], "pass");
+    assert!(proxy["detail"].as_str().unwrap().contains("HTTPS_PROXY"));
+    assert!(
+        !body.to_string().contains(proxy_value),
+        "doctor must never expose the proxy value: {body}"
     );
 }
 

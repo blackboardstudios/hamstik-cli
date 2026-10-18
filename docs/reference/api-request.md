@@ -34,7 +34,7 @@ Header override as `Name: value`; restricted to a safe allowlist (`Accept`, `Con
 
 ### `--idempotency-key`
 
-Idempotency key override; mutations get a fresh strong key otherwise (generated once and reused across internal retries)
+Idempotency key override. Raw POST/DELETE calls get a fresh strong key otherwise; PUT/PATCH send one only when explicitly supplied. Prefer `api invoke` for exact operation\-contract behavior
 
 
 Supports: `--json`, `--no-input`

@@ -4,9 +4,10 @@
 //! Typed client for the Hamstik Public API v1.
 //!
 //! This crate is the only place that talks to `/api/v1`. It exposes a small
-//! [`HamstikApi`] trait (implemented by [`HamstikClient`]) with one method per
-//! supported operation, plus the request/response models, pagination helpers,
-//! idempotency utilities, retry/backoff policy, and a canonical error type.
+//! [`HamstikApi`] trait (implemented by [`HamstikClient`]) with hand-written
+//! ergonomic resource methods plus contract-aware operation invocation, the
+//! request/response models, pagination helpers, idempotency utilities,
+//! retry/backoff policy, and a canonical error type.
 //!
 //! The CLI depends exclusively on this crate — never on `reqwest` or raw HTTP.
 
@@ -22,8 +23,8 @@ pub mod retry;
 pub const API_PREFIX: &str = "/api/v1";
 
 pub use client::{
-    ApiResponse, ClientConfig, HamstikApi, HamstikClient, RateLimitProbe, RateLimitSnapshot,
-    RequestObservation, RequestObserver, sanitize_server_text,
+    ApiResponse, ClientConfig, DownloadedAttachment, HamstikApi, HamstikClient, MultipartFile,
+    RateLimitProbe, RateLimitSnapshot, RequestObservation, RequestObserver, sanitize_server_text,
 };
 pub use error::{ApiError, ClientError, HostError, NetworkStage};
 pub use host::Host;

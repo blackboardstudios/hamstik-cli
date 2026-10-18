@@ -247,6 +247,7 @@ async fn release_transition_sends_if_match_confirm_flag_and_reason() {
         target_state: "released".to_string(),
         confirm_incomplete_scope: Some(true),
         reason: Some("GA day".to_string()),
+        quality_gate_override_reason: None,
     };
     let response = client
         .transition_release_version(

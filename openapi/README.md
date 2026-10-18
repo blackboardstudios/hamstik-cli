@@ -27,6 +27,13 @@ contract changes in a way the CLI must track.
 an `operationId` is added, removed, moved, or changed without a deliberate
 client/CLI/test classification.
 
+The current snapshot is Hamstik Public API **v1.0.0** and contains **234
+operations**. Operations without a dedicated ergonomic resource command remain
+deliberately supported through `hamstik api invoke <operationId>`, which derives
+method, path, parameter names, required headers, JSON/multipart request shape,
+and binary response handling from this frozen document. `api request` remains
+the forward-compatible raw-path escape hatch for routes newer than the snapshot.
+
 ## Deep schema parity
 
 Beyond the operationId/method/path manifest, parsed-schema guards
@@ -88,8 +95,9 @@ the snapshot is never edited by hand. After an update:
 1. run `cargo test -p hamstik-api-client --test schema_parity` and the
    `openapi_parity` tests; every failure names the changed operation or schema
    pointer;
-2. implement the new or changed semantics in the typed client and CLI, and
-   extend the wire tests for the affected behavior;
+2. implement the new or changed semantics in the typed client and CLI (a
+   first-class resource command where warranted, otherwise contract-aware
+   operation invocation), and extend the wire tests for the affected behavior;
 3. update `api-parity.json` (client method, CLI commands, tests, status) in
    the same change;
 4. note the change in the changelog — a `### Breaking` entry when a
@@ -103,5 +111,7 @@ the snapshot is never edited by hand. After an update:
   pre-release Attribute contracts.
 - Download the snapshot; do not manually edit it.
 - CLI builds must not fetch OpenAPI from the network.
-- No OpenAPI code generation runs against this snapshot; the design calls for a
-  deliberate hand-written typed client.
+- No OpenAPI code generation runs against this snapshot. Existing ergonomic
+  resource clients remain hand-written; the operation invoker deliberately
+  interprets only transport-level contract facts and does not duplicate server
+  business logic.

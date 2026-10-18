@@ -1,0 +1,24 @@
+.TH HAMSTIK 1 "HAMSTIK WEBHOOK EDIT"
+.SH NAME
+hamstik webhook edit \- Update a webhook endpoint
+.SH SYNOPSIS
+.B hamstik webhook edit [OPTIONS]
+.SH DESCRIPTION
+Update a webhook endpoint
+.SH ARGUMENTS
+.TP
+.I WEBHOOK_ID
+Webhook endpoint id
+.SH OPTIONS
+.TP
+.B --body-file
+Read the JSON request body from this file; `-` reads stdin
+.TP
+.B --field
+Structured JSON field as `key=value`; repeatable
+.TP
+.B --if-match
+Current endpoint ETag
+.TP
+.B --idempotency-key
+Idempotency key override

@@ -151,6 +151,8 @@ fn root_command_hierarchy_matches_documented_surface() {
             "squeakql",
             "schedule",
             "api",
+            "webhook",
+            "rule",
             "agent",
             "doctor",
             "replay",
@@ -339,7 +341,41 @@ fn subcommand_groups_match_documented_surface() {
             &["schedule"],
             &["delete", "list", "run", "save"],
         ),
-        ("api", &["api"], &["openapi", "rate-limit", "request"]),
+        (
+            "api",
+            &["api"],
+            &["invoke", "openapi", "rate-limit", "request"],
+        ),
+        (
+            "webhook",
+            &["webhook"],
+            &[
+                "create",
+                "delete",
+                "deliveries",
+                "edit",
+                "list",
+                "redeliver",
+                "rotate",
+                "test",
+                "view",
+            ],
+        ),
+        (
+            "rule",
+            &["rule"],
+            &[
+                "accept-owner",
+                "create",
+                "delete",
+                "edit",
+                "list",
+                "preview",
+                "runs",
+                "toggle",
+                "view",
+            ],
+        ),
     ];
     for (label, group, expected) in cases {
         let mut expected: Vec<String> = expected.iter().map(|s| s.to_string()).collect();

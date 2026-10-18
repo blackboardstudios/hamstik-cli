@@ -79,7 +79,7 @@ pub(super) async fn create(
     let (assignee_id, assignee_public_id) = assignee_fields(&assignee);
     let attributes = attribute_changes(&args.attribute_options, &args.attribute_booleans, &[])?;
     let body = CreateWorkItemRequest {
-        title,
+        title: Some(title),
         description,
         item_type,
         status: args.status.map(|status| status.as_str().to_string()),
@@ -91,13 +91,11 @@ pub(super) async fn create(
         story_points: args.story_points,
         due_date: args.due_date.map(|date| date.to_string()),
         attributes,
+        ..Default::default()
     };
     let idempotency = idem_key(args.idempotency_key.clone())?;
 
     if session.global.dry_run {
-        // The create body cannot carry labels (the frozen Public API v1
-        // contract forbids unknown properties), so a preview names the labels
-        // that a real invocation attaches after the create succeeds.
         let resolved_labels: Vec<&str> = labels.iter().map(LabelRef::display).collect();
         let mut resolved = json!({ "organization": org, "project": project });
         if start.is_some() {
@@ -148,9 +146,8 @@ pub(super) async fn create(
         response.request_id.as_deref(),
     );
 
-    // Labels are the one allow-listed field the create body cannot express.
-    // Attach them through the existing label endpoint, chaining the ETag from
-    // each response so concurrency protection stays intact.
+    // Convenience labels can be names or ids, so keep one resolution path via
+    // the label endpoint and chain each ETag for concurrency protection.
     let mut etag = response.etag.clone();
     let mut label_error: Option<CliError> = None;
     for label in &labels {

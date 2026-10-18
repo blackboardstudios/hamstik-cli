@@ -1,0 +1,17 @@
+.TH HAMSTIK 1 "HAMSTIK WEBHOOK CREATE"
+.SH NAME
+hamstik webhook create \- Create a webhook endpoint. The signing secret is returned exactly once
+.SH SYNOPSIS
+.B hamstik webhook create [OPTIONS]
+.SH DESCRIPTION
+Create a webhook endpoint. The signing secret is returned exactly once
+.SH OPTIONS
+.TP
+.B --body-file
+Read the JSON request body from this file; `-` reads stdin
+.TP
+.B --field
+Structured JSON field as `key=value`; repeatable
+.TP
+.B --idempotency-key
+Idempotency key override

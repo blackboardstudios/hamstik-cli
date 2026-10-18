@@ -271,6 +271,10 @@ pub enum Command {
     Schedule(ScheduleArgs),
     /// Inspect the Public API contract.
     Api(ApiArgs),
+    /// Manage Organization webhook endpoints and deliveries.
+    Webhook(WebhookArgs),
+    /// Manage Organization server-side automation rules.
+    Rule(RuleArgs),
     /// Agent automation: manage the bundled Agent Skill and validate the
     /// local agent harness.
     Agent(AgentArgs),
@@ -619,12 +623,265 @@ pub enum ApiCommand {
     /// `api request --json` and is a point-in-time observation: limits can
     /// change between calls, so it is not a guarantee against future 429s.
     RateLimit,
+    /// Invoke an operation by its Public API v1 `operationId`.
+    ///
+    /// Method, path, parameters, required headers, request content type, and
+    /// response content type are resolved from the frozen v1.0.0 contract.
+    Invoke(InvokeArgs),
     /// Call a documented Public API v1 route through the CLI.
     Request(RequestArgs),
     /// A bare Public API v1 path (`hamstik api /api/v1/...`) — forwarded to
     /// `api request`.
     #[command(external_subcommand)]
     Passthrough(Vec<String>),
+}
+
+/// Arguments for `api invoke`: contract-aware access to every frozen Public
+/// API v1 operation.
+#[derive(Args, Debug, Clone)]
+pub struct InvokeArgs {
+    /// OpenAPI operationId (for example `listOrganizationWebhooks`).
+    #[arg(value_name = "OPERATION_ID")]
+    pub operation_id: String,
+
+    /// Path parameter as `name=value`; organizationSlug and projectKey
+    /// default from the resolved CLI context.
+    #[arg(long, value_name = "NAME=VALUE")]
+    pub param: Vec<String>,
+
+    /// Query parameter as `name=value`; repeat array parameters as needed.
+    #[arg(long, value_name = "NAME=VALUE")]
+    pub query: Vec<String>,
+
+    /// Read the JSON request body from this file; `-` reads stdin.
+    #[arg(long, value_name = "FILE", conflicts_with_all = ["field", "upload"])]
+    pub body_file: Option<String>,
+
+    /// Structured JSON field as `key=value`; repeatable.
+    #[arg(long, value_name = "KEY=VALUE", conflicts_with = "upload")]
+    pub field: Vec<String>,
+
+    /// File for an operation whose request body is `multipart/form-data`.
+    #[arg(long, value_name = "FILE", conflicts_with_all = ["body_file", "field"])]
+    pub upload: Option<PathBuf>,
+
+    /// MIME type for `--upload` (defaults to application/octet-stream).
+    #[arg(long, value_name = "TYPE", requires = "upload")]
+    pub content_type: Option<String>,
+
+    /// Write a binary response to this path. Required for binary operations.
+    #[arg(long, value_name = "FILE")]
+    pub output: Option<PathBuf>,
+
+    /// Revision precondition for operations that document `If-Match`.
+    #[arg(long, value_name = "ETAG")]
+    pub if_match: Option<String>,
+
+    /// Idempotency key override. A strong key is generated when the operation
+    /// contract requires one.
+    #[arg(long, value_name = "KEY")]
+    pub idempotency_key: Option<String>,
+}
+
+/// JSON-body flags shared by contract-backed command families.
+#[derive(Args, Debug, Clone, Default)]
+pub struct ContractBodyArgs {
+    /// Read the JSON request body from this file; `-` reads stdin.
+    #[arg(long, value_name = "FILE", conflicts_with = "field")]
+    pub body_file: Option<String>,
+    /// Structured JSON field as `key=value`; repeatable.
+    #[arg(long, value_name = "KEY=VALUE")]
+    pub field: Vec<String>,
+}
+
+/// Query flags shared by contract-backed list commands.
+#[derive(Args, Debug, Clone, Default)]
+pub struct ContractQueryArgs {
+    /// Documented query parameter as `name=value`; repeatable.
+    #[arg(long, value_name = "NAME=VALUE")]
+    pub query: Vec<String>,
+}
+
+/// Arguments for the `webhook` command group.
+#[derive(Args, Debug)]
+pub struct WebhookArgs {
+    /// Webhook operation to run.
+    #[command(subcommand)]
+    pub command: WebhookCommand,
+}
+
+/// Organization webhook management commands.
+#[derive(Subcommand, Debug)]
+pub enum WebhookCommand {
+    /// List webhook endpoints.
+    List {
+        /// Documented list filters and pagination parameters.
+        #[command(flatten)]
+        query: ContractQueryArgs,
+    },
+    /// View one webhook endpoint (the signing secret is never returned).
+    View {
+        /// Webhook endpoint id.
+        webhook_id: String,
+    },
+    /// Create a webhook endpoint. The signing secret is returned exactly once.
+    Create {
+        /// Webhook definition as JSON fields or a JSON file.
+        #[command(flatten)]
+        body: ContractBodyArgs,
+        /// Idempotency key override.
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+    /// Update a webhook endpoint.
+    Edit {
+        /// Webhook endpoint id.
+        webhook_id: String,
+        /// Webhook changes as JSON fields or a JSON file.
+        #[command(flatten)]
+        body: ContractBodyArgs,
+        /// Current endpoint ETag.
+        #[arg(long, value_name = "ETAG")]
+        if_match: String,
+        /// Idempotency key override.
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+    /// Delete a webhook endpoint.
+    Delete {
+        /// Webhook endpoint id.
+        webhook_id: String,
+        /// Idempotency key override.
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+    /// Rotate a webhook signing secret; the new secret is returned once.
+    Rotate {
+        /// Webhook endpoint id.
+        webhook_id: String,
+        /// Idempotency key override.
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+    /// Send a server-owned test delivery.
+    Test {
+        /// Webhook endpoint id.
+        webhook_id: String,
+        /// Idempotency key override.
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+    /// List deliveries for one webhook endpoint.
+    Deliveries {
+        /// Webhook endpoint id.
+        webhook_id: String,
+        /// Documented delivery filters and pagination parameters.
+        #[command(flatten)]
+        query: ContractQueryArgs,
+    },
+    /// Redeliver one existing webhook delivery.
+    Redeliver {
+        /// Webhook endpoint id.
+        webhook_id: String,
+        /// Delivery id.
+        delivery_id: String,
+        /// Idempotency key override.
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+}
+
+/// Arguments for the `rule` command group.
+#[derive(Args, Debug)]
+pub struct RuleArgs {
+    /// Automation-rule operation to run.
+    #[command(subcommand)]
+    pub command: RuleCommand,
+}
+
+/// Organization server-side automation rule commands.
+#[derive(Subcommand, Debug)]
+pub enum RuleCommand {
+    /// List automation rules.
+    List {
+        /// Documented list filters and pagination parameters.
+        #[command(flatten)]
+        query: ContractQueryArgs,
+    },
+    /// View one automation rule.
+    View {
+        /// Automation rule id.
+        rule_id: String,
+    },
+    /// Create an automation rule.
+    Create {
+        /// Rule definition as JSON fields or a JSON file.
+        #[command(flatten)]
+        body: ContractBodyArgs,
+        /// Idempotency key override.
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+    /// Update an automation rule.
+    Edit {
+        /// Automation rule id.
+        rule_id: String,
+        /// Rule changes as JSON fields or a JSON file.
+        #[command(flatten)]
+        body: ContractBodyArgs,
+        /// Current rule ETag.
+        #[arg(long, value_name = "ETAG")]
+        if_match: String,
+        /// Idempotency key override.
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+    /// Delete an automation rule.
+    Delete {
+        /// Automation rule id.
+        rule_id: String,
+        /// Idempotency key override.
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+    /// List execution runs for one rule.
+    Runs {
+        /// Automation rule id.
+        rule_id: String,
+        /// Documented run filters and pagination parameters.
+        #[command(flatten)]
+        query: ContractQueryArgs,
+    },
+    /// Preview a rule without executing its actions.
+    Preview {
+        /// Automation rule id.
+        rule_id: String,
+        /// Preview input as JSON fields or a JSON file.
+        #[command(flatten)]
+        body: ContractBodyArgs,
+    },
+    /// Enable or disable a rule through the server-owned transition.
+    Toggle {
+        /// Automation rule id.
+        rule_id: String,
+        /// Toggle transition input as JSON fields or a JSON file.
+        #[command(flatten)]
+        body: ContractBodyArgs,
+        /// Idempotency key override.
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+    /// Accept ownership of a rule.
+    AcceptOwner {
+        /// Automation rule id.
+        rule_id: String,
+        /// Current rule ETag.
+        #[arg(long, value_name = "ETAG")]
+        if_match: String,
+        /// Idempotency key override.
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
 }
 
 /// Arguments for `api request`: a generic Public API v1 passthrough
@@ -660,8 +917,9 @@ pub struct RequestArgs {
     #[arg(long, value_name = "NAME:VALUE")]
     pub header: Vec<String>,
 
-    /// Idempotency key override; mutations get a fresh strong key otherwise
-    /// (generated once and reused across internal retries).
+    /// Idempotency key override. Raw POST/DELETE calls get a fresh strong key
+    /// otherwise; PUT/PATCH send one only when explicitly supplied. Prefer
+    /// `api invoke` for exact operation-contract behavior.
     #[arg(long, value_name = "KEY")]
     pub idempotency_key: Option<String>,
 }
@@ -1051,6 +1309,9 @@ pub struct ProjectReportArgs {
     /// Bucket count or explicit boundaries for distribution reports.
     #[arg(long, value_name = "BUCKETS")]
     pub buckets: Option<String>,
+    /// Opaque server-defined board scope expression.
+    #[arg(long, value_name = "SCOPE")]
+    pub board_scope: Option<String>,
     /// Report page options.
     #[command(flatten)]
     pub page: ReportPageArgs,

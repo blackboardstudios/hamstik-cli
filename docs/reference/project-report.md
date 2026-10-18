@@ -116,6 +116,10 @@ Only count items carrying this label
 
 Bucket count or explicit boundaries for distribution reports
 
+### `--board-scope`
+
+Opaque server\-defined board scope expression
+
 ### `--limit`
 
 Results per page (1\-100; the server default is 50)

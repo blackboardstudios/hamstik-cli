@@ -10,9 +10,8 @@
 //! `status` line can never be silently carried over.
 //!
 //! The allow-list is `title`, `type`, `priority`, `description`, and
-//! `labels`. Labels are not part of the `CreateWorkItemRequest` body (the
-//! frozen Public API v1 contract forbids unknown properties), so they are
-//! resolved here and attached after the create request succeeds.
+//! `labels`. A local template may name labels without ids, so convenience
+//! labels share one resolution path and are attached after creation.
 
 use hamstik_api_client::WorkItem;
 use serde::Deserialize;

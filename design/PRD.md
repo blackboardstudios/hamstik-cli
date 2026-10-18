@@ -1257,11 +1257,12 @@ The initial CLI does not need:
 - Audit Compliance management;
 - Advanced Dashboard creation or editing (the Public API currently exposes
   dashboard reads and runs only);
-- workflow automation rules and any event/subscription execution (gated on a
-  documented Public API event surface; see
-  [`design/AUTOMATION_RULES.md`](AUTOMATION_RULES.md));
-- webhook/subscription management (gated on a documented Public API webhook
-  surface; see [`design/WEBHOOKS.md`](WEBHOOKS.md));
+- client-side workflow automation execution, local rule storage, and background
+  daemons (server-side Public API automation-rule management has since shipped;
+  see [`design/AUTOMATION_RULES.md`](AUTOMATION_RULES.md));
+- webhook receiving, tunneling, and client-side delivery/signature logic
+  (server-side outbound webhook management has since shipped; see
+  [`design/WEBHOOKS.md`](WEBHOOKS.md));
 - in-place self-update (`hamstik self update`, `--channel stable|prerelease`),
   gated on the packaging/release milestone and required to remain opt-in,
   opt-out, and telemetry-free with no silent network calls (see
@@ -1295,12 +1296,12 @@ hamstik admin
 
 without redesigning root-level conventions.
 
-`hamstik rule` is a gated future namespace: it is only added once the Public
-API exposes a documented event/subscription surface. See
+`hamstik rule` manages the server-owned Organization automation-rule surface
+introduced in Public API v1.0.0. See
 [`design/AUTOMATION_RULES.md`](AUTOMATION_RULES.md).
 
-`hamstik webhook` is likewise gated: it is only added once the Public API
-exposes documented webhook/subscription operations. See
+`hamstik webhook` manages the server-owned outbound webhook surface introduced
+in Public API v1.0.0. See
 [`design/WEBHOOKS.md`](WEBHOOKS.md).
 
 ---

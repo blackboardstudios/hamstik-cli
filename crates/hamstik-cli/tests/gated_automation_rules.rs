@@ -1,13 +1,7 @@
 // Copyright 2026 Blackboard Studios
 // SPDX-License-Identifier: Apache-2.0
 
-//! Gate guard for CLI-77 workflow automation rules.
-//!
-//! The feature is deliberately gated on a documented Hamstik Public API event
-//! or subscription surface. Until that exists the CLI must not grow a `rule`
-//! command or any event-stream behavior. These tests fail loudly if the gate
-//! is crossed without the design/documentation work that a real implementation
-//! requires.
+//! Activation guard for CLI-77 server-side workflow automation rules.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -25,53 +19,63 @@ fn repo_file(relative: &str) -> String {
     .unwrap_or_else(|error| panic!("{relative} must be part of the repository: {error}"))
 }
 
-/// The gated design stub exists and covers the acceptance criteria.
+/// The activated design records server ownership and non-goals.
 #[test]
-fn gated_design_stub_documents_scope_triggers_and_non_goals() {
+fn activated_design_documents_scope_and_non_goals() {
     let design = repo_file("design/AUTOMATION_RULES.md");
     for required in [
-        "Gate condition",
-        "Outcome",
-        "Scope",
-        "Triggers",
+        "Status:",
+        "Implemented",
+        "Gate activation",
+        "Command surface",
         "Non-goals",
-        "Activation checklist",
         "rule list",
         "rule create",
         "rule delete",
-        "event subscription",
-        "manual trigger",
+        "rule preview",
+        "rule accept-owner",
         "no background daemon",
         "polling loop",
-        "server event subscription",
+        "server remains authoritative",
     ] {
         assert!(
             design.to_lowercase().contains(&required.to_lowercase()),
-            "design/AUTOMATION_RULES.md lost `{required}`; the gated stub must \
-             document scope, triggers, and non-goals"
+            "design/AUTOMATION_RULES.md lost `{required}`"
         );
     }
     // The gate is explicitly tied to the Public API contract.
     assert!(
         design.contains("openapi/hamstik-v1.json") && design.contains("/api/v1"),
-        "the stub must name the Public API contract that gates the feature"
+        "the design must name the activated Public API contract"
     );
 }
 
-/// No `hamstik rule` command may exist while the gate is closed.
+/// The first-class command family exists now that the gate is open.
 #[test]
-fn no_rule_command_before_the_gate_opens() {
+fn rule_command_exists_after_gate_activation() {
     let command = Cli::command();
-    assert!(
-        command.find_subcommand("rule").is_none(),
-        "`hamstik rule` must not exist until the Public API exposes a documented \
-         event/subscription surface (see design/AUTOMATION_RULES.md)"
-    );
+    let rule = command.find_subcommand("rule").expect("rule command");
+    for child in [
+        "list",
+        "view",
+        "create",
+        "edit",
+        "delete",
+        "runs",
+        "preview",
+        "toggle",
+        "accept-owner",
+    ] {
+        assert!(
+            rule.find_subcommand(child).is_some(),
+            "missing rule {child}"
+        );
+    }
 }
 
-/// The design docs and root README cross-reference the gated stub.
+/// The design docs and root README cross-reference the activated design.
 #[test]
-fn gated_stub_is_referenced_from_authoritative_docs() {
+fn activated_design_is_referenced_from_authoritative_docs() {
     for (path, marker) in [
         ("design/SPEC.md", "design/AUTOMATION_RULES.md"),
         ("design/PRD.md", "design/AUTOMATION_RULES.md"),
@@ -80,7 +84,7 @@ fn gated_stub_is_referenced_from_authoritative_docs() {
         let text = repo_file(path);
         assert!(
             text.contains(marker),
-            "{path} must link the gated automation-rules design stub"
+            "{path} must link the automation-rules design"
         );
     }
 }

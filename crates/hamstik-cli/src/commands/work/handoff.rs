@@ -490,7 +490,7 @@ impl Normalized {
 
     fn create_body(&self, description: Option<String>) -> CreateWorkItemRequest {
         CreateWorkItemRequest {
-            title: self.title.clone(),
+            title: Some(self.title.clone()),
             description,
             item_type: self.item_type.clone(),
             status: self.status.clone(),
@@ -502,6 +502,7 @@ impl Normalized {
             story_points: None,
             due_date: None,
             attributes: None,
+            ..Default::default()
         }
     }
 
@@ -617,6 +618,7 @@ async fn create(
             &CreateCommentRequest {
                 body: comment.body.clone(),
                 parent_comment_id: None,
+                is_private: None,
             },
             &sub_key(&base_key, "comment", index),
         )
@@ -765,6 +767,7 @@ async fn update(
             &CreateCommentRequest {
                 body: comment.body.clone(),
                 parent_comment_id: None,
+                is_private: None,
             },
             &sub_key(&base_key, "comment", index),
         )

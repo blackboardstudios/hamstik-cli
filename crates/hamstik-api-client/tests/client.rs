@@ -486,7 +486,7 @@ async fn captures_etag_and_idempotency_replay() {
             "acme",
             "HAM",
             &CreateWorkItemRequest {
-                title: "T".to_string(),
+                title: Some("T".to_string()),
                 ..Default::default()
             },
             "key-12345678",
@@ -801,7 +801,7 @@ async fn single_and_bulk_work_item_writes_carry_typed_attribute_changes() {
             "acme",
             "HAM",
             &CreateWorkItemRequest {
-                title: "T".into(),
+                title: Some("T".into()),
                 attributes: Some(vec![hamstik_api_client::WorkItemAttributeChange {
                     key: "verified".into(),
                     clear: None,
@@ -843,13 +843,14 @@ async fn single_and_bulk_work_item_writes_carry_typed_attribute_changes() {
             &hamstik_api_client::BulkCreateEnvelope {
                 operations: vec![BulkCreateWorkItemOperation {
                     project_key: "HAM".into(),
-                    title: "Bulk".into(),
+                    title: Some("Bulk".into()),
                     attributes: Some(vec![hamstik_api_client::WorkItemAttributeChange {
                         key: "verified".into(),
                         clear: None,
                         boolean_value: Some(false),
                         option_keys: None,
                     }]),
+                    ..Default::default()
                 }],
             },
             "attribute-bulk-create-1",
@@ -993,6 +994,7 @@ async fn creates_comment_with_idempotency_key() {
             &CreateCommentRequest {
                 body: "hello".to_string(),
                 parent_comment_id: None,
+                is_private: None,
             },
             "comment-key-1",
         )
@@ -2448,8 +2450,9 @@ async fn bulk_routes_send_envelopes_and_parse_results() {
             &hamstik_api_client::BulkCreateEnvelope {
                 operations: vec![BulkCreateWorkItemOperation {
                     project_key: "HAM".into(),
-                    title: "First".into(),
+                    title: Some("First".into()),
                     attributes: None,
+                    ..Default::default()
                 }],
             },
             "bulk-create-01",

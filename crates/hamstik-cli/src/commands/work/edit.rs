@@ -90,6 +90,7 @@ pub(super) async fn edit(session: &mut Session<'_>, args: &WorkEditArgs) -> Resu
         story_points: tri(args.clear_story_points, args.story_points),
         due_date: tri(args.clear_due_date, args.due_date.map(|d| d.to_string())),
         attributes,
+        ..Default::default()
     };
     if body.is_empty() {
         return Err(CliError::usage("no changes specified"));

@@ -56,11 +56,11 @@ pub struct KeyringCredentialStore;
 impl KeyringCredentialStore {
     /// Runs one keyring operation on a throwaway thread.
     ///
-    /// The Linux Secret Service backend talks D-Bus through a blocking API that
-    /// enters its own async runtime, and doing that on a thread which already
-    /// drives a runtime panics. Every CLI command runs inside `tokio`, so the
-    /// hop is mandatory here; keeping it inside this module preserves the
-    /// synchronous [`CredentialStore`] seam for the rest of the code.
+    /// The Linux Secret Service backend talks D-Bus through a blocking API.
+    /// Every CLI command runs inside `tokio`, so the hop keeps credential-store
+    /// I/O from blocking a runtime worker; keeping it inside this module
+    /// preserves the synchronous [`CredentialStore`] seam for the rest of the
+    /// code.
     ///
     /// A panic in the operation is not swallowed: its payload (the D-Bus or
     /// backend message, usually a `&str`) is folded into the returned error so
@@ -230,7 +230,7 @@ mod tests {
         assert!(
             store_is_persistent(),
             "keyring was compiled without a platform backend; \
-             enable apple-native / windows-native / async-secret-service \
+             enable apple-native / windows-native / sync-secret-service \
              for the target platform"
         );
     }

@@ -395,8 +395,9 @@ fn convert_create(
     };
     match serde_json::to_value(BulkCreateWorkItemOperation {
         project_key: project.to_string(),
-        title,
+        title: Some(title),
         attributes: None,
+        ..Default::default()
     }) {
         Ok(value) => operations.push(value),
         Err(err) => findings.push(finding(

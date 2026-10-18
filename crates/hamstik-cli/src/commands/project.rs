@@ -315,6 +315,7 @@ async fn edit(
         name: args.name.clone(),
         description,
         color: args.color.clone(),
+        is_public: None,
     };
     if body.is_empty() {
         return Err(CliError::usage("no changes specified"));
@@ -662,6 +663,7 @@ async fn report(session: &mut Session<'_>, args: &ProjectReportArgs) -> Result<(
         assignee: args.assignee.clone(),
         label: args.label.clone(),
         buckets: args.buckets.clone(),
+        board_scope: args.board_scope.clone(),
     };
     let response = api
         .get_project_report(&org, &project, &args.report_type, opts)

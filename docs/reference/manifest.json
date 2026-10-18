@@ -1448,6 +1448,11 @@
      "long": "--buckets"
     },
     {
+     "help": "Opaque server-defined board scope expression",
+     "kind": "option",
+     "long": "--board-scope"
+    },
+    {
      "help": "Results per page (1-100; the server default is 50)",
      "kind": "option",
      "long": "--limit"
@@ -1487,6 +1492,7 @@
     "--assignee",
     "--label",
     "--buckets",
+    "--board-scope",
     "--limit",
     "--cursor"
    ],
@@ -8331,6 +8337,84 @@
    "positionals": []
   },
   {
+   "about": "Invoke an operation by its Public API v1 `operationId`",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "OpenAPI operationId (for example `listOrganizationWebhooks`)",
+     "kind": "positional",
+     "name": "operation_id",
+     "valueName": "OPERATION_ID"
+    },
+    {
+     "help": "Path parameter as `name=value`; organizationSlug and projectKey default from the resolved CLI context",
+     "kind": "option",
+     "long": "--param"
+    },
+    {
+     "help": "Query parameter as `name=value`; repeat array parameters as needed",
+     "kind": "option",
+     "long": "--query"
+    },
+    {
+     "help": "Read the JSON request body from this file; `-` reads stdin",
+     "kind": "option",
+     "long": "--body-file"
+    },
+    {
+     "help": "Structured JSON field as `key=value`; repeatable",
+     "kind": "option",
+     "long": "--field"
+    },
+    {
+     "help": "File for an operation whose request body is `multipart/form-data`",
+     "kind": "option",
+     "long": "--upload"
+    },
+    {
+     "help": "MIME type for `--upload` (defaults to application/octet-stream)",
+     "kind": "option",
+     "long": "--content-type"
+    },
+    {
+     "help": "Write a binary response to this path. Required for binary operations",
+     "kind": "option",
+     "long": "--output"
+    },
+    {
+     "help": "Revision precondition for operations that document `If-Match`",
+     "kind": "option",
+     "long": "--if-match"
+    },
+    {
+     "help": "Idempotency key override. A strong key is generated when the operation contract requires one",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik api invoke",
+   "hasSubcommands": false,
+   "longAbout": "Invoke an operation by its Public API v1 `operationId`.\n\nMethod, path, parameters, required headers, request content type, and response content type are resolved from the frozen v1.0.0 contract.",
+   "options": [
+    "--param",
+    "--query",
+    "--body-file",
+    "--field",
+    "--upload",
+    "--content-type",
+    "--output",
+    "--if-match",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "operation_id"
+   ]
+  },
+  {
    "about": "Call a documented Public API v1 route through the CLI",
    "aliases": [],
    "arguments": [
@@ -8374,7 +8458,7 @@
      "long": "--header"
     },
     {
-     "help": "Idempotency key override; mutations get a fresh strong key otherwise (generated once and reused across internal retries)",
+     "help": "Idempotency key override. Raw POST/DELETE calls get a fresh strong key otherwise; PUT/PATCH send one only when explicitly supplied. Prefer `api invoke` for exact operation-contract behavior",
      "kind": "option",
      "long": "--idempotency-key"
     }
@@ -8395,6 +8479,599 @@
    ],
    "positionals": [
     "path"
+   ]
+  },
+  {
+   "about": "Manage Organization webhook endpoints and deliveries",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik webhook",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List webhook endpoints",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Documented query parameter as `name=value`; repeatable",
+     "kind": "option",
+     "long": "--query"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik webhook list",
+   "hasSubcommands": false,
+   "options": [
+    "--query"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "View one webhook endpoint (the signing secret is never returned)",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Webhook endpoint id",
+     "kind": "positional",
+     "name": "webhook_id",
+     "valueName": "WEBHOOK_ID"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik webhook view",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "webhook_id"
+   ]
+  },
+  {
+   "about": "Create a webhook endpoint. The signing secret is returned exactly once",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Read the JSON request body from this file; `-` reads stdin",
+     "kind": "option",
+     "long": "--body-file"
+    },
+    {
+     "help": "Structured JSON field as `key=value`; repeatable",
+     "kind": "option",
+     "long": "--field"
+    },
+    {
+     "help": "Idempotency key override",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik webhook create",
+   "hasSubcommands": false,
+   "options": [
+    "--body-file",
+    "--field",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Update a webhook endpoint",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Webhook endpoint id",
+     "kind": "positional",
+     "name": "webhook_id",
+     "valueName": "WEBHOOK_ID"
+    },
+    {
+     "help": "Read the JSON request body from this file; `-` reads stdin",
+     "kind": "option",
+     "long": "--body-file"
+    },
+    {
+     "help": "Structured JSON field as `key=value`; repeatable",
+     "kind": "option",
+     "long": "--field"
+    },
+    {
+     "help": "Current endpoint ETag",
+     "kind": "option",
+     "long": "--if-match"
+    },
+    {
+     "help": "Idempotency key override",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik webhook edit",
+   "hasSubcommands": false,
+   "options": [
+    "--body-file",
+    "--field",
+    "--if-match",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "webhook_id"
+   ]
+  },
+  {
+   "about": "Delete a webhook endpoint",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Webhook endpoint id",
+     "kind": "positional",
+     "name": "webhook_id",
+     "valueName": "WEBHOOK_ID"
+    },
+    {
+     "help": "Idempotency key override",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik webhook delete",
+   "hasSubcommands": false,
+   "options": [
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "webhook_id"
+   ]
+  },
+  {
+   "about": "Rotate a webhook signing secret; the new secret is returned once",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Webhook endpoint id",
+     "kind": "positional",
+     "name": "webhook_id",
+     "valueName": "WEBHOOK_ID"
+    },
+    {
+     "help": "Idempotency key override",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik webhook rotate",
+   "hasSubcommands": false,
+   "options": [
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "webhook_id"
+   ]
+  },
+  {
+   "about": "Send a server-owned test delivery",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Webhook endpoint id",
+     "kind": "positional",
+     "name": "webhook_id",
+     "valueName": "WEBHOOK_ID"
+    },
+    {
+     "help": "Idempotency key override",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik webhook test",
+   "hasSubcommands": false,
+   "options": [
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "webhook_id"
+   ]
+  },
+  {
+   "about": "List deliveries for one webhook endpoint",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Webhook endpoint id",
+     "kind": "positional",
+     "name": "webhook_id",
+     "valueName": "WEBHOOK_ID"
+    },
+    {
+     "help": "Documented query parameter as `name=value`; repeatable",
+     "kind": "option",
+     "long": "--query"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik webhook deliveries",
+   "hasSubcommands": false,
+   "options": [
+    "--query"
+   ],
+   "positionals": [
+    "webhook_id"
+   ]
+  },
+  {
+   "about": "Redeliver one existing webhook delivery",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Webhook endpoint id",
+     "kind": "positional",
+     "name": "webhook_id",
+     "valueName": "WEBHOOK_ID"
+    },
+    {
+     "help": "Delivery id",
+     "kind": "positional",
+     "name": "delivery_id",
+     "valueName": "DELIVERY_ID"
+    },
+    {
+     "help": "Idempotency key override",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik webhook redeliver",
+   "hasSubcommands": false,
+   "options": [
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "webhook_id",
+    "delivery_id"
+   ]
+  },
+  {
+   "about": "Manage Organization server-side automation rules",
+   "aliases": [],
+   "arguments": [],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik rule",
+   "hasSubcommands": true,
+   "options": [],
+   "positionals": []
+  },
+  {
+   "about": "List automation rules",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Documented query parameter as `name=value`; repeatable",
+     "kind": "option",
+     "long": "--query"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik rule list",
+   "hasSubcommands": false,
+   "options": [
+    "--query"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "View one automation rule",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Automation rule id",
+     "kind": "positional",
+     "name": "rule_id",
+     "valueName": "RULE_ID"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik rule view",
+   "hasSubcommands": false,
+   "options": [],
+   "positionals": [
+    "rule_id"
+   ]
+  },
+  {
+   "about": "Create an automation rule",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Read the JSON request body from this file; `-` reads stdin",
+     "kind": "option",
+     "long": "--body-file"
+    },
+    {
+     "help": "Structured JSON field as `key=value`; repeatable",
+     "kind": "option",
+     "long": "--field"
+    },
+    {
+     "help": "Idempotency key override",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik rule create",
+   "hasSubcommands": false,
+   "options": [
+    "--body-file",
+    "--field",
+    "--idempotency-key"
+   ],
+   "positionals": []
+  },
+  {
+   "about": "Update an automation rule",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Automation rule id",
+     "kind": "positional",
+     "name": "rule_id",
+     "valueName": "RULE_ID"
+    },
+    {
+     "help": "Read the JSON request body from this file; `-` reads stdin",
+     "kind": "option",
+     "long": "--body-file"
+    },
+    {
+     "help": "Structured JSON field as `key=value`; repeatable",
+     "kind": "option",
+     "long": "--field"
+    },
+    {
+     "help": "Current rule ETag",
+     "kind": "option",
+     "long": "--if-match"
+    },
+    {
+     "help": "Idempotency key override",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik rule edit",
+   "hasSubcommands": false,
+   "options": [
+    "--body-file",
+    "--field",
+    "--if-match",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "rule_id"
+   ]
+  },
+  {
+   "about": "Delete an automation rule",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Automation rule id",
+     "kind": "positional",
+     "name": "rule_id",
+     "valueName": "RULE_ID"
+    },
+    {
+     "help": "Idempotency key override",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik rule delete",
+   "hasSubcommands": false,
+   "options": [
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "rule_id"
+   ]
+  },
+  {
+   "about": "List execution runs for one rule",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Automation rule id",
+     "kind": "positional",
+     "name": "rule_id",
+     "valueName": "RULE_ID"
+    },
+    {
+     "help": "Documented query parameter as `name=value`; repeatable",
+     "kind": "option",
+     "long": "--query"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik rule runs",
+   "hasSubcommands": false,
+   "options": [
+    "--query"
+   ],
+   "positionals": [
+    "rule_id"
+   ]
+  },
+  {
+   "about": "Preview a rule without executing its actions",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Automation rule id",
+     "kind": "positional",
+     "name": "rule_id",
+     "valueName": "RULE_ID"
+    },
+    {
+     "help": "Read the JSON request body from this file; `-` reads stdin",
+     "kind": "option",
+     "long": "--body-file"
+    },
+    {
+     "help": "Structured JSON field as `key=value`; repeatable",
+     "kind": "option",
+     "long": "--field"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik rule preview",
+   "hasSubcommands": false,
+   "options": [
+    "--body-file",
+    "--field"
+   ],
+   "positionals": [
+    "rule_id"
+   ]
+  },
+  {
+   "about": "Enable or disable a rule through the server-owned transition",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Automation rule id",
+     "kind": "positional",
+     "name": "rule_id",
+     "valueName": "RULE_ID"
+    },
+    {
+     "help": "Read the JSON request body from this file; `-` reads stdin",
+     "kind": "option",
+     "long": "--body-file"
+    },
+    {
+     "help": "Structured JSON field as `key=value`; repeatable",
+     "kind": "option",
+     "long": "--field"
+    },
+    {
+     "help": "Idempotency key override",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik rule toggle",
+   "hasSubcommands": false,
+   "options": [
+    "--body-file",
+    "--field",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "rule_id"
+   ]
+  },
+  {
+   "about": "Accept ownership of a rule",
+   "aliases": [],
+   "arguments": [
+    {
+     "help": "Automation rule id",
+     "kind": "positional",
+     "name": "rule_id",
+     "valueName": "RULE_ID"
+    },
+    {
+     "help": "Current rule ETag",
+     "kind": "option",
+     "long": "--if-match"
+    },
+    {
+     "help": "Idempotency key override",
+     "kind": "option",
+     "long": "--idempotency-key"
+    }
+   ],
+   "capabilities": {
+    "json": true,
+    "noInput": true
+   },
+   "command": "hamstik rule accept-owner",
+   "hasSubcommands": false,
+   "options": [
+    "--if-match",
+    "--idempotency-key"
+   ],
+   "positionals": [
+    "rule_id"
    ]
   },
   {

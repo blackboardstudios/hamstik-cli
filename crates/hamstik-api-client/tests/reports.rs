@@ -94,6 +94,7 @@ async fn project_report_sends_path_and_options_and_decodes_payload() {
                 start: Some("2026-01-01".to_string()),
                 end: Some("2026-06-30".to_string()),
                 work_type: Some("story".to_string()),
+                board_scope: Some("board:active".to_string()),
                 ..Default::default()
             },
         )
@@ -117,6 +118,10 @@ async fn project_report_sends_path_and_options_and_decodes_payload() {
     assert!(pairs.contains(&"start=2026-01-01".to_string()), "{pairs:?}");
     assert!(pairs.contains(&"end=2026-06-30".to_string()), "{pairs:?}");
     assert!(pairs.contains(&"type=story".to_string()), "{pairs:?}");
+    assert!(
+        pairs.contains(&"boardScope=board%3Aactive".to_string()),
+        "{pairs:?}"
+    );
 }
 
 #[tokio::test]

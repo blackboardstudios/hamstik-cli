@@ -157,6 +157,7 @@ pub(super) async fn comment(session: &mut Session<'_>, args: &CommentArgs) -> Re
                     &CreateCommentRequest {
                         body: text,
                         parent_comment_id: parent.clone(),
+                        is_private: None,
                     },
                     &idempotency,
                 )

@@ -66,13 +66,14 @@ keyring = { workspace = true, features = ["apple-native"] }
 [target.'cfg(windows)'.dependencies]
 keyring = { workspace = true, features = ["windows-native"] }
 
-# Linux/BSD: Secret Service over D-Bus. Pure Rust (zbus + rustls crypto) so the
-# CLI stays buildable without system D-Bus/OpenSSL headers.
+# Linux/BSD: Secret Service over D-Bus. The synchronous backend avoids the
+# unmaintained pre-zbus-6 wire crates; vendored libdbus keeps builds independent
+# of system D-Bus development headers, and crypto-rust avoids OpenSSL headers.
 [target.'cfg(any(target_os = "linux", target_os = "freebsd", target_os = "openbsd"))'.dependencies]
 keyring = { workspace = true, features = [
-    "async-secret-service",
+    "sync-secret-service",
     "crypto-rust",
-    "tokio",
+    "vendored",
 ] }
 
 [dev-dependencies]

@@ -863,6 +863,18 @@ pub struct WorkItemAttributeValue {
     pub options: Vec<WorkItemAttributeOption>,
 }
 
+/// One aggregated emoji reaction on a Work Item or comment.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Reaction {
+    /// Stable reaction key (`thumbs_up`, `heart`, `laugh`, `celebrate`,
+    /// `confused`, or `eyes`).
+    pub key: String,
+    /// Number of users who selected this reaction.
+    pub count: i64,
+    /// Whether the authenticated user selected this reaction.
+    pub reacted: bool,
+}
+
 /// A work item in list responses (summary shape).
 ///
 /// Only `id`, `key`, and `revision` are guaranteed when the caller supplies a
@@ -905,6 +917,18 @@ pub struct WorkItemSummary {
     /// Story points, when estimated.
     #[serde(default)]
     pub story_points: Option<i64>,
+    /// Effort-risk state, when included in the sparse projection.
+    #[serde(default)]
+    pub effort_risk: Option<String>,
+    /// Effort-risk explanation, when included and set.
+    #[serde(default)]
+    pub effort_risk_reason: Option<String>,
+    /// Vote count, when included in the sparse projection.
+    #[serde(default)]
+    pub vote_count: Option<i64>,
+    /// Whether the authenticated user voted, when included.
+    #[serde(default)]
+    pub has_voted: Option<bool>,
     /// Due date (RFC 3339), when set.
     #[serde(default)]
     pub due_date: Option<String>,
@@ -1044,6 +1068,21 @@ pub struct WorkItem {
     /// this additive field; new servers return an empty list when none are set.
     #[serde(default)]
     pub attributes: Vec<WorkItemAttributeValue>,
+    /// Aggregated emoji reactions.
+    #[serde(default)]
+    pub reactions: Vec<Reaction>,
+    /// Number of votes.
+    #[serde(default)]
+    pub vote_count: i64,
+    /// Whether the authenticated user voted.
+    #[serde(default)]
+    pub has_voted: bool,
+    /// Effort-risk state, when set.
+    #[serde(default)]
+    pub effort_risk: Option<String>,
+    /// Effort-risk explanation, when set.
+    #[serde(default)]
+    pub effort_risk_reason: Option<String>,
     /// Story points, when estimated.
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub story_points: Option<i64>,
@@ -1175,6 +1214,9 @@ pub struct Comment {
     /// When the comment was last edited; creation and deletion leave it unset.
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub edited_at: Option<String>,
+    /// Aggregated emoji reactions.
+    #[serde(default)]
+    pub reactions: Vec<Reaction>,
 }
 
 /// A paginated comment list.
@@ -1358,8 +1400,12 @@ pub struct ProfileActivityList {
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateWorkItemRequest {
-    /// The new item's title (required).
-    pub title: String,
+    /// The new item's title. Optional when a template supplies it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// Whether the Work Item is private.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_private: Option<bool>,
     /// The new item's description.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -1372,6 +1418,15 @@ pub struct CreateWorkItemRequest {
     /// The priority, when not the server default.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<String>,
+    /// Template id used to seed the Work Item.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template_id: Option<String>,
+    /// Expected template revision.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template_revision: Option<i64>,
+    /// Label ids assigned during creation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label_ids: Option<Vec<String>>,
     /// The assignee's legacy user id.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee_id: Option<String>,
@@ -1388,6 +1443,18 @@ pub struct CreateWorkItemRequest {
     /// Story points.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub story_points: Option<i64>,
+    /// Original estimate in minutes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_estimate_minutes: Option<i64>,
+    /// Remaining estimate in minutes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remaining_estimate_minutes: Option<i64>,
+    /// Effort-risk state.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effort_risk: Option<String>,
+    /// Effort-risk explanation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effort_risk_reason: Option<String>,
     /// Due date (RFC 3339).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub due_date: Option<String>,
@@ -1453,6 +1520,21 @@ pub struct UpdateWorkItemRequest {
     /// New story points; `Some(None)` clears the estimate.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub story_points: Option<Option<i64>>,
+    /// New privacy state.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_private: Option<bool>,
+    /// New original estimate; `Some(None)` clears it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_estimate_minutes: Option<Option<i64>>,
+    /// New remaining estimate; `Some(None)` clears it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remaining_estimate_minutes: Option<Option<i64>>,
+    /// New effort-risk state.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effort_risk: Option<String>,
+    /// New effort-risk reason; `Some(None)` clears it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effort_risk_reason: Option<Option<String>>,
     /// New due date; `Some(None)` clears it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub due_date: Option<Option<String>>,
@@ -1474,6 +1556,11 @@ impl UpdateWorkItemRequest {
             && self.sprint_id.is_none()
             && self.parent_id.is_none()
             && self.story_points.is_none()
+            && self.is_private.is_none()
+            && self.original_estimate_minutes.is_none()
+            && self.remaining_estimate_minutes.is_none()
+            && self.effort_risk.is_none()
+            && self.effort_risk_reason.is_none()
             && self.due_date.is_none()
             && self.attributes.is_none()
     }
@@ -1496,6 +1583,9 @@ pub struct CreateCommentRequest {
     /// The parent comment id, when replying.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_comment_id: Option<String>,
+    /// Whether the new comment is private.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_private: Option<bool>,
 }
 
 /// Body for `PATCH .../comments/{commentId}` (author-only edit).
@@ -1536,13 +1626,19 @@ pub struct UpdateProjectRequest {
     /// New display color as a hex string.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color: Option<String>,
+    /// New public-visibility state.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_public: Option<bool>,
 }
 
 impl UpdateProjectRequest {
     /// Returns true when the request would send at least one field.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.name.is_none() && self.description.is_none() && self.color.is_none()
+        self.name.is_none()
+            && self.description.is_none()
+            && self.color.is_none()
+            && self.is_public.is_none()
     }
 }
 
@@ -1739,14 +1835,77 @@ pub struct SqueakQlValidationResponse {
 ///
 /// The envelope is modeled exactly so automation can use the public request
 /// schema directly while the server remains authoritative for validation.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BulkCreateWorkItemOperation {
     /// Project key that receives the Work Item.
-    #[serde(rename = "projectKey")]
     pub project_key: String,
-    /// Work Item title.
-    pub title: String,
+    /// Work Item title. Optional when a template supplies it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// Whether the Work Item is private.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_private: Option<bool>,
+    /// Description; `Some(None)` explicitly supplies JSON null.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<Option<String>>,
+    /// Work Item type.
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub item_type: Option<String>,
+    /// Initial status.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    /// Initial priority.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub priority: Option<String>,
+    /// Template id; `Some(None)` explicitly clears template selection.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template_id: Option<Option<String>>,
+    /// Expected template revision.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template_revision: Option<i64>,
+    /// Label ids to assign.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label_ids: Option<Vec<String>>,
+    /// Legacy assignee id; mutually exclusive with `assignee_public_id`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignee_id: Option<Option<String>>,
+    /// Immutable public assignee id.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignee_public_id: Option<Option<String>>,
+    /// Sprint id.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sprint_id: Option<Option<String>>,
+    /// Parent Work Item key or id.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_id: Option<Option<String>>,
+    /// Story-point estimate.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub story_points: Option<Option<i64>>,
+    /// Original estimate in minutes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_estimate_minutes: Option<Option<i64>>,
+    /// Remaining estimate in minutes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remaining_estimate_minutes: Option<Option<i64>>,
+    /// Effort-risk state.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effort_risk: Option<String>,
+    /// Effort-risk explanation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effort_risk_reason: Option<Option<String>>,
+    /// Due date (RFC 3339).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub due_date: Option<Option<String>>,
+    /// Initial Release Version memberships.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub release_version_ids: Option<Vec<String>>,
+    /// Explicit confirmation for released-scope correction.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confirm_released_scope_correction: Option<bool>,
+    /// Reason for correcting released scope.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub release_correction_reason: Option<String>,
     /// Sparse Attribute assignments, validated by the same server service as
     /// single Work Item creation.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1889,6 +2048,24 @@ pub struct ProjectReportOptions {
     pub label: Option<String>,
     /// Bucket count or explicit bucket boundaries for distribution reports.
     pub buckets: Option<String>,
+    /// Opaque server-defined board scope expression.
+    pub board_scope: Option<String>,
+}
+
+/// Board scope metadata attached to a project report.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportBoardScope {
+    /// Board id whose filter was captured.
+    pub board_id: String,
+    /// Board display name.
+    pub board_name: String,
+    /// Frozen history cutoff and default range anchor.
+    pub captured_at: String,
+    /// Human-readable filter label.
+    pub filter_label: String,
+    /// Whether the captured predicate cannot match any Work Items.
+    pub empty: bool,
 }
 
 /// A project reporting series or rollup (`GET .../projects/{key}/reports/{type}`).
@@ -1909,6 +2086,9 @@ pub struct ProjectReport {
     /// Server-reported caveats about the data (partial coverage, truncation).
     #[serde(default)]
     pub limitations: Vec<String>,
+    /// Board scope metadata when the request supplied `boardScope`.
+    #[serde(default)]
+    pub board_scope: Option<ReportBoardScope>,
 }
 
 /// A Sprint delivery report (`GET .../sprints/{id}/report`).
@@ -2725,6 +2905,9 @@ pub struct TransitionReleaseVersionRequest {
     /// Why the transition was made.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    /// Explicit reason for overriding a failed release quality gate.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quality_gate_override_reason: Option<String>,
 }
 
 /// Body for `POST .../releases/{id}/archive` and `.../restore`.
@@ -3442,7 +3625,7 @@ mod tests {
     #[test]
     fn create_request_serializes_camel_case() {
         let req = CreateWorkItemRequest {
-            title: "T".into(),
+            title: Some("T".into()),
             story_points: Some(3),
             ..Default::default()
         };
@@ -3450,6 +3633,60 @@ mod tests {
         assert_eq!(value["storyPoints"], 3);
         assert!(value.get("assigneeId").is_none());
         assert!(value.get("assigneePublicId").is_none());
+    }
+
+    #[test]
+    fn v1_create_and_update_fields_serialize_with_contract_names() {
+        let create = CreateWorkItemRequest {
+            template_id: Some("11111111-1111-4111-8111-111111111111".into()),
+            template_revision: Some(3),
+            is_private: Some(true),
+            original_estimate_minutes: Some(120),
+            remaining_estimate_minutes: Some(90),
+            effort_risk: Some("at_risk".into()),
+            effort_risk_reason: Some("dependency".into()),
+            ..Default::default()
+        };
+        let create = serde_json::to_value(create).unwrap();
+        assert!(create.get("title").is_none());
+        assert_eq!(create["templateRevision"], 3);
+        assert_eq!(create["isPrivate"], true);
+        assert_eq!(create["originalEstimateMinutes"], 120);
+        assert_eq!(create["remainingEstimateMinutes"], 90);
+        assert_eq!(create["effortRisk"], "at_risk");
+        assert_eq!(create["effortRiskReason"], "dependency");
+
+        let update = UpdateWorkItemRequest {
+            original_estimate_minutes: Some(None),
+            remaining_estimate_minutes: Some(Some(45)),
+            effort_risk_reason: Some(None),
+            ..Default::default()
+        };
+        let update = serde_json::to_value(update).unwrap();
+        assert!(update["originalEstimateMinutes"].is_null());
+        assert_eq!(update["remainingEstimateMinutes"], 45);
+        assert!(update["effortRiskReason"].is_null());
+    }
+
+    #[test]
+    fn comment_reactions_decode() {
+        let comment: Comment = serde_json::from_value(serde_json::json!({
+            "id": "c1",
+            "workItemId": "w1",
+            "parentCommentId": null,
+            "author": {"id": "u1", "name": "User"},
+            "body": "hello",
+            "deleted": false,
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-01T00:00:00Z",
+            "editedAt": null,
+            "mentions": [],
+            "reactions": [{"key": "eyes", "count": 2, "reacted": true}]
+        }))
+        .unwrap();
+        assert_eq!(comment.reactions[0].key, "eyes");
+        assert_eq!(comment.reactions[0].count, 2);
+        assert!(comment.reactions[0].reacted);
     }
 
     #[test]

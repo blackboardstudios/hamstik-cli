@@ -1,0 +1,17 @@
+.TH HAMSTIK 1 "HAMSTIK RULE CREATE"
+.SH NAME
+hamstik rule create \- Create an automation rule
+.SH SYNOPSIS
+.B hamstik rule create [OPTIONS]
+.SH DESCRIPTION
+Create an automation rule
+.SH OPTIONS
+.TP
+.B --body-file
+Read the JSON request body from this file; `-` reads stdin
+.TP
+.B --field
+Structured JSON field as `key=value`; repeatable
+.TP
+.B --idempotency-key
+Idempotency key override

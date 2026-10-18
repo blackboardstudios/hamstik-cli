@@ -21,6 +21,7 @@ pub mod agent_validate;
 pub mod api;
 pub mod attributes;
 pub mod auth;
+pub mod automation_rule;
 pub mod board;
 pub mod bulk_preflight;
 pub mod commands_manifest;
@@ -48,6 +49,7 @@ pub mod sprint;
 pub mod squeakql;
 pub mod stats;
 pub mod user;
+pub mod webhook;
 pub mod work;
 pub mod work_context;
 
@@ -105,6 +107,14 @@ pub(crate) fn destructive_action(command: &Command) -> Option<&'static str> {
             }
             _ => None,
         },
+        Command::Webhook(args)
+            if matches!(&args.command, crate::args::WebhookCommand::Delete { .. }) =>
+        {
+            Some("delete a webhook endpoint")
+        }
+        Command::Rule(args) if matches!(&args.command, crate::args::RuleCommand::Delete { .. }) => {
+            Some("delete an automation rule")
+        }
         _ => None,
     }
 }
@@ -275,6 +285,8 @@ pub async fn dispatch(session: &mut Session<'_>, command: &Command) -> Result<()
             AgentCommand::Validate(validate) => agent_validate::run(session, validate).await,
         },
         Command::Api(args) => api::run(session, args).await,
+        Command::Webhook(args) => webhook::run(session, args).await,
+        Command::Rule(args) => automation_rule::run(session, args).await,
         Command::Doctor(args) => {
             doctor::run(
                 session,
@@ -373,7 +385,7 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
             | crate::args::ProjectCommand::Unarchive { .. } => true,
         },
         Command::Report(args) => matches!(
-            args.command,
+            &args.command,
             crate::args::AdvancedReportCommand::Create { .. }
                 | crate::args::AdvancedReportCommand::Edit { .. }
                 | crate::args::AdvancedReportCommand::Delete { .. }
@@ -454,9 +466,23 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
         Command::Api(args) => {
             matches!(
                 args.command,
-                crate::args::ApiCommand::Request(_) | crate::args::ApiCommand::Passthrough(_)
+                crate::args::ApiCommand::Invoke(_)
+                    | crate::args::ApiCommand::Request(_)
+                    | crate::args::ApiCommand::Passthrough(_)
             )
         }
+        Command::Webhook(args) => !matches!(
+            &args.command,
+            crate::args::WebhookCommand::List { .. }
+                | crate::args::WebhookCommand::View { .. }
+                | crate::args::WebhookCommand::Deliveries { .. }
+        ),
+        Command::Rule(args) => !matches!(
+            args.command,
+            crate::args::RuleCommand::List { .. }
+                | crate::args::RuleCommand::View { .. }
+                | crate::args::RuleCommand::Runs { .. }
+        ),
         // External plugins make no API calls themselves; `--dry-run` is
         // forwarded to the plugin as `HAMSTIK_DRY_RUN` (see external.rs and
         // the Agent Skill contract) rather than being rejected as a no-op.
