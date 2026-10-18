@@ -492,6 +492,14 @@ hamstik work search --saved urgent --json
 hamstik squeakql cache size --json
 hamstik squeakql cache clear
 
+# Shared saved-query library (CLI-57): commit queries to version control
+# and run them identically from any checkout. Precedence: repository
+# .hamstik/queries/NAME.squeakql, then config-dir queries/NAME.squeakql,
+# then queries.toml entries. Collisions are visible in `squeakql list`.
+printf "status = 'backlog'" > .hamstik/queries/team-open.squeakql
+hamstik squeakql run team-open --org acme
+hamstik work search --saved team-open --org acme --json
+
 # Long-form authoring in $VISUAL/$EDITOR
 hamstik work create --title "New design" --description-editor
 hamstik work comment add HAM-42 --body-editor

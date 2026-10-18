@@ -335,7 +335,7 @@ fn subcommand_groups_match_documented_surface() {
         (
             "squeakql",
             &["squeakql"],
-            &["cache", "delete", "list", "save", "show", "validate"],
+            &["cache", "delete", "list", "run", "save", "show", "validate"],
         ),
         (
             "schedule",

@@ -444,6 +444,20 @@ pub enum SqueakQlCommand {
         /// Saved query name.
         name: String,
     },
+    /// Execute a saved query against the resolved Organization (equivalent
+    /// to `work search --saved NAME`). The name resolves through the shared
+    /// library precedence: repository `.hamstik/queries/`, the config-dir
+    /// `queries/` directory, then `queries.toml`.
+    Run {
+        /// Query name resolved through the shared library precedence.
+        name: String,
+        /// Forward server-provided SqueakQL query-plan information.
+        #[arg(long)]
+        explain: bool,
+        /// Pagination options carried in the JSON request body.
+        #[command(flatten)]
+        pagination: PaginationArgs,
+    },
     /// Save an expression as a named query for reuse.
     Save {
         /// Saved query name (letters, digits, `-`, `_`; 1–64 chars).

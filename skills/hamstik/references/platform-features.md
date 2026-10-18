@@ -115,10 +115,18 @@ Use typed validation/search/save commands and files for complex queries:
 hamstik --json --no-input --org <ORG> squeakql validate --file QUERY.sqql
 hamstik --no-input --org <ORG> squeakql save my-query --file QUERY.sqql
 hamstik --json --no-input --org <ORG> work search --saved my-query
+hamstik --json --no-input --org <ORG> squeakql run my-query
 ```
 
 `work search --explain` forwards a server-provided plan if one exists; the CLI does not
 invent a cost estimate.
+
+The saved-query library resolves a name through strict precedence — repository
+`.hamstik/queries/<NAME>.squeakql` (version-controlled), then the config-dir
+`queries/` directory, then `queries.toml` entries — and `squeakql list` shows
+every holding source, so a collision is never silent. Committing a query file
+is the sharing mechanism: a query in the repository runs identically for
+anyone who checks it out.
 
 The saved-query cache is local:
 

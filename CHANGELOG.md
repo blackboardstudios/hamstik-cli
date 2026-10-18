@@ -40,6 +40,23 @@ before upgrading.
   (6) when differences exist. Human table rendering plus the versioned
   `diffVersion: 1` document under `--json`.
 
+- Shared saved-query library (CLI-57): SqueakQL queries can now live in a
+  version-controllable directory, so teams share queries via the repository
+  instead of only per-user local saves. Resolution precedence is strict and
+  documented — repository `.hamstik/queries/<NAME>.squeakql` (discovered by
+  walking up from the working directory), then config-dir
+  `queries/<NAME>.squeakql`, then the existing `queries.toml` entries
+  written by `squeakql save` (unchanged) — and collisions are never silent:
+  the first source wins while `squeakql list` reports every holding source
+  (`sources`) plus the winner (`source`). New `squeakql run <NAME>` executes
+  a resolved query through the same pipeline as `work search --saved NAME`
+  (also library-aware now), and `squeakql validate --saved NAME` and
+  `squeakql show` resolve through the same precedence. Files hold only
+  plain query text under the saved-query size cap; files with invalid name
+  stems are ignored; there is no sync/upload — committing the file is the
+  sharing mechanism, so a query committed to a repository runs identically
+  for anyone who checks it out.
+
 ### Fixed
 
 - The CLI no longer crashes with a stack overflow on Windows when built in

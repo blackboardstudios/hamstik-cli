@@ -1,16 +1,38 @@
 // Copyright 2026 Blackboard Studios
 // SPDX-License-Identifier: Apache-2.0
 
-//! `hamstik squeakql` — validate, save, and reuse SqueakQL expressions.
+//! `hamstik squeakql` — validate, save, run, and reuse SqueakQL expressions.
 //!
 //! Query sources, in strict precedence with conflicts rejected at
 //! argument-parse time: inline positional value, `--file <PATH>` (`-` =
-//! stdin), or `--saved <NAME>` from the local `queries.toml`. All three
-//! produce byte-equivalent query values after the documented newline policy:
-//! the expression is passed through verbatim except that a single trailing
-//! newline is stripped (the common editor artifact) and no other
-//! normalization is applied — Unicode, whitespace, and internal newlines are
-//! preserved exactly.
+//! stdin), or `--saved <NAME>` through the shared saved-query library
+//! (CLI-57). All sources produce byte-equivalent query values after the
+//! documented newline policy: the expression is passed through verbatim
+//! except that a single trailing newline is stripped (the common editor
+//! artifact) and no other normalization is applied — Unicode, whitespace,
+//! and internal newlines are preserved exactly.
+//!
+//! The saved-query library resolves `<NAME>` through strict documented
+//! precedence, first match wins:
+//!
+//! 1. repository `.hamstik/queries/<NAME>.squeakql` — discovered by walking
+//!    up from the working directory; version control is the sharing
+//!    mechanism, so a query committed to a repository runs identically for
+//!    anyone who checks it out;
+//! 2. config-dir `queries/<NAME>.squeakql` — a per-user library relocated
+//!    by `HAMSTIK_CONFIG` like every other config-dir file;
+//! 3. `queries.toml` entries written by `squeakql save` (unchanged).
+//!
+//! Name collisions across sources are never silently overridden: the first
+//! match in this precedence order wins, and `squeakql list` reports every
+//! source holding each name (`sources`) plus the winning one (`source`),
+//! so a collision is always visible. Only plain query text is stored or
+//! read — never credentials, headers, or server-side constructs. There is
+//! no sync/upload: committing the file to version control is the sharing.
+
+use std::fs;
+
+use serde_json::{Value, json};
 
 use hamstik_api_client::SqueakQlValidateRequest;
 
@@ -31,6 +53,15 @@ pub async fn run(session: &mut Session<'_>, args: &SqueakQlArgs) -> Result<(), C
         }
         SqueakQlCommand::List => list(session),
         SqueakQlCommand::Show { name } => show(session, name),
+        SqueakQlCommand::Run {
+            name,
+            explain,
+            pagination,
+        } => {
+            // Resolution happens before any network activity; the search
+            // pipeline then owns execution, output modes, and pagination.
+            crate::commands::work::search_saved(session, name, *explain, pagination).await
+        }
         SqueakQlCommand::Save {
             name,
             query,
@@ -61,14 +92,8 @@ pub(crate) fn resolve_expression(
     saved: Option<&str>,
 ) -> Result<String, CliError> {
     if let Some(name) = saved {
-        let store = saved_store(session)?;
-        let file_document = store.load()?;
-        let entry = file_document.queries.get(name).ok_or_else(|| {
-            CliError::usage(format!(
-                "no saved query named {name:?}; list saved queries with `hamstik squeakql list`"
-            ))
-        })?;
-        return Ok(entry.query.clone());
+        let library = resolve_library_query(session, name)?;
+        return Ok(library.expression);
     }
     let resolved = crate::input::resolve_text(
         query.map(str::to_string),
@@ -94,6 +119,205 @@ pub(crate) fn resolve_expression(
 pub fn normalize_query(expression: &str) -> String {
     let stripped = expression.strip_suffix('\n').unwrap_or(expression);
     stripped.strip_suffix('\r').unwrap_or(stripped).to_string()
+}
+
+/// One resolved saved-query library entry.
+pub(crate) struct LibraryQuery {
+    /// The expression, normalized by the documented newline policy.
+    pub expression: String,
+    /// The winning source, in documented precedence order.
+    pub source: Source,
+    /// The file path for directory sources.
+    pub path: Option<std::path::PathBuf>,
+    /// Every source holding this name, in precedence order (a collision is
+    /// visible here; the first entry is the winner).
+    pub sources: Vec<Source>,
+}
+
+/// A saved-query library source, in documented precedence order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Source {
+    /// Repository `.hamstik/queries/<NAME>.squeakql` (version-controlled).
+    Repo,
+    /// Config-dir `queries/<NAME>.squeakql` (per-user).
+    ConfigDir,
+    /// `queries.toml` entries written by `squeakql save`.
+    SavedFile,
+}
+
+impl Source {
+    /// The stable machine-readable source label.
+    #[must_use]
+    pub fn label(self) -> &'static str {
+        match self {
+            Source::Repo => "repo",
+            Source::ConfigDir => "config-dir",
+            Source::SavedFile => "saved-file",
+        }
+    }
+}
+
+/// Repository query directory name, discovered by walking up from the
+/// working directory.
+const REPO_QUERIES_DIR: &str = ".hamstik/queries";
+
+/// Config-dir query directory name (next to `config.toml`).
+const CONFIG_QUERIES_DIR: &str = "queries";
+
+/// File suffix of library queries.
+const QUERY_SUFFIX: &str = ".squeakql";
+
+/// Upper bound on library entries per directory (mirrors the `queries.toml`
+/// reviewability cap).
+const MAX_LIBRARY_ENTRIES: usize = 200;
+
+/// The repository query directory for the session's working directory, if a
+/// `.hamstik/queries` directory exists in the working directory or an
+/// ancestor.
+fn repo_queries_dir(session: &Session<'_>) -> Option<std::path::PathBuf> {
+    let mut current: Option<&std::path::Path> = Some(&session.cwd);
+    while let Some(dir) = current {
+        let candidate = dir.join(REPO_QUERIES_DIR);
+        if candidate.is_dir() {
+            return Some(candidate);
+        }
+        current = dir.parent();
+    }
+    None
+}
+
+/// Reads one library query file with the documented newline policy and the
+/// saved-query size cap.
+fn read_library_query(path: &std::path::Path, name: &str) -> Result<String, CliError> {
+    let text = fs::read_to_string(path).map_err(|err| {
+        CliError::general(format!(
+            "cannot read library query {name:?} at {} ({err})",
+            path.display()
+        ))
+    })?;
+    let expression = normalize_query(&text);
+    if expression.len() > crate::config::MAX_SAVED_QUERY_LENGTH {
+        return Err(CliError::usage(format!(
+            "library query {name:?} exceeds the {MAX} character limit",
+            MAX = crate::config::MAX_SAVED_QUERY_LENGTH
+        )));
+    }
+    Ok(expression)
+}
+
+/// Lists the valid query names in one library directory (sorted).
+fn scan_library_dir(dir: &std::path::Path, label: &str) -> Result<Vec<String>, CliError> {
+    let entries = fs::read_dir(dir)
+        .map_err(|err| CliError::general(format!("cannot read {label} ({err})")))?;
+    let mut names = Vec::new();
+    for entry in entries {
+        let entry =
+            entry.map_err(|err| CliError::general(format!("cannot read {label} ({err})")))?;
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(stem) = path.file_stem().and_then(|stem| stem.to_str()) else {
+            continue;
+        };
+        if path.extension().and_then(|ext| ext.to_str()) != Some("squeakql") {
+            continue;
+        }
+        // Files whose stem is not a valid query name are not part of the
+        // library surface; they are ignored rather than failing every
+        // command in the directory.
+        if crate::config::SavedQueryStore::validate_name(stem).is_err() {
+            continue;
+        }
+        names.push(stem.to_string());
+    }
+    if names.len() > MAX_LIBRARY_ENTRIES {
+        return Err(CliError::general(format!(
+            "{label} holds more than {MAX_LIBRARY_ENTRIES} queries; keep the directory reviewable"
+        )));
+    }
+    names.sort();
+    Ok(names)
+}
+
+/// Resolves one saved-query name through the documented library precedence.
+/// The first source holding the name wins; every holding source is reported
+/// so a collision is never silent.
+pub(crate) fn resolve_library_query(
+    session: &Session<'_>,
+    name: &str,
+) -> Result<LibraryQuery, CliError> {
+    crate::config::SavedQueryStore::validate_name(name)?;
+    let store = saved_store(session)?;
+    let file_document = store.load()?;
+
+    let repo_dir = repo_queries_dir(session);
+    let config_dir = session
+        .config
+        .path()
+        .parent()
+        .unwrap_or(std::path::Path::new("."))
+        .join(CONFIG_QUERIES_DIR);
+
+    let repo_names = repo_dir
+        .as_ref()
+        .map(|dir| scan_library_dir(dir, "the repository query directory"))
+        .transpose()?;
+    let config_names = if config_dir.is_dir() {
+        Some(scan_library_dir(&config_dir, "the config query directory")?)
+    } else {
+        None
+    };
+
+    let mut sources: Vec<Source> = Vec::new();
+    if repo_names
+        .as_ref()
+        .is_some_and(|names| names.contains(&name.to_string()))
+    {
+        sources.push(Source::Repo);
+    }
+    if config_names
+        .as_ref()
+        .is_some_and(|names| names.contains(&name.to_string()))
+    {
+        sources.push(Source::ConfigDir);
+    }
+    if file_document.queries.contains_key(name) {
+        sources.push(Source::SavedFile);
+    }
+    if sources.is_empty() {
+        return Err(CliError::usage(format!(
+            "no saved query named {name:?}; list saved queries with `hamstik squeakql list`"
+        )));
+    }
+
+    let winner = sources[0];
+    let (expression, path) = match winner {
+        Source::Repo => {
+            let Some(dir) = repo_dir else {
+                return Err(CliError::general(
+                    "repository query directory disappeared during resolution",
+                ));
+            };
+            let path = dir.join(format!("{name}{QUERY_SUFFIX}"));
+            (read_library_query(&path, name)?, Some(path))
+        }
+        Source::ConfigDir => {
+            let path = config_dir.join(format!("{name}{QUERY_SUFFIX}"));
+            (read_library_query(&path, name)?, Some(path))
+        }
+        Source::SavedFile => {
+            let entry = &file_document.queries[name];
+            (entry.query.clone(), None)
+        }
+    };
+
+    Ok(LibraryQuery {
+        expression,
+        source: winner,
+        path,
+        sources,
+    })
 }
 
 async fn validate(session: &mut Session<'_>, query: &str) -> Result<(), CliError> {
@@ -163,57 +387,137 @@ async fn validate(session: &mut Session<'_>, query: &str) -> Result<(), CliError
 fn list(session: &mut Session<'_>) -> Result<(), CliError> {
     let store = saved_store(session)?;
     let file = store.load()?;
-    if session.json() {
-        let queries: Vec<serde_json::Value> = file
-            .queries
-            .iter()
-            .map(|(name, entry)| {
-                json!({
-                    "name": name,
-                    "query": entry.query,
-                    "savedAt": entry.saved_at,
+
+    // Merge every library source into one sorted view. A name held by
+    // several sources lists all of them (`sources`, precedence order); the
+    // `source` field names the winner, so a collision is never silent.
+    let mut merged: std::collections::BTreeMap<String, (Value, Vec<&'static str>)> =
+        std::collections::BTreeMap::new();
+    let repo_dir = repo_queries_dir(session);
+    if let Some(dir) = &repo_dir {
+        for name in scan_library_dir(dir, "the repository query directory")? {
+            let path = dir.join(format!("{name}{QUERY_SUFFIX}"));
+            let entry = json!({
+                "name": name,
+                "source": Source::Repo.label(),
+                "path": path.display().to_string(),
+                "query": Value::Null,
+            });
+            merged.insert(name, (entry, vec![Source::Repo.label()]));
+        }
+    }
+    let config_dir = session
+        .config
+        .path()
+        .parent()
+        .unwrap_or(std::path::Path::new("."))
+        .join(CONFIG_QUERIES_DIR);
+    if config_dir.is_dir() {
+        for name in scan_library_dir(&config_dir, "the config query directory")? {
+            let path = config_dir.join(format!("{name}{QUERY_SUFFIX}"));
+            let entry = json!({
+                "name": name,
+                "source": Source::ConfigDir.label(),
+                "path": path.display().to_string(),
+                "query": Value::Null,
+            });
+            merged
+                .entry(name)
+                .and_modify(|(existing, sources)| {
+                    existing["query"] = Value::Null;
+                    sources.push(Source::ConfigDir.label());
                 })
+                .or_insert((entry, vec![Source::ConfigDir.label()]));
+        }
+    }
+    for (name, entry) in &file.queries {
+        let query_entry = json!({
+            "name": name,
+            "source": Source::SavedFile.label(),
+            "path": store.path().display().to_string(),
+            "query": entry.query,
+            "savedAt": entry.saved_at,
+        });
+        merged
+            .entry(name.clone())
+            .and_modify(|(existing, sources)| {
+                existing["query"] = json!(entry.query);
+                existing["savedAt"] = json!(entry.saved_at);
+                sources.push(Source::SavedFile.label());
+            })
+            .or_insert((query_entry, vec![Source::SavedFile.label()]));
+    }
+
+    if merged.is_empty() {
+        if session.json() {
+            return emit_json(session, &json!({ "queries": [] }));
+        }
+        return session
+            .out
+            .human("no saved queries; save one with `hamstik squeakql save <name> '<query>'`, \n                   or add `<NAME>.squeakql` files under `.hamstik/queries/` or the config `queries/` directory")
+            .map_err(CliError::general);
+    }
+
+    if session.json() {
+        let queries: Vec<serde_json::Value> = merged
+            .values()
+            .map(|(entry, sources)| {
+                let mut entry = entry.clone();
+                entry["sources"] =
+                    json!(sources.iter().map(|s| (*s).to_string()).collect::<Vec<_>>());
+                entry
             })
             .collect();
         return emit_json(session, &json!({ "queries": queries }));
     }
-    if file.queries.is_empty() {
-        return session
-            .out
-            .human("no saved queries; save one with `hamstik squeakql save <name> '<query>'`")
-            .map_err(CliError::general);
-    }
-    for (name, entry) in &file.queries {
-        let preview = entry.query.lines().next().unwrap_or("").to_string();
-        let ellipsis = if entry.query.contains('\n') {
-            format!(" {}", session.glyphs().ellipsis())
+    for (name, (entry, sources)) in &merged {
+        let mut line = String::from(name);
+        if sources.len() > 1 {
+            let labels: Vec<&str> = sources.clone();
+            line.push_str(&format!(
+                " [{} -> {}]",
+                labels.join(", "),
+                entry["source"].as_str().unwrap_or_default()
+            ));
         } else {
-            String::new()
-        };
-        session
-            .out
-            .line(&format!("{name:<24} {preview}{ellipsis}"))
-            .map_err(CliError::general)?;
+            line.push_str(&format!(
+                " [{}]",
+                entry["source"].as_str().unwrap_or_default()
+            ));
+        }
+        if let Some(query) = entry["query"].as_str() {
+            let preview = query.lines().next().unwrap_or("").to_string();
+            let ellipsis = if query.contains('\n') {
+                format!(" {}", session.glyphs().ellipsis())
+            } else {
+                String::new()
+            };
+            line.push_str(&format!(": {preview}{ellipsis}"));
+        }
+        session.out.line(&line).map_err(CliError::general)?;
     }
     Ok(())
 }
 
 /// Shows one saved query's full expression.
 fn show(session: &mut Session<'_>, name: &str) -> Result<(), CliError> {
-    crate::config::SavedQueryStore::validate_name(name)?;
-    let store = saved_store(session)?;
-    let file = store.load()?;
-    let entry = file
-        .queries
-        .get(name)
-        .ok_or_else(|| CliError::usage(format!("no saved query named {name}")))?;
+    let library = resolve_library_query(session, name)?;
     if session.json() {
         return emit_json(
             session,
-            &json!({ "name": name, "query": entry.query, "savedAt": entry.saved_at }),
+            &json!({
+                "name": name,
+                "query": library.expression,
+                "source": library.source.label(),
+                "path": library.path.as_ref().map(|p| p.display().to_string()),
+                "sources": library.sources.iter().map(|s| s.label().to_string()).collect::<Vec<_>>(),
+            }),
         );
     }
-    session.out.line(&entry.query).map_err(CliError::general)
+    session
+        .out
+        .line(&library.expression)
+        .map_err(CliError::general)
 }
 
 /// Saves an expression under a name.
@@ -292,8 +596,6 @@ fn delete(session: &mut Session<'_>, name: &str) -> Result<(), CliError> {
         .line(&format!("deleted query {name}"))
         .map_err(CliError::general)
 }
-
-use serde_json::json;
 
 /// Locates the saved-query store for the session's config.
 fn saved_store(session: &Session<'_>) -> Result<crate::config::SavedQueryStore, CliError> {
