@@ -3,8 +3,8 @@ name: hamstik
 description: Use the official Hamstik CLI to inspect or change Hamstik Work Items, Organizations, Projects, Sprints, reports, and other Public API v1 resources. Applies to Hamstik work-tracking and agent workflows; discover exact commands from the installed CLI.
 metadata:
   short-description: Manage Hamstik through its official CLI
-  skill-version: "0.4.0"
-  minimum-cli-version: "0.4.0"
+  skill-version: "0.5.0"
+  minimum-cli-version: "0.5.0"
 ---
 
 # Hamstik CLI

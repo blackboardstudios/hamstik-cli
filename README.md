@@ -14,8 +14,11 @@ It talks to Hamstik exclusively through the documented **Hamstik Public API v1**
 under `/api/v1`, making the same platform capabilities available to terminals,
 scripts, and agent workflows.
 
-> **Status:** Pre-alpha. The current Public API v1 command surface is implemented,
-> but packaging and the first supported release are still under development.
+> **Status:** Pre-1.0. The full Hamstik Public API v1.0.0 command surface is
+> implemented, and stable releases publish installers and archives through the
+> documented channels below. While the CLI is `0.x`, MINOR releases may contain
+> breaking changes — read the *Breaking* notes in
+> [CHANGELOG.md](CHANGELOG.md) before upgrading.
 
 [![CI](https://github.com/blackboardstudios/hamstik-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/blackboardstudios/hamstik-cli/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
@@ -144,7 +147,8 @@ the live Hamstik service remains the authoritative implementation.
 
 ## Current capabilities
 
-The Dogfooding Alpha command surface is implemented. Today the CLI provides:
+The Hamstik Public API v1.0.0 command surface is implemented. Today the CLI
+provides:
 
 - a native Rust workspace that builds the `hamstik` executable;
 - a typed client for the Hamstik Public API v1 (`/api/v1`) with pagination,

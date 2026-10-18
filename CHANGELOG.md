@@ -8,7 +8,7 @@ versioning follows [Semantic Versioning](https://semver.org/) as detailed in
 MINOR releases may contain breaking changes — read the *Breaking* notes
 before upgrading.
 
-## [Unreleased]
+## [0.5.0] - 2026-10-18
 
 ### Changed
 
@@ -102,6 +102,11 @@ before upgrading.
   secrets remain in the operating system credential store.
 
 ### Fixed
+
+- The README no longer claims pre-alpha status with packaging "still under
+  development"; the status banner now reflects the shipped installer/archive
+  channels, the implemented Public API v1.0.0 surface, and the pre-1.0
+  breaking-change policy (CLI-80).
 
 - `hamstik doctor` now omits the proxy check when no proxy environment
   variable is configured instead of showing a confusing skipped row. A
@@ -1089,7 +1094,8 @@ API v1 (29 → 51 operations; all changes additive):
   users who need both states in one result must issue separate queries
   (`work`, `project`).
 
-[Unreleased]: https://github.com/blackboardstudios/hamstik-cli/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/blackboardstudios/hamstik-cli/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.5.0
 [0.4.0]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.4.0
 [0.2.0]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.2.0
 [0.1.3]: https://github.com/blackboardstudios/hamstik-cli/releases/tag/v0.1.3
