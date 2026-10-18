@@ -311,6 +311,7 @@ fn subcommand_groups_match_documented_surface() {
                 "create",
                 "dashboard",
                 "delete",
+                "diff",
                 "edit",
                 "export",
                 "import",

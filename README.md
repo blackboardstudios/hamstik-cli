@@ -289,7 +289,16 @@ provides:
   generated command reference + man pages under [`docs/`](docs/reference) —
   regenerated deterministically with `scripts/generate_docs.py` and
   drift-checked in CI;
-- cross-platform CI on Linux, Windows, and macOS.
+- cross-platform CI on Linux, Windows, and macOS;
+- `work diff <KEY>` (CLI-56): compare a Work Item against a local baseline
+  recorded with `--save-baseline` (complete per-field before/after) or
+  against `--since <revision>` (revision delta plus the server-recorded
+  field changes from the item's activity feed, with explicit partial
+  coverage — the Public API exposes no revision snapshots, and the CLI
+  never fabricates a diff). Baselines are per-user files under the config
+  directory, contain no credentials, and are replaced only by another
+  `--save-baseline`; `--fail-on-change` exits with the conflict exit code
+  (6) when differences exist.
 
 OAuth and the MCP server remain future work. The canonical portable Agent
 Skill ships with the CLI (install it with `hamstik agent skill install`; see

@@ -18,6 +18,7 @@ mod comment;
 pub(crate) mod common;
 mod create;
 mod dashboard;
+mod diff;
 mod edit;
 mod handoff;
 mod label;
@@ -66,6 +67,7 @@ pub async fn run(session: &mut Session<'_>, args: &WorkArgs) -> Result<(), CliEr
         WorkCommand::Tree(args) => tree::tree(session, args).await,
         WorkCommand::Create(create_args) => create::create(session, create_args).await,
         WorkCommand::Edit(edit_args) => edit::edit(session, edit_args).await,
+        WorkCommand::Diff(diff_args) => diff::diff(session, diff_args).await,
         WorkCommand::Watcher(watcher_args) => watcher::watcher(session, watcher_args).await,
         WorkCommand::Transitions { key } => transitions::transitions(session, key).await,
         WorkCommand::Transition { key, target } => {

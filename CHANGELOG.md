@@ -23,6 +23,23 @@ before upgrading.
   maps onto, so the table cannot drift from actual behavior, and contract
   tests assert the eleven documented codes stay contiguous and named.
 
+- `work diff <KEY>` (CLI-56): review-style Work Item comparison with two
+  server-authoritative modes. Default baseline mode compares against a local
+  baseline recorded with `work diff KEY --save-baseline` — a per-user file
+  under the config directory (`baselines/<org>/<project>/<KEY>.json`) that
+  contains no credentials and is replaced only by another `--save-baseline`
+  — and reports every changed field with before/after (title, description,
+  status, priority, assignee, sprint, parent, labels, Attributes, due date,
+  and more; identity, volatile, server-computed, and social fields are
+  excluded and named in the output). `--since <revision>` reports the
+  revision delta plus the field changes the server records in the item's
+  activity feed with explicit `coverage: partial` and `historySupported:
+  false` — the Public API v1 exposes no revision snapshots, and the CLI
+  never fabricates a diff. Unchanged comparisons exit 0 with an explicit
+  no-changes result; `--fail-on-change` exits with the conflict exit code
+  (6) when differences exist. Human table rendering plus the versioned
+  `diffVersion: 1` document under `--json`.
+
 ### Fixed
 
 - The CLI no longer crashes with a stack overflow on Windows when built in

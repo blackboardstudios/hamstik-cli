@@ -321,7 +321,10 @@ pub(crate) fn supports_dry_run(command: &Command) -> bool {
             | crate::args::WorkCommand::Transitions { .. }
             | crate::args::WorkCommand::Watch(_)
             | crate::args::WorkCommand::Export(_)
-            | crate::args::WorkCommand::Activity { .. } => false,
+            | crate::args::WorkCommand::Activity { .. }
+            // `diff` is a read; its only write is a local baseline file
+            // (`--save-baseline`), which is not a server mutation to preview.
+            | crate::args::WorkCommand::Diff(_) => false,
             crate::args::WorkCommand::Watcher(args) => {
                 !matches!(args.command, crate::args::WorkWatcherCommand::Show { .. })
             }
