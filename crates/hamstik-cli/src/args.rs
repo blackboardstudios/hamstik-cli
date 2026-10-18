@@ -3621,8 +3621,9 @@ pub struct CompleteArgs {
     pub prefix: String,
 }
 
-/// Arguments for `commands`: the machine-readable command manifest, or the
-/// copy-pasteable API cookbook with `--cookbook`.
+/// Arguments for `commands`: the machine-readable command manifest, the
+/// stable exit-code reference with `--exit-codes`, or the copy-pasteable API
+/// cookbook with `--cookbook`.
 #[derive(Args, Debug)]
 pub struct CommandsArgs {
     /// Output format for the manifest.
@@ -3637,6 +3638,11 @@ pub struct CommandsArgs {
     /// Skill instead of the command manifest.
     #[arg(long)]
     pub cookbook: bool,
+    /// Print the stable exit-code reference (CLI-73) instead of the command
+    /// manifest: a human table by default, the versioned
+    /// `exitCodesVersion: 1` document under `--json`/`--format json`.
+    #[arg(long)]
+    pub exit_codes: bool,
 }
 
 /// Arguments for the `schedule` command group.

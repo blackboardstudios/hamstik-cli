@@ -9314,6 +9314,15 @@
      "help": "Print the copy-pasteable API cookbook derived from the bundled Agent Skill instead of the command manifest",
      "kind": "option",
      "long": "--cookbook"
+    },
+    {
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Print the stable exit-code reference (CLI-73) instead of the command manifest: a human table by default, the versioned `exitCodesVersion: 1` document under `--json`/`--format json`",
+     "kind": "option",
+     "long": "--exit-codes"
     }
    ],
    "capabilities": {
@@ -9324,7 +9333,8 @@
    "hasSubcommands": false,
    "options": [
     "--manifest-format",
-    "--cookbook"
+    "--cookbook",
+    "--exit-codes"
    ],
    "positionals": []
   },
@@ -9340,6 +9350,74 @@
    "hasSubcommands": false,
    "options": [],
    "positionals": []
+  }
+ ],
+ "exitCodes": [
+  {
+   "code": 0,
+   "meaning": "Command completed successfully.",
+   "name": "success",
+   "remediation": "No action needed."
+  },
+  {
+   "code": 1,
+   "meaning": "General/uncategorized failure.",
+   "name": "general",
+   "remediation": "Inspect the structured error on stderr and correct the cause before retrying."
+  },
+  {
+   "code": 2,
+   "meaning": "Usage error or invalid local command input.",
+   "name": "usage",
+   "remediation": "Check `hamstik <command> --help`; the error names the offending argument or value."
+  },
+  {
+   "code": 3,
+   "meaning": "Authentication failure (missing/invalid credential).",
+   "name": "authentication",
+   "remediation": "Refresh the credential with `hamstik auth login` or a new HAMSTIK_TOKEN; never retry blindly."
+  },
+  {
+   "code": 4,
+   "meaning": "Authorization or insufficient scope.",
+   "name": "authorization",
+   "remediation": "Request the missing scope or permission; do not switch identities silently."
+  },
+  {
+   "code": 5,
+   "meaning": "Resource not found.",
+   "name": "not_found",
+   "remediation": "Verify the resolved Organization/Project context and the identifier before concluding the resource does not exist."
+  },
+  {
+   "code": 6,
+   "meaning": "Conflict / concurrency / idempotency conflict.",
+   "name": "conflict",
+   "remediation": "Re-read the resource, reconcile the intended change, and retry only the merged change; never blind-retry with --force."
+  },
+  {
+   "code": 7,
+   "meaning": "Rate limited.",
+   "name": "rate_limited",
+   "remediation": "Honor the CLI's retry policy and the server's Retry-After; do not tight-loop."
+  },
+  {
+   "code": 8,
+   "meaning": "Network / transport failure.",
+   "name": "network",
+   "remediation": "Check connectivity, proxy, and host; the structured error names the earliest failing stage."
+  },
+  {
+   "code": 9,
+   "meaning": "Server / internal API failure.",
+   "name": "server",
+   "remediation": "Retry after a delay if the failure looks transient; correlate server-side diagnostics by request id (`hamstik replay`)."
+  },
+  {
+   "code": 10,
+   "meaning": "Local configuration or credential-store failure.",
+   "name": "configuration",
+   "remediation": "Run `hamstik doctor` and repair the local configuration or OS credential store."
   }
  ],
  "manifestVersion": 1

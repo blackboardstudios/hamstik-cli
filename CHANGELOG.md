@@ -10,6 +10,19 @@ before upgrading.
 
 ## [Unreleased]
 
+### Added
+
+- Machine-readable exit-code reference (CLI-73): `hamstik commands
+  --exit-codes` prints the stable exit-code table (0–10) with name, meaning,
+  and remediation as a human table, or the versioned `exitCodesVersion: 1`
+  document under `--json`/`--format json` — riding the shared `--fields`,
+  `--jq`, and output-mode contract. The same table is embedded in the
+  `commands --json` manifest as the additive `exitCodes` block, so one
+  manifest fetch yields both the command surface and the failure schema.
+  Every entry is generated from the same `exit` constants the error renderer
+  maps onto, so the table cannot drift from actual behavior, and contract
+  tests assert the eleven documented codes stay contiguous and named.
+
 ### Fixed
 
 - The CLI no longer crashes with a stack overflow on Windows when built in

@@ -6,11 +6,13 @@
 //! Deterministically derived from the authoritative clap command tree. The
 //! manifest covers every command and subcommand with its aliases, options,
 //! positional arguments, statically knowable enum choices, defaults, and
-//! per-command capability metadata (`--json`/`--no-input` support), and is
-//! stable input for the Agent Skill's command-surface validation and the
-//! generated reference documentation. With `--cookbook` the same command
-//! prints the copy-pasteable workflow examples instead (see
-//! [`super::cookbook`]).
+//! per-command capability metadata (`--json`/`--no-input` support), plus the
+//! stable exit-code reference (CLI-73) rendered from the same source the
+//! error renderer maps onto, and is stable input for the Agent Skill's
+//! command-surface validation and the generated reference documentation.
+//! With `--cookbook` the same command prints the copy-pasteable workflow
+//! examples instead (see [`super::cookbook`]); with `--exit-codes` it prints
+//! the human exit-code table (the versioned document under `--json`).
 
 use clap::CommandFactory;
 use serde_json::{Value, json};
@@ -21,6 +23,7 @@ use crate::error::CliError;
 
 use super::emit_json;
 use super::manifest;
+use super::render_list;
 
 /// The manifest envelope's schema version; bump on layout changes.
 pub(crate) const MANIFEST_VERSION: u64 = 1;
@@ -29,6 +32,14 @@ pub(crate) const MANIFEST_VERSION: u64 = 1;
 pub fn run(session: &mut Session<'_>, args: &CommandsArgs) -> Result<(), CliError> {
     if args.cookbook {
         return super::cookbook::run(session);
+    }
+    if args.exit_codes {
+        return render_list(
+            session,
+            &crate::exit_codes::document(),
+            &["code", "name", "meaning", "remediation"],
+            &crate::exit_codes::rows(),
+        );
     }
     let manifest = build()?;
     emit_json(session, &manifest)
@@ -136,6 +147,7 @@ pub(crate) fn build() -> Result<Value, CliError> {
     Ok(json!({
         "manifestVersion": MANIFEST_VERSION,
         "binary": "hamstik",
+        "exitCodes": crate::exit_codes::entries_json(),
         "commands": commands,
     }))
 }

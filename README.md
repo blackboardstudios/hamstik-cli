@@ -280,11 +280,15 @@ provides:
   config directory (reported by location and kind, never printed), and
   bundled OpenAPI snapshot freshness when online (skipped with `--offline` or
   when the live contract is unreachable);
-- a machine-readable command manifest (`hamstik commands --json`), a
-  copy-pasteable API cookbook (`hamstik commands --cookbook`) derived from
-  the bundled Agent Skill, and generated command reference + man pages under
-  [`docs/`](docs/reference) — regenerated deterministically with
-  `scripts/generate_docs.py` and drift-checked in CI;
+- a machine-readable command manifest (`hamstik commands --json`, which now
+  embeds the stable `exitCodes` block), the standalone exit-code reference
+  (`hamstik commands --exit-codes`: a human table, or the versioned
+  `exitCodesVersion: 1` document under `--json`, generated from the same
+  source the error renderer maps onto), a copy-pasteable API cookbook
+  (`hamstik commands --cookbook`) derived from the bundled Agent Skill, and
+  generated command reference + man pages under [`docs/`](docs/reference) —
+  regenerated deterministically with `scripts/generate_docs.py` and
+  drift-checked in CI;
 - cross-platform CI on Linux, Windows, and macOS.
 
 OAuth and the MCP server remain future work. The canonical portable Agent

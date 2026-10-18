@@ -19,6 +19,7 @@ pub mod editor;
 pub mod environment;
 pub mod error;
 pub mod exit;
+pub(crate) mod exit_codes;
 pub mod fsutil;
 pub mod input;
 pub mod journal;
