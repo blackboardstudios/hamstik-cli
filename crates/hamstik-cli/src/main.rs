@@ -21,6 +21,32 @@ use hamstik_cli::environment::SystemEnvironment;
 use hamstik_cli::input::TerminalInput;
 
 fn main() {
+    // Windows defaults the main thread to a 1 MiB stack, and debug builds of
+    // this clap-heavy CLI overflow it on some code paths (observed with
+    // large `--file` request bodies in the report/dashboard commands),
+    // aborting with STATUS_STACK_OVERFLOW before any diagnostic is printed.
+    // Unix main threads default to 8 MiB, so the behavior differed by
+    // platform and profile. Run the whole CLI on an explicitly sized thread
+    // everywhere: same behavior on Windows/macOS/Linux and in debug/release.
+    // Thread creation itself failing (or the worker panicking) preserves the
+    // default process behavior: run inline / mirror the panic exit code.
+    match std::thread::Builder::new()
+        .name("hamstik".to_string())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(boot)
+    {
+        Ok(handle) => {
+            if handle.join().is_err() {
+                // The panic message was already printed while unwinding;
+                // mirror the default panic exit code.
+                std::process::exit(101);
+            }
+        }
+        Err(_) => boot(),
+    }
+}
+
+fn boot() {
     // The CLI is strictly sequential: one command, no concurrency. A
     // current-thread runtime starts faster and carries no worker threads.
     let runtime = match tokio::runtime::Builder::new_current_thread()

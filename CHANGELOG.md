@@ -8,6 +8,19 @@ versioning follows [Semantic Versioning](https://semver.org/) as detailed in
 MINOR releases may contain breaking changes — read the *Breaking* notes
 before upgrading.
 
+## [Unreleased]
+
+### Fixed
+
+- The CLI no longer crashes with a stack overflow on Windows when built in
+  debug mode (the `cargo build` / `cargo test` profile). Windows defaults the
+  main thread to a 1 MiB stack and some code paths — observed with large
+  `--file` request bodies in the report/dashboard commands — exceeded it,
+  aborting with `STATUS_STACK_OVERFLOW` before any diagnostic. `hamstik` now
+  runs its full command dispatch on an explicitly 32 MiB thread on every
+  platform, making stack depth uniform across Windows/macOS/Linux and across
+  debug and release profiles. Release archives were never affected.
+
 ## [0.5.0] - 2026-10-18
 
 ### Changed
