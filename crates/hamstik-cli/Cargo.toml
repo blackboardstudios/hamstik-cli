@@ -51,7 +51,7 @@ base64 = { workspace = true }
 # JSON query support for --jq (embedded Rust implementation of jq filter language).
 # Only the jq/JSON standard library is enabled; the multi-format readers and
 # writers are unnecessary because the CLI already owns JSON serialization.
-jaq-all = { version = "0.3", default-features = false, features = ["std-all"] }
+jaq-all = { version = "0.4", default-features = false, features = ["std-all"] }
 
 # Byte string handling for jaq integration.
 bytes = { workspace = true }
